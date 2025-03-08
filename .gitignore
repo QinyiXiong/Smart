@@ -1,0 +1,63 @@
+# 忽略所有操作系统生成的文件
+.DS_Store
+Thumbs.db
+
+# IntelliJ IDEA
+*.iml
+.out/
+.idea/
+*.iws
+*.ipr
+
+# Eclipse
+.project
+.classpath
+.settings/
+
+# Maven
+target/
+.pom.xml.tag
+.pom.xml.releaseBackup
+.pom.xml.versionsBackup
+pom.xml.tag
+release.properties
+dependency-reduced-pom.xml
+
+# Gradle
+.gradle/
+build/
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Node.js and npm
+node_modules/
+npm-debug.log*
+yarn-error.log*
+yarn-debug.log*
+
+# Vue CLI 3+ projects (if using webpack)
+dist/
+.cache/
+*.lock
+
+# Environment variables
+.env.local
+.env.*.local
+
+# Docker
+.dockerenv
+Dockerfile.*
+.dockerignore
+
+# IDEs generated files
+*.swp
+*.swo
+*.swn
+._*
+
+# OS generated files
+.DS_Store
+Thumbs.db
