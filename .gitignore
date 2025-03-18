@@ -44,6 +44,7 @@ dist/
 *.lock
 
 # Environment variables
+.env
 .env.local
 .env.*.local
 

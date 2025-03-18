@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kemorebi.forum.mapper.TagMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.kemorebi.forum.model.entity.Tag">
+        <id column="tag_id" property="tagId" />
+        <result column="uid" property="uid" />
+        <result column="name" property="name" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        tag_id, uid, name
+    </sql>
+    <sql id="Tag_By_Aid">
+        t.tag_id, name
+    </sql>
+    <select id="getTagListByAid" resultType="com.kemorebi.forum.model.dto.TagDTO">
+        select
+            <include refid="Tag_By_Aid"/>
+        from forum_tag as t
+        inner join forum_article_tag as at
+        where t.tag_id=at.tag_id
+        and at.aid=#{aid}
+    </select>
+
+    <select id="countTagByUid" resultType="java.lang.Integer">
+        select count(*)
+        from forum_tag
+        where uid=#{uid}
+    </select>
+</mapper>
