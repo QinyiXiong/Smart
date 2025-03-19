@@ -1,0 +1,83 @@
+---
+spring:
+  profiles:
+    active: '@profileActive@'
+---
+spring:
+  thymeleaf:
+    prefix: classpath:/templates/
+    suffix: .html
+    mode: HTML
+    encoding: UTF-8
+    servlet:
+      content-type: text/html
+    cache: false
+  redis:
+    host: ${REDIS_HOST}
+    port: 6379
+    password: ${REDIS_PASSWORD}
+    database: ${REDIS_DATABASE}
+    timeout: 3000
+    jedis:
+      pool:
+        max-active: 8
+        max-wait: 1
+        max-idle: 500
+        min-idle: 0
+  datasource:
+    url: jdbc:mysql://${DB_HOST}:3306/forest?characterEncoding=UTF-8&autoReconnect=true&useSSL=false&serverTimezone=Asia/Shanghai&allowMultiQueries=true
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    resources:
+      add-mappings: true
+  mail:
+    host: ${MAIL_HOST} # 网站发送邮件邮箱服务 host
+    port: 465
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+  application:
+    name: forest
+wx:
+  open:
+    componentAppId: #
+    componentSecret: #
+    componentToken: #
+    componentAesKey: #
+  mp:
+    configs:
+      - appId: xxx #微信公众号消息服务器配置的 appId
+        secret: xxx #微信公众号消息服务器配置的 secret
+        token: xxx #微信公众号消息服务器配置的 token
+        aesKey: xxx #微信公众号消息服务器配置的 aesKey
+  miniapp:
+    configs:
+      - appid: #微信小程序消息服务器配置的 appid
+        secret: #微信小程序消息服务器配置的 secret
+        token: #微信小程序消息服务器配置的 token
+        aesKey: #微信小程序消息服务器配置的 EncodingAESKey
+        msgDataFormat: JSON
+env: dev
+logging:
+  file:
+    path: /logs/forest
+  level:
+    com:
+      rymcu: info
+server:
+  port: 8099
+  servlet:
+    context-path: /forest
+  max-http-header-size: 1048576
+  shutdown: graceful
+  tomcat:
+    reject-illegal-header: false
+version: 1.0
+resource:
+  domain: http://yourdomain.com #  网站域名，本地测试时填写前端项目访问地址即可
+  file-path: http://yourdomain.com # 上传文件前缀域名，本地测试时填写前端项目访问地址即可
+  pic-path: D:\Develop\codes_win\gitCode\forum\nebula\static # 上传文件存储地址，本地测试时填写前端项目路径下的 static 目录即可
+  answer-api-url: https://test.rymcu.com/subject/question
+openai:
+  token: # Open Ai Key
+
