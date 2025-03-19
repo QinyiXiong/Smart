@@ -6,3 +6,17 @@
 孙旭
 李一铭
 吴尤
+
+
+## env
+JDK1.8
+node v18.12.0
+
+### 前端
+
+npm install -g yarn
+yarn install
+yarn run dev
+yarn run build
+yarn run start
+yarn run generate
