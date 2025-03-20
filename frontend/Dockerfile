@@ -27,3 +27,13 @@ ENV NUXT_PORT=3000
 
 # 通过shell文件来执行多条命令
 CMD ["./pm2.sh"]
+
+# deploy
+yarn run dev
+
+# build for production and launch server
+yarn run build
+yarn run start
+
+# generate static project
+yarn run generate

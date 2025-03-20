@@ -6,9 +6,6 @@
     <el-main>
       <nuxt/>
     </el-main>
-    <el-footer height="5rem">
-      <footer-view/>
-    </el-footer>
     <div v-if="isPostArticle && isShow" style="position: fixed;bottom: 10vh;right: 3vw;">
       <el-col v-if="isPostArticle" :xs="0" :xl="24">
         <el-popover

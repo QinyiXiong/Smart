@@ -1,48 +1,5 @@
 <template>
   <el-row class="footer">
-    <el-col>
-      <el-col style="text-align: right;margin-bottom: 0.5rem;">
-        <el-col>
-          <span>{{ slogan }}</span>
-        </el-col>
-      </el-col>
-      <el-col :span="12" style="text-align: left;">
-        <el-link class="footer-link" rel="nofollow" :underline="false" :href="markdownGuide" target="_blank"
-                 style="vertical-align: baseline;"><span>Markdown 教程</span></el-link>
-        <el-link class="footer-link" rel="nofollow" :underline="false" :href="rules" target="_blank" style="vertical-align: baseline;">
-          <span>社区规章</span></el-link>
-        <el-link class="footer-link" rel="nofollow" :underline="false" :href="currencyRule" target="_blank"
-                 style="vertical-align: baseline;"><span>货币规则</span></el-link>
-        <el-link class="footer-link" rel="nofollow" :underline="false" :href="email" style="vertical-align: baseline;">
-          <span>意见反馈</span></el-link>
-        <el-link class="footer-link" rel="nofollow" :underline="false" :href="aboutMe" target="_blank"
-                 style="vertical-align: baseline;"><span>关于我们</span></el-link>
-        <el-link class="footer-link" rel="nofollow" :underline="false" :href="github" target="_blank" style="vertical-align: baseline;">
-          <span>GitHub</span></el-link>
-        <el-link class="footer-link" rel="nofollow" :underline="false" :href="gitee" target="_blank" style="vertical-align: baseline;">
-          <span>Gitee</span></el-link>
-      </el-col>
-      <el-col :span="12" style="text-align: right;">
-        <el-col>
-          <el-col class="row align-items-center">
-            <el-col class="col-auto">
-              Copyright © {{new Date().getFullYear()}}
-              <el-link rel="nofollow" :underline="false" href="/" style="vertical-align: baseline;"><span>{{
-                  systemName
-                }}</span>
-              </el-link>
-              .
-              <el-link rel="nofollow" :underline="false" :href="wangBeiUrl" target="_blank" style="vertical-align: baseline;padding-left: 10px;"><img
-                :src="wangBeiImage" style="float:left;"/><span style="padding-left: 3px;">{{ wangBei }}</span>
-              </el-link>
-              <el-link rel="nofollow" :underline="false" href="https://beian.miit.gov.cn/" target="_blank"
-                       style="vertical-align: baseline;padding-left: 10px;"><span>{{ beiAn }}</span>
-              </el-link>
-            </el-col>
-          </el-col>
-        </el-col>
-      </el-col>
-    </el-col>
   </el-row>
 </template>
 
