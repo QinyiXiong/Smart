@@ -90,7 +90,7 @@ public class JwtFilter extends BasicHttpAuthenticationFilter {
     }
 
     @Override
-    protected boolean onAccessDenied(ServletRequest request, ServletResponse response) {
+    public boolean onAccessDenied(ServletRequest request, ServletResponse response) {
         if (isLoginAttempt(request, response)) {
             try {
                 return executeLogin(request, response);
@@ -118,6 +118,7 @@ public class JwtFilter extends BasicHttpAuthenticationFilter {
             httpServletResponse.setStatus(HttpStatus.OK.value());
             return false;
         }
+    
         return super.preHandle(request, response);
     }
 

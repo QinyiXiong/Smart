@@ -30,7 +30,7 @@
 
 <script>
 export default {
-  name: "announcementList",
+  name: "mentList",
   props: {
     announcements: {
       type: Object
