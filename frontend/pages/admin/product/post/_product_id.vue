@@ -435,13 +435,13 @@ export default {
     window.onbeforeunload = null;
   },
   async mounted() {
-    window.addEventListener('beforeunload', e => {
-      e = e || window.event;
-      if (e) {
-        e.returnValue = '关闭提示';
-      }
-      return '关闭提示';
-    });
+    // window.addEventListener('beforeunload', e => {
+    //   e = e || window.event;
+    //   if (e) {
+    //     e.returnValue = '关闭提示';
+    //   }
+    //   return '关闭提示';
+    // });
     let _ts = this;
     _ts.$store.commit('setActiveMenu', 'admin-product-post-product_id');
     const responseData = await _ts.$axios.$get('/api/upload/token');

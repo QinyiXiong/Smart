@@ -118,7 +118,7 @@ public class JwtFilter extends BasicHttpAuthenticationFilter {
             httpServletResponse.setStatus(HttpStatus.OK.value());
             return false;
         }
-    
+
         return super.preHandle(request, response);
     }
 

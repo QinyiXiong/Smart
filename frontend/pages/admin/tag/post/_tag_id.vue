@@ -249,17 +249,17 @@ export default {
     window.onbeforeunload = null;
   },
   async mounted() {
-    window.addEventListener('beforeunload', e => {
-      e = e || window.event;
+    // window.addEventListener('beforeunload', e => {
+    //   e = e || window.event;
 
-      // 兼容IE8和Firefox 4之前的版本
-      if (e) {
-        e.returnValue = '关闭提示';
-      }
+    //   // 兼容IE8和Firefox 4之前的版本
+    //   if (e) {
+    //     e.returnValue = '关闭提示';
+    //   }
 
-      // Chrome, Safari, Firefox 4+, Opera 12+ , IE 9+
-      return '关闭提示';
-    });
+    //   // Chrome, Safari, Firefox 4+, Opera 12+ , IE 9+
+    //   return '关闭提示';
+    // });
     let _ts = this;
     const responseData = await _ts.$axios.$get('/api/upload/simple/token');
     if (responseData) {

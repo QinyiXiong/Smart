@@ -278,17 +278,17 @@ export default {
     window.onbeforeunload = null;
   },
   mounted() {
-    window.addEventListener('beforeunload', e => {
-      e = e || window.event;
+    // window.addEventListener('beforeunload', e => {
+    //   e = e || window.event;
 
-      // 兼容IE8和Firefox 4之前的版本
-      if (e) {
-        e.returnValue = '关闭提示';
-      }
+    //   // 兼容IE8和Firefox 4之前的版本
+    //   if (e) {
+    //     e.returnValue = '关闭提示';
+    //   }
 
-      // Chrome, Safari, Firefox 4+, Opera 12+ , IE 9+
-      return '关闭提示';
-    });
+    //   // Chrome, Safari, Firefox 4+, Opera 12+ , IE 9+
+    //   return '关闭提示';
+    // });
     let _ts = this;
     _ts.$axios.$get('/api/upload/simple/token').then(function (res) {
       if (res) {
