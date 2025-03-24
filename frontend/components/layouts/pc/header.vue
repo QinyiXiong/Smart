@@ -8,11 +8,28 @@
     <el-col :md="14" :span="10" :xs="0" style="max-height: 58px;overflow: hidden">
       <el-menu :default-active="activeMenu" @select="handleSelectMenu" mode="horizontal"
                style="margin-top: -2px;border: 0;">
-        <el-menu-item index="index">首页</el-menu-item>
-        <el-menu-item index="topic">专题</el-menu-item>
+        <!-- <el-menu-item index="index">论坛</el-menu-item> -->
+        <!-- <el-menu-item index="topic">专题</el-menu-item> -->
+        <!-- <el-menu-item index="portfolios">作品集</el-menu-item> -->
+        <!-- <el-menu-item index="products">产品</el-menu-item>
+        <el-menu-item index="open-data">开放数据</el-menu-item> -->
+
+       <!-- 模拟面试官主菜单 -->
+       <el-submenu index="interview">
+        <template slot="title">模拟面试官</template>
+        <el-menu-item index="interview-simulate">模拟面试</el-menu-item>
+        <el-menu-item index="interview-officer">我的面试官</el-menu-item>
+        <el-menu-item index="interview-record">面试记录</el-menu-item>
+      </el-submenu>
+      <!-- 社区主菜单 -->
+      <el-submenu index="community">
+        <template slot="title">社区</template>
+        <el-menu-item index="hot-posts">热门</el-menu-item>
+        <el-menu-item index="my-follow">我的关注</el-menu-item>
         <el-menu-item index="portfolios">作品集</el-menu-item>
-        <el-menu-item index="products">产品</el-menu-item>
-        <el-menu-item index="open-data">开放数据</el-menu-item>
+      </el-submenu>
+
+      
       </el-menu>
     </el-col>
 
@@ -49,7 +66,7 @@
           </el-popover>
 
           <el-link :underline="false" href="/portfolio/post" rel="nofollow"
-                   style="padding-left: 10px;padding-right: 10px;">创建作品集
+                   style="padding-left: 10px;padding-right: 10px;">创建专题
           </el-link>
           <el-link :underline="false" href="/article/post" rel="nofollow"
                    style="padding-left: 10px;padding-right: 10px;">发帖
@@ -89,10 +106,10 @@
                   </el-link>
                 </el-dropdown-item>
                 <el-dropdown-item command="user">个人中心</el-dropdown-item>
-                <el-dropdown-item command="answer" v-if="$auth.user.bankAccount">每日一题</el-dropdown-item>
-                <el-dropdown-item command="answer" v-else :disabled="true">每日一题<small>(开通钱包账号激活)</small></el-dropdown-item>
+                <!-- <el-dropdown-item command="answer" v-if="$auth.user.bankAccount">每日一题</el-dropdown-item>
+                <el-dropdown-item command="answer" v-else :disabled="true">每日一题<small>(开通钱包账号激活)</small></el-dropdown-item> -->
                 <el-dropdown-item command="drafts" divided>我的草稿</el-dropdown-item>
-                <el-dropdown-item command="wallet">我的钱包</el-dropdown-item>
+                <!-- <el-dropdown-item command="wallet">我的钱包</el-dropdown-item> -->
                 <el-dropdown-item command="yuumi">Yuumi(ChatGPT)</el-dropdown-item>
                 <el-dropdown-item command="user-info" divided>设置</el-dropdown-item>
                 <el-dropdown-item command="admin-dashboard" v-if="hasPermissions">系统管理</el-dropdown-item>
@@ -236,7 +253,7 @@ export default {
           break;
         case 'yuumi':
           _ts.$router.push({
-            path: '/chats/yuumi'
+            path: '/chats/App'
           })
           break;
         case 'logout':
