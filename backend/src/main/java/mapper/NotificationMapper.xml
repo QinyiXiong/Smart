@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
-<mapper namespace="com.rymcu.forest.mapper.NotificationMapper">
-    <resultMap id="BaseResultMapper" type="com.rymcu.forest.entity.Notification">
+<mapper namespace="com.sdumagicode.backend.mapper.NotificationMapper">
+    <resultMap id="BaseResultMapper" type="com.sdumagicode.backend.entity.Notification">
         <id column="id" property="idNotification"></id>
         <result column="id_user" property="idUser"></result>
         <result column="data_type" property="dataType"></result>
@@ -10,7 +10,7 @@
         <result column="has_read" property="hasRead"></result>
         <result column="created_time" property="createdTime"></result>
     </resultMap>
-    <resultMap id="DTOResultMapper" type="com.rymcu.forest.dto.NotificationDTO">
+    <resultMap id="DTOResultMapper" type="com.sdumagicode.backend.dto.NotificationDTO">
         <id column="id" property="idNotification"></id>
         <result column="id_user" property="idUser"></result>
         <result column="data_type" property="dataType"></result>

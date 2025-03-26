@@ -9,7 +9,7 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.rymcu</groupId>
-    <artifactId>forest</artifactId>
+    <artifactId>backend</artifactId>
     <version>0.0.5</version>
     <packaging>war</packaging>
     <name>forest</name>
@@ -111,6 +111,10 @@
             <groupId>org.mybatis.spring.boot</groupId>
             <artifactId>mybatis-spring-boot-starter</artifactId>
             <version>3.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/com.mysql/mysql-connector-j -->

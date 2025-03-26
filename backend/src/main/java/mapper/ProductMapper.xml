@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.rymcu.forest.mapper.ProductMapper">
-    <resultMap id="DTOResultMap" type="com.rymcu.forest.dto.ProductDTO">
+<mapper namespace="com.sdumagicode.backend.mapper.ProductMapper">
+    <resultMap id="DTOResultMap" type="com.sdumagicode.backend.dto.ProductDTO">
         <id column="id" property="idProduct"></id>
         <result column="product_title" property="productTitle"></result>
         <result column="product_img_url" property="productImgUrl"></result>

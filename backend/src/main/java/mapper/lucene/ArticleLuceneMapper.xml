@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
-<mapper namespace="com.rymcu.forest.lucene.mapper.ArticleLuceneMapper">
-    <resultMap id="BaseResultMap" type="com.rymcu.forest.lucene.model.ArticleLucene">
+<mapper namespace="com.sdumagicode.backend.lucene.mapper.ArticleLuceneMapper">
+    <resultMap id="BaseResultMap" type="com.sdumagicode.backend.lucene.model.ArticleLucene">
         <id column="id" property="idArticle" jdbcType="INTEGER"/>
         <result column="article_title" property="articleTitle" jdbcType="VARCHAR"/>
     </resultMap>
-    <resultMap id="ResultMapWithBLOBs" type="com.rymcu.forest.lucene.model.ArticleLucene" extends="BaseResultMap">
+    <resultMap id="ResultMapWithBLOBs" type="com.sdumagicode.backend.lucene.model.ArticleLucene" extends="BaseResultMap">
         <result column="article_content" property="articleContent" jdbcType="LONGVARCHAR"/>
     </resultMap>
-    <resultMap id="DTOResultMap" type="com.rymcu.forest.dto.ArticleDTO">
+    <resultMap id="DTOResultMap" type="com.sdumagicode.backend.dto.ArticleDTO">
         <result column="id" property="idArticle"></result>
         <result column="article_title" property="articleTitle"></result>
         <result column="article_thumbnail_url" property="articleThumbnailUrl"></result>

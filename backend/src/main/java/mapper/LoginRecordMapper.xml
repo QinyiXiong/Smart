@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
-<mapper namespace="com.rymcu.forest.mapper.LoginRecordMapper">
-    <resultMap id="BaseResultMap" type="com.rymcu.forest.entity.LoginRecord">
+<mapper namespace="com.sdumagicode.backend.mapper.LoginRecordMapper">
+    <resultMap id="BaseResultMap" type="com.sdumagicode.backend.entity.LoginRecord">
         <result column="id" property="id"></result>
         <result column="id_user" property="idUser"></result>
         <result column="login_ip" property="loginIp"></result>

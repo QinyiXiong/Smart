@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.rymcu.forest.mapper.ForestFileMapper">
-    <resultMap id="BaseResultMap" type="com.rymcu.forest.entity.ForestFile">
+<mapper namespace="com.sdumagicode.backend.mapper.ForestFileMapper">
+    <resultMap id="BaseResultMap" type="com.sdumagicode.backend.entity.ForestFile">
         <id column="id" property="id"/>
         <id column="file_size" property="fileSize"/>
         <id column="file_type" property="fileType"/>

@@ -1,5 +1,8 @@
 publicKey: MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBANbY1W9TXU+OdseRBVw5/eq1rs5UVQZie5ydEPYIurRzF4oBORu/+Sjqt+c5mHulleuiD4Yov+0e/CXODg4FYu8CAwEAAQ==
 spring:
+  data:
+    mongodb:
+      uri: mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}:${MONGO_PORT}/${MONGO_DATABASE}?authSource=${MONGO_AUTH_DATABASE}
   thymeleaf:
     prefix: classpath:/templates/
     suffix: .html
