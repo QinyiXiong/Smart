@@ -13,7 +13,7 @@ public final class ProjectConstant {
     /**
      * 项目基础包名称，根据自己公司的项目修改
      */
-    public static final String BASE_PACKAGE = "com.rymcu.forest";
+    public static final String BASE_PACKAGE = "com.sdumagicode.backend";
     /**
      * DTO所在包
      */
