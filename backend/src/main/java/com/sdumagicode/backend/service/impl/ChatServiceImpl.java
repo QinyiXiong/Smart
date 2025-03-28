@@ -1,5 +1,6 @@
 package com.sdumagicode.backend.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.sdumagicode.backend.core.service.AbstractService;
 import com.sdumagicode.backend.entity.chat.ChatRecords;
 import com.sdumagicode.backend.mapper.ChatMapper;
@@ -17,6 +18,11 @@ public class ChatServiceImpl extends AbstractService<ChatRecords> implements Cha
 
     @Override
     public List<ChatRecords> getChatRecords(ChatRecords chatRecords) {
-        return null;
+        LambdaQueryWrapper<ChatRecords> lqw = new LambdaQueryWrapper<>();
+        lqw.eq(ChatRecords::getUserId,chatRecords.getUserId());
+        lqw.eq(ChatRecords::getInterviewerId,chatRecords.getInterviewerId());
+
+
+        return chatMapper.selectByCondition(lqw);
     }
 }

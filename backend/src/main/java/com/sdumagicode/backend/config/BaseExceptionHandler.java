@@ -41,9 +41,11 @@ public class BaseExceptionHandler {
         if (isAjax(request)) {
             GlobalResult<ResultCode> result = new GlobalResult<>();
             if (ex instanceof UnauthenticatedException) {
+                ex.printStackTrace();
                 result = new GlobalResult<>(ResultCode.UNAUTHENTICATED);
                 logger.info("token错误");
             } else if (ex instanceof UnauthorizedException) {
+                ex.printStackTrace();
                 result = new GlobalResult<>(ResultCode.UNAUTHORIZED);
                 logger.info("用户无权限");
             } else if (ex instanceof UnknownAccountException) {
@@ -94,6 +96,7 @@ public class BaseExceptionHandler {
             FastJsonView view = new FastJsonView();
             Map<String, Object> attributes = new HashMap(2);
             if (ex instanceof UnauthenticatedException) {
+                ex.printStackTrace();
                 attributes.put("code", ResultCode.UNAUTHENTICATED.getCode());
                 attributes.put("message", ResultCode.UNAUTHENTICATED.getMessage());
             } else if (ex instanceof UnauthorizedException) {

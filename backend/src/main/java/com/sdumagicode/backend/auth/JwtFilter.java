@@ -6,6 +6,7 @@ import com.sdumagicode.backend.core.result.ResultCode;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureException;
+import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.shiro.authz.UnauthenticatedException;
@@ -18,6 +19,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 /**
@@ -58,7 +60,11 @@ public class JwtFilter extends BasicHttpAuthenticationFilter {
         // 验证token
         Claims claims;
         try {
-            claims = Jwts.parser().setSigningKey(JwtConstants.JWT_SECRET).parseClaimsJws(authorization).getBody();
+            claims = Jwts.parserBuilder()
+                    .setSigningKey(Keys.hmacShaKeyFor(JwtConstants.JWT_SECRET.getBytes(StandardCharsets.UTF_8)))
+                    .build()
+                    .parseClaimsJws(authorization)
+                    .getBody();
         } catch (final SignatureException e) {
             throw new UnauthenticatedException();
         }

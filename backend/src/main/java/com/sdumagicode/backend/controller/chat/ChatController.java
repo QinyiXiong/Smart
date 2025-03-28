@@ -2,8 +2,11 @@ package com.sdumagicode.backend.controller.chat;
 
 import com.sdumagicode.backend.core.exception.ServiceException;
 import com.sdumagicode.backend.core.result.GlobalResult;
+import com.sdumagicode.backend.core.result.GlobalResultGenerator;
 import com.sdumagicode.backend.entity.chat.ChatRecords;
+import com.sdumagicode.backend.service.ChatService;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,6 +19,9 @@ import java.util.List;
 @RequiresPermissions(value = "user")
 public class ChatController {
 
+    @Autowired
+    private ChatService chatService;
+
     @PostMapping("/getChatRecords")
     public GlobalResult<List<ChatRecords>> getChatRecords(@RequestBody ChatRecords chatRecords){
         if(chatRecords.getUserId() == null || chatRecords.getInterviewerId() == null){
@@ -23,6 +29,6 @@ public class ChatController {
         }
 
 
-        return null;
+        return GlobalResultGenerator.genSuccessResult(chatService.getChatRecords(chatRecords));
     }
 }

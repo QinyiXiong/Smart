@@ -9,7 +9,7 @@ public class JwtConstants {
     /**
      * 上线需要变更
      */
-    public static final String JWT_SECRET = "JYJ5Qv2WF4lA6jPl5GKuAG";
+    public static final String JWT_SECRET = "p1yrwpSVRjG+ggmVfwSRauGSNhMqc8Lv3UrxL9r1kPU=";
 
     public static final String AUTHORIZATION = "Authorization";
     public static final String UPLOAD_TOKEN = "X-Upload-Token";

@@ -9,9 +9,12 @@ import com.sdumagicode.backend.mapper.UserMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureException;
+import io.jsonwebtoken.security.Keys;
 import org.apache.commons.lang.StringUtils;
 import org.apache.shiro.authz.UnauthenticatedException;
 
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
 /**
@@ -22,6 +25,7 @@ public class UserUtils {
     private static final UserMapper userMapper = SpringContextHolder.getBean(UserMapper.class);
     private static final TokenManager tokenManager = SpringContextHolder.getBean(TokenManager.class);
 
+    private static final SecretKey key = Keys.hmacShaKeyFor(JwtConstants.JWT_SECRET.getBytes(StandardCharsets.UTF_8));
     /**
      * 通过token获取当前用户的信息
      *
@@ -35,7 +39,11 @@ public class UserUtils {
         // 验证token
         Claims claims;
         try {
-            claims = Jwts.parser().setSigningKey(JwtConstants.JWT_SECRET).parseClaimsJws(authHeader).getBody();
+            claims = Jwts.parserBuilder()
+                    .setSigningKey(key)  // 设置密钥
+                    .build()             // 构建解析器
+                    .parseClaimsJws(authHeader)  // 解析 JWT
+                    .getBody();
         } catch (final SignatureException e) {
             throw new UnauthenticatedException();
         }
@@ -57,7 +65,12 @@ public class UserUtils {
             // 验证token
             Claims claims;
             try {
-                claims = Jwts.parser().setSigningKey(JwtConstants.JWT_SECRET).parseClaimsJws(token).getBody();
+
+                claims = Jwts.parserBuilder()
+                        .setSigningKey(key)  // 设置密钥
+                        .build()             // 构建解析器
+                        .parseClaimsJws(token)  // 解析 JWT
+                        .getBody();
             } catch (final SignatureException e) {
                 throw new UnauthenticatedException();
             }
