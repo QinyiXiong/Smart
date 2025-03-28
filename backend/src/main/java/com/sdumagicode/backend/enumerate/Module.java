@@ -9,5 +9,6 @@ package com.sdumagicode.backend.enumerate;
 public enum Module {
     ARTICLE,
     PORTFOLIO,
+    PROBLEM,
     ARTICLE_TAG;
 }

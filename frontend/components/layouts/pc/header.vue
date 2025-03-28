@@ -21,6 +21,12 @@
         <el-menu-item index="interview-officer">我的面试官</el-menu-item>
         <el-menu-item index="interview-record">面试记录</el-menu-item>
       </el-submenu>
+      <!-- OJ主菜单 -->
+      <el-submenu index="oj">
+        <template slot="title">OJ题库</template>
+        <el-menu-item index="oj">题目列表</el-menu-item>
+        <el-menu-item index="oj-add">添加题目</el-menu-item>
+      </el-submenu>
       <!-- 社区主菜单 -->
       <el-submenu index="community">
         <template slot="title">社区</template>
@@ -29,7 +35,9 @@
         <el-menu-item index="portfolios">作品集</el-menu-item>
       </el-submenu>
 
-      
+
+
+
       </el-menu>
     </el-col>
 
@@ -228,6 +236,16 @@ export default {
         case 'open-data':
           _ts.$router.push({
             path: '/open-data'
+          })
+          break;
+        case 'oj':
+          _ts.$router.push({
+            path: '/oj'
+          })
+          break;
+        case 'oj-add':
+          _ts.$router.push({
+            path: '/oj/add'
           })
           break;
         default:
