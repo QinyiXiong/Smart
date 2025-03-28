@@ -5,7 +5,7 @@ import org.springframework.data.annotation.Id;
 import java.util.Date;
 
 @Data
-public class Message {
+public class MessageLocal {
 
     @Id
     private String id;

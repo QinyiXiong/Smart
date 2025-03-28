@@ -27,4 +27,8 @@ public class ChatRecords {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "topic")
+    private String topic;
+
 }

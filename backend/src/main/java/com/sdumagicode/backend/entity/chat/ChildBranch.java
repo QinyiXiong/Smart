@@ -7,16 +7,9 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.util.List;
 
 @Data
-@Document(collection = "branches")
 public class ChildBranch {
     @Id
-    private String id;
-
     private String branchId;
-    private String conversationId;
-    private String userId;
+    private String tag;
 
-    private List<Message> messages;
-    private String parentBranchId;
-    private List<ChildBranch> children;
 }
