@@ -2,8 +2,10 @@ package com.sdumagicode.backend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.sdumagicode.backend.core.service.AbstractService;
+import com.sdumagicode.backend.entity.chat.Branch;
 import com.sdumagicode.backend.entity.chat.ChatRecords;
 import com.sdumagicode.backend.mapper.ChatMapper;
+import com.sdumagicode.backend.mapper.mongoRepo.BranchRepository;
 import com.sdumagicode.backend.service.ChatService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,9 @@ public class ChatServiceImpl extends AbstractService<ChatRecords> implements Cha
     @Autowired
     private ChatMapper chatMapper;
 
+    @Autowired
+    private BranchRepository branchRepository;
+
     @Override
     public List<ChatRecords> getChatRecords(ChatRecords chatRecords) {
         LambdaQueryWrapper<ChatRecords> lqw = new LambdaQueryWrapper<>();
@@ -24,5 +29,10 @@ public class ChatServiceImpl extends AbstractService<ChatRecords> implements Cha
 
 
         return chatMapper.selectByCondition(lqw);
+    }
+
+    @Override
+    public List<Branch> getAllBranches(ChatRecords chatRecords) {
+        return branchRepository.findByChatId(chatRecords.getChatId()+"");
     }
 }
