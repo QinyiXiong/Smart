@@ -1,20 +1,19 @@
 package com.sdumagicode.backend.controller.chat;
 
+import com.alibaba.dashscope.app.ApplicationOutput;
 import com.sdumagicode.backend.core.exception.ServiceException;
 import com.sdumagicode.backend.core.result.GlobalResult;
 import com.sdumagicode.backend.core.result.GlobalResultGenerator;
-import com.sdumagicode.backend.entity.chat.Branch;
-import com.sdumagicode.backend.entity.chat.ChatRecords;
-import com.sdumagicode.backend.entity.chat.Interviewer;
-import com.sdumagicode.backend.entity.chat.MessageLocal;
+import com.sdumagicode.backend.dto.chat.MessageFileDto;
+import com.sdumagicode.backend.entity.chat.*;
 import com.sdumagicode.backend.service.ChatService;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import reactor.core.publisher.Flux;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -24,6 +23,7 @@ public class ChatController {
 
     @Autowired
     private ChatService chatService;
+
 
     @PostMapping("/getChatRecords")
     public GlobalResult<List<ChatRecords>> getChatRecords(@RequestBody ChatRecords chatRecords){
@@ -44,8 +44,27 @@ public class ChatController {
     }
 
     @PostMapping("/sendMessage")
-    public GlobalResult<MessageLocal> sendMessage(@RequestBody List<MessageLocal> messageList, @RequestBody Interviewer interviewer){
-        return null;
+    public Flux<GlobalResult<ApplicationOutput>> sendMessage(@RequestBody List<MessageLocal> messageList, @RequestBody Interviewer interviewer){
+        if(messageList == null||messageList.isEmpty()){
+            throw  new ServiceException("缺少发送信息");
+        }
 
+        if(interviewer == null){
+            throw new ServiceException("未设置面试官");
+        }
+
+
+        return chatService.sendMessageToInterviewerAndGetFlux(messageList,interviewer);
+
+    }
+
+    @PostMapping("/saveBranches")
+    public GlobalResult saveBranches(@RequestBody List<Branch> branchList){
+
+    }
+
+    @PostMapping("/uploadMessageFile")
+    public GlobalResult<MessageFileDto> convertMessage(@RequestParam("file") MultipartFile file) throws IOException {
+        return GlobalResultGenerator.genSuccessResult(chatService.convertMessageFile(file));
     }
 }

@@ -8,18 +8,22 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+//关联中间表
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("ai_settings") // 指定表名
-public class AiSettings {
+@TableName("interviewer_ai_settings")
+public class InterviewerAiSetting {
 
-    @TableId(type = IdType.AUTO) // 主键自增
-    private Integer id;
+    @TableId(type = IdType.AUTO)
+    private Long id;
 
-    @TableField("setting_name") // 字段名映射
-    private String settingName;
+    @TableField("interviewer_id")
+    private Long interviewerId;
 
-    @TableField("description")
-    private String description;
+    @TableField("ai_setting_id")
+    private Integer aiSettingId;
+
+    @TableField("setting_value")
+    private Integer settingValue;
 }

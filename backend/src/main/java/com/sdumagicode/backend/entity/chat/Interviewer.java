@@ -1,22 +1,36 @@
 package com.sdumagicode.backend.entity.chat;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 import java.util.Map;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@TableName("interviewer")
 public class Interviewer {
 
+    @TableId(type = IdType.AUTO)
     private Long interviewerId;
 
+    @TableField("user_id")
     private Long userId;
 
-    //是否使用系统默认题目库（如果指定了数据库Id，则使用用户自定义的知识库）
+    @TableField("data_base_id")
     private String dataBaseId;
 
-    //该面试官使用的提示词模板，包含变量文本
+    @TableField("prompt_template")
     private String promptTemplate;
 
-    private List<Map.Entry<AiSettings,Integer>> settingsList;
+    // 复杂类型需要特殊处理，MyBatis-Plus默认不支持直接映射
+    // 方案：使用@TableField(exist = false)标注为非表字段，自行处理
+    @TableField(exist = false)
+    private List<Map.Entry<AiSettings, Integer>> settingsList;
 }

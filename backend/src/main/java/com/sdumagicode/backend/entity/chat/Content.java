@@ -1,11 +1,15 @@
 package com.sdumagicode.backend.entity.chat;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
-import org.apache.tomcat.jni.FileInfo;
+import lombok.NoArgsConstructor;
+
 
 import java.util.List;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Content {
 
     private String text;

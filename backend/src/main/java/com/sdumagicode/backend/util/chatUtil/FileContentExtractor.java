@@ -1,4 +1,4 @@
-package com.sdumagicode.backend.util;
+package com.sdumagicode.backend.util.chatUtil;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;

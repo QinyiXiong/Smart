@@ -11,7 +11,7 @@ import java.net.URLEncoder;
 /**
  * 文件操作工具类
  *
- * @author 张代浩
+ *
  */
 public class FileUtils {
 
