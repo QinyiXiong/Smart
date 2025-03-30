@@ -60,7 +60,7 @@ public class ChatController {
 
     @PostMapping("/saveBranches")
     public GlobalResult saveBranches(@RequestBody List<Branch> branchList){
-
+        return null;
     }
 
     @PostMapping("/uploadMessageFile")
