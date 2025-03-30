@@ -25,7 +25,7 @@ spring:
         min-idle: 0
   datasource:
     druid:
-      url: jdbc:mysql://${DB_HOST}:3306/forest?characterEncoding=UTF-8&autoReconnect=true&useSSL=false&serverTimezone=Asia/Shanghai&allowMultiQueries=true
+      url: jdbc:mysql://${DB_HOST}:3306/forest?characterEncoding=UTF-8&autoReconnect=true&useSSL=false&serverTimezone=Asia/Shanghai&allowMultiQueries=true&allowPublicKeyRetrieval=true
       username: ${DB_USERNAME}
       password: ${DB_PASSWORD}
       driver-class-name: com.mysql.cj.jdbc.Driver

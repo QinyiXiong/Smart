@@ -14,13 +14,11 @@ public class ChatTest {
     public static void appCall()
             throws ApiException, NoApiKeyException, InputRequiredException {
         List<Message> messages = new ArrayList<>();
-        List<String> piplines = new ArrayList<>();
-        piplines.add("mi4d2m3jix");
-        messages.add(Message.builder().role("system").content("You are a helpful assistant.# 知识库\n" +
-                "请记住以下材料，他们可能对回答问题有帮助。\n" +
-                "百炼系列手机产品介绍").build());
-        messages.add(Message.builder().role("user").content("请帮我推荐一款3000元以下的百炼手机").build());
 
+        messages.add(Message.builder().role("system").content("You are a helpful assistant.").build());
+        messages.add(Message.builder().role("user").content("你是谁？").build());
+        messages.add(Message.builder().role("assistant").content("我是阿里云开发的大规模语言模型，我叫通义千问。").build());
+        messages.add(Message.builder().role("user").content("你能做什么？").build());
 
         ApplicationParam param = ApplicationParam.builder()
                 // 若没有配置环境变量，可用百炼API Key将下行替换为：.apiKey("sk-xxx")。但不建议在生产环境中直接将API Key硬编码到代码中，以减少API Key泄露风险。
@@ -28,10 +26,6 @@ public class ChatTest {
                 .appId("dcb40adf51d04a3d82b75d8f316a6140")
                 .incrementalOutput(false)
                 .hasThoughts(true)
-                .ragOptions(RagOptions.builder()
-                        // 替换为实际指定的知识库ID，逗号隔开多个
-                        .pipelineIds(piplines)
-                        .build())
                 .messages(messages)
                 .build();
 
