@@ -18,6 +18,7 @@ import com.sdumagicode.backend.util.UserUtils;
 import com.sdumagicode.backend.util.chatUtil.ChatUtil;
 import com.sdumagicode.backend.util.chatUtil.FileUploadUtil;
 import com.sdumagicode.backend.util.chatUtil.InterviewerPromptGenerator;
+import com.sdumagicode.backend.util.embeddingUtil.MilvusClient;
 import io.reactivex.Flowable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,9 @@ public class ChatServiceImpl extends AbstractService<ChatRecords> implements Cha
 
     @Autowired
     FileAnalysisService fileAnalysisService;
+
+    @Autowired
+    MilvusClient milvusClient;
 
     @Override
     public List<ChatRecords> getChatRecords(ChatRecords chatRecords) {
@@ -63,8 +67,10 @@ public class ChatServiceImpl extends AbstractService<ChatRecords> implements Cha
                     ChatUtil.AppType.INTERVIEWER,
                     Prompt);
 
+
             // 2. 调用AI接口并转换为Flux流
             Flowable<ApplicationResult> aiStream = chatUtil.streamCall(messageList);
+
 
             // 3. 将Flowable转换为Flux并包装成GlobalResult
             return Flux.from(aiStream)
@@ -91,6 +97,13 @@ public class ChatServiceImpl extends AbstractService<ChatRecords> implements Cha
 
     @Override
     public Flux<GlobalResult<ApplicationOutput>> sendMessageToInterviewerAndGetFlux(List<MessageLocal> messageList, Interviewer interviewer) {
+        //对用户最后一条信息进行RAG搜索
+        MessageLocal messageLocal = messageList.get(messageList.size() - 1);
+
+        Long idUser = UserUtils.getCurrentUserByToken().getIdUser();
+        milvusClient.buildRAGContent(idUser,interviewer.getKnowledgeBaseId(),messageLocal.getContent().getText(),5);
+
+
         return sendMessageAndGetFlux(messageList,InterviewerPromptGenerator.generatePrompt(interviewer));
     }
 

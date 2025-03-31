@@ -16,6 +16,8 @@ public class MilvusDatabase {
     @Id
     private String knowledgeBaseId;
 
+    private String databaseName;
+
     private Long userId;
 
     private List<MilvusFile> fileList;

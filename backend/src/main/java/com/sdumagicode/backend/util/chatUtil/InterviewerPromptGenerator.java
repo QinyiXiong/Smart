@@ -6,6 +6,6 @@ public class InterviewerPromptGenerator {
 
 
     public static String generatePrompt(Interviewer interviewer){
-        return interviewer.getPromptTemplate();
+        return interviewer.getCustomPrompt() + interviewer.getPromptTemplate();
     }
 }

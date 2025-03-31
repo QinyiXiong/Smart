@@ -32,7 +32,7 @@ public class MilvusClient {
 
     private static final int VECTOR_DIM = 1024;
 
-    private static final int MAX_CHUNK_SIZE = 1000; // 最大分块大小
+    private static final int MAX_CHUNK_SIZE = 2048; // 最大分块大小
     private static final int OVERLAP_SIZE = 100;    // 分块重叠大小
     private static final String ID_FIELD = "id";
     private static final String VECTOR_FIELD = "title_vector";
@@ -346,5 +346,33 @@ public class MilvusClient {
         }
 
         return response;
+    }
+
+    /**
+     * 根据用户ID、知识库ID和关键词搜索相关内容，并整合成<RAG>标签包裹的字符串
+     * @param userId 用户ID
+     * @param knowledgeBaseId 知识库ID
+     * @param keyword 搜索关键词
+     * @param topK 返回结果数量
+     * @return 用<RAG></RAG>标签包围的整合后的搜索内容
+     */
+    public String buildRAGContent(Long userId, String knowledgeBaseId, String keyword, Integer topK) {
+        // 1. 执行搜索获取结果列表
+        List<KnowledgeSearchVO> searchResults = search(keyword, topK, userId, knowledgeBaseId);
+
+        // 2. 构建StringBuilder来拼接结果
+        StringBuilder ragContent = new StringBuilder();
+        ragContent.append("<RAG>\n");
+
+        // 3. 遍历搜索结果并拼接内容
+        for (KnowledgeSearchVO result : searchResults) {
+            ragContent.append("【相关度得分: ").append(result.getRelevanceScore()).append("】\n");
+            ragContent.append(result.getChunkText()).append("\n\n");
+        }
+
+        // 4. 添加结束标签
+        ragContent.append("</RAG>");
+
+        return ragContent.toString();
     }
 }

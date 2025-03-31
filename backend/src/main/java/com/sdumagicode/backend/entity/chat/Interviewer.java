@@ -19,19 +19,15 @@ import java.util.Map;
 public class Interviewer {
 
     @Id
-    private Long interviewerId;
-
+    private String interviewerId;
 
     private Long userId;
 
+    private String knowledgeBaseId;
 
-    private MilvusDatabase database;
+    private final String promptTemplate = "test";
 
+    private String customPrompt;
 
-    private String promptTemplate;
-
-    // 复杂类型需要特殊处理，MyBatis-Plus默认不支持直接映射
-    // 方案：使用@TableField(exist = false)标注为非表字段，自行处理
-    @TableField(exist = false)
     private List<Map.Entry<AiSettings, Integer>> settingsList;
 }
