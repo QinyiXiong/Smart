@@ -22,4 +22,8 @@ public interface ChatService extends Service<ChatRecords> {
     public Flux<GlobalResult<ApplicationOutput>> sendMessageToInterviewerAndGetFlux(List<MessageLocal> messageList,Interviewer interviewer);
 
     public MessageFileDto convertMessageFile(MultipartFile multipartFile) throws IOException;
+
+    public boolean saveBranches(List<Branch> branchList);
+
+
 }

@@ -110,7 +110,7 @@ public class ChatUtil {
         messages.addAll(messageList.stream()
                 .map(msg -> Message.builder()
                         .role(msg.getRole())
-                        .content(msg.getContent().getText()) // 假设Content有合适的toString方法
+                        .content(msg.getContent().getText())
                         .build())
                 .collect(Collectors.toList()));
         

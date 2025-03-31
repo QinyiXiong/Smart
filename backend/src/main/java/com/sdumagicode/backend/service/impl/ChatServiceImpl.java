@@ -14,6 +14,7 @@ import com.sdumagicode.backend.entity.chat.*;
 import com.sdumagicode.backend.mapper.ChatMapper;
 import com.sdumagicode.backend.mapper.mongoRepo.BranchRepository;
 import com.sdumagicode.backend.service.ChatService;
+import com.sdumagicode.backend.util.UserUtils;
 import com.sdumagicode.backend.util.chatUtil.ChatUtil;
 import com.sdumagicode.backend.util.chatUtil.FileUploadUtil;
 import com.sdumagicode.backend.util.chatUtil.InterviewerPromptGenerator;
@@ -40,8 +41,9 @@ public class ChatServiceImpl extends AbstractService<ChatRecords> implements Cha
 
     @Override
     public List<ChatRecords> getChatRecords(ChatRecords chatRecords) {
+        Long userId = UserUtils.getCurrentUserByToken().getIdUser();
         LambdaQueryWrapper<ChatRecords> lqw = new LambdaQueryWrapper<>();
-        lqw.eq(ChatRecords::getUserId,chatRecords.getUserId());
+        lqw.eq(ChatRecords::getUserId,userId);
         lqw.eq(ChatRecords::getInterviewerId,chatRecords.getInterviewerId());
 
 
@@ -99,6 +101,12 @@ public class ChatServiceImpl extends AbstractService<ChatRecords> implements Cha
 
 
         return fileAnalysisService.analyzeFileInfo(fileInfo);
+    }
+
+    @Override
+    public boolean saveBranches(List<Branch> branchList) {
+        branchRepository.saveAll(branchList);
+        return true;
     }
 
 

@@ -27,7 +27,7 @@ public class ChatController {
 
     @PostMapping("/getChatRecords")
     public GlobalResult<List<ChatRecords>> getChatRecords(@RequestBody ChatRecords chatRecords){
-        if(chatRecords.getUserId() == null || chatRecords.getInterviewerId() == null){
+        if(chatRecords.getInterviewerId() == null){
             throw  new ServiceException("缺少关键信息");
         }
 
@@ -60,7 +60,12 @@ public class ChatController {
 
     @PostMapping("/saveBranches")
     public GlobalResult saveBranches(@RequestBody List<Branch> branchList){
-        return null;
+        boolean res = chatService.saveBranches(branchList);
+        if(res){
+            return GlobalResultGenerator.genSuccessResult();
+        }else{
+            return GlobalResultGenerator.genErrorResult("保存失败");
+        }
     }
 
     @PostMapping("/uploadMessageFile")

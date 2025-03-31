@@ -1,4 +1,4 @@
-package com.sdumagicode.backend.util.embeddingUtil;
+package com.sdumagicode.backend.entity.milvus;
 
 import lombok.Data;
 

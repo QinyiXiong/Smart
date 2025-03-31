@@ -2,6 +2,8 @@ package com.sdumagicode.backend.util.embeddingUtil;
 
 import com.alibaba.fastjson.JSON;
 import com.google.common.collect.Lists;
+import com.sdumagicode.backend.entity.milvus.KnowledgeRecord;
+import com.sdumagicode.backend.entity.milvus.KnowledgeSearchVO;
 import io.milvus.client.MilvusServiceClient;
 import io.milvus.common.clientenum.ConsistencyLevelEnum;
 import io.milvus.grpc.DataType;
@@ -11,10 +13,7 @@ import io.milvus.param.IndexType;
 import io.milvus.param.MetricType;
 import io.milvus.param.R;
 import io.milvus.param.RpcStatus;
-import io.milvus.param.collection.CreateCollectionParam;
-import io.milvus.param.collection.FieldType;
-import io.milvus.param.collection.HasCollectionParam;
-import io.milvus.param.collection.LoadCollectionParam;
+import io.milvus.param.collection.*;
 import io.milvus.param.dml.InsertParam;
 import io.milvus.param.dml.SearchParam;
 import io.milvus.param.dml.UpsertParam;
@@ -30,8 +29,11 @@ import org.springframework.stereotype.Component;
 import java.util.*;
 @Component
 public class MilvusClient {
-    private static final String COLLECTION_NAME = "FAQ";
+
     private static final int VECTOR_DIM = 1024;
+
+    private static final int MAX_CHUNK_SIZE = 1000; // 最大分块大小
+    private static final int OVERLAP_SIZE = 100;    // 分块重叠大小
     private static final String ID_FIELD = "id";
     private static final String VECTOR_FIELD = "title_vector";
     private static final String TITLE = "title";
@@ -40,14 +42,58 @@ public class MilvusClient {
     private final MilvusServiceClient client;
  
     private final EmbeddingClient embeddingClient;
+
+
  
  
     public MilvusClient(MilvusServiceClient client, EmbeddingClient embeddingClient) {
         this.client = client;
         this.embeddingClient = embeddingClient;
     }
- 
-    public R<RpcStatus> createCollection() {
+
+    /**
+     * 文档分割方法 - 按固定大小分割文本
+     * @param content 原始文本内容
+     * @return 分割后的文本块列表
+     */
+    public List<String> splitDocument(String content) {
+        List<String> chunks = new ArrayList<>();
+        int length = content.length();
+        int start = 0;
+
+        while (start < length) {
+            int end = Math.min(start + MAX_CHUNK_SIZE, length);
+
+            // 确保不在单词中间分割
+            if (end < length) {
+                while (end > start && !Character.isWhitespace(content.charAt(end))) {
+                    end--;
+                }
+                if (end == start) { // 如果遇到很长的单词
+                    end = Math.min(start + MAX_CHUNK_SIZE, length);
+                }
+            }
+
+            chunks.add(content.substring(start, end));
+
+            // 处理重叠部分
+            start = Math.max(end - OVERLAP_SIZE, 0);
+        }
+
+        return chunks;
+    }
+    /**
+     * 生成集合名称
+     * @param userId 用户ID
+     * @param knowledgeBaseId 知识库ID
+     * @return 格式为"user_{userId}_kb_{knowledgeBaseId}"
+     */
+    private String generateCollectionName(Long userId, String knowledgeBaseId) {
+        return String.format("user_%d_kb_%d", userId, knowledgeBaseId);
+    }
+
+    public R<RpcStatus> createCollection(Long userId, String knowledgeBaseId) {
+        String collectionName = generateCollectionName(userId, knowledgeBaseId);
         FieldType id = FieldType.newBuilder()
                 .withName(ID_FIELD)
                 .withDataType(DataType.Int64)
@@ -80,7 +126,7 @@ public class MilvusClient {
                 .build();
  
         CreateCollectionParam param = CreateCollectionParam.newBuilder()
-                .withCollectionName(COLLECTION_NAME)
+                .withCollectionName(collectionName)
                 .addFieldType(id)
                 .addFieldType(type_id)
                 .addFieldType(title)
@@ -95,18 +141,20 @@ public class MilvusClient {
         return response;
     }
  
-    public Boolean isExitCollection(){
+    public Boolean isExitCollection(Long userId, String knowledgeBaseId){
+        String collectionName = generateCollectionName(userId, knowledgeBaseId);
         R<Boolean> response = client.hasCollection(
                 HasCollectionParam.newBuilder()
-                        .withCollectionName(COLLECTION_NAME)
+                        .withCollectionName(collectionName)
                         .build());
         return response.getData();
     }
  
  
-    public R<RpcStatus> loadCollection() {
+    public R<RpcStatus> loadCollection(Long userId, String knowledgeBaseId) {
+        String collectionName = generateCollectionName(userId, knowledgeBaseId);
         LoadCollectionParam param = LoadCollectionParam.newBuilder()
-                .withCollectionName(COLLECTION_NAME)
+                .withCollectionName(collectionName)
                 .withReplicaNumber(1)
                 .withSyncLoad(Boolean.TRUE)
                 .withSyncLoadWaitingInterval(500L)
@@ -119,9 +167,10 @@ public class MilvusClient {
         return response;
     }
  
-    public R<RpcStatus> createIndex() {
+    public R<RpcStatus> createIndex(Long userId, String knowledgeBaseId) {
+        String collectionName = generateCollectionName(userId, knowledgeBaseId);
         CreateIndexParam param = CreateIndexParam.newBuilder()
-                .withCollectionName(COLLECTION_NAME)
+                .withCollectionName(collectionName)
                 .withFieldName(VECTOR_FIELD)
                 .withIndexType(IndexType.GPU_IVF_FLAT)
                 .withMetricType(MetricType.L2)
@@ -134,7 +183,8 @@ public class MilvusClient {
         return response;
     }
  
-    public void insertMilvus(KnowledgeRecord record) {
+    public void insertMilvus(KnowledgeRecord record,Long userId, String knowledgeBaseId) {
+        String collectionName = generateCollectionName(userId, knowledgeBaseId);
         List<InsertParam.Field> fields = new ArrayList<>();
         fields.add(new InsertParam.Field("id", Collections.singletonList(record.getRecordId())));
         fields.add(new InsertParam.Field("file_id", Collections.singletonList(record.getFileId())));
@@ -142,7 +192,7 @@ public class MilvusClient {
         fields.add(new InsertParam.Field("chunk_index", Collections.singletonList(record.getChunkIndex())));
         fields.add(new InsertParam.Field(VECTOR_FIELD, embeddingClient.getEmbedding(record.getChunkText())));
         InsertParam insertParam = InsertParam.newBuilder()
-                .withCollectionName(COLLECTION_NAME)
+                .withCollectionName(collectionName)
                 .withFields(fields)
                 .build();
         R<MutationResult> response = client.insert(insertParam);
@@ -151,7 +201,8 @@ public class MilvusClient {
         }
     }
  
-    public void updateMilvus(KnowledgeRecord record) {
+    public void updateMilvus(KnowledgeRecord record,Long userId, String knowledgeBaseId) {
+        String collectionName = generateCollectionName(userId, knowledgeBaseId);
         List<InsertParam.Field> fields = new ArrayList<>();
         fields.add(new InsertParam.Field("id", Collections.singletonList(record.getRecordId())));
         fields.add(new InsertParam.Field("file_id", Collections.singletonList(record.getFileId())));
@@ -159,7 +210,7 @@ public class MilvusClient {
         fields.add(new InsertParam.Field("chunk_index", Collections.singletonList(record.getChunkIndex())));
         fields.add(new InsertParam.Field(VECTOR_FIELD, embeddingClient.getEmbedding(record.getChunkText())));
         UpsertParam insertParam = UpsertParam.newBuilder()
-                .withCollectionName(COLLECTION_NAME)
+                .withCollectionName(collectionName)
                 .withFields(fields)
                 .build();
         R<MutationResult> response = client.upsert(insertParam);
@@ -168,10 +219,11 @@ public class MilvusClient {
         }
     }
  
-    public List list(){
+    public List list(Long userId, String knowledgeBaseId){
+        String collectionName = generateCollectionName(userId, knowledgeBaseId);
         List<QueryResultsWrapper.RowRecord> rowRecords = new ArrayList<>();
         QuerySimpleParam querySimpleParam = QuerySimpleParam.newBuilder()
-                .withCollectionName(COLLECTION_NAME)
+                .withCollectionName(collectionName)
                 .withOutputFields(Lists.newArrayList("*"))
                 .withFilter("id > 0")
                 .withLimit(100L)
@@ -189,10 +241,11 @@ public class MilvusClient {
         return rowRecords;
     }
  
-    public void delete(Integer id) {
-        List<Integer> ids = Lists.newArrayList(id);
+    public void delete(String id,Long userId, String knowledgeBaseId) {
+        String collectionName = generateCollectionName(userId, knowledgeBaseId);
+        List<String> ids = Lists.newArrayList(id);
         DeleteIdsParam param = DeleteIdsParam.newBuilder()
-                .withCollectionName(COLLECTION_NAME)
+                .withCollectionName(collectionName)
                 .withPrimaryIds(ids)
                 .build();
  
@@ -205,13 +258,32 @@ public class MilvusClient {
             System.out.println(deleteId);
         }
     }
+
+    public void deleteBatch(List<String> ids,Long userId, String knowledgeBaseId) {
+        String collectionName = generateCollectionName(userId, knowledgeBaseId);
+
+        DeleteIdsParam param = DeleteIdsParam.newBuilder()
+                .withCollectionName(collectionName)
+                .withPrimaryIds(ids)
+                .build();
+
+        R<DeleteResponse> response = client.delete(param);
+        if (response.getStatus() != R.Status.Success.getCode()) {
+            System.out.println(response.getMessage());
+        }
+
+        for (Object deleteId : response.getData().getDeleteIds()) {
+            System.out.println(deleteId);
+        }
+    }
  
  
-    public List search(String keyword, Integer topK) {
+    public List search(String keyword, Integer topK,Long userId, String knowledgeBaseId) {
+        String collectionName = generateCollectionName(userId, knowledgeBaseId);
         List<KnowledgeSearchVO> result = new ArrayList<>();
         List<List<Float>> targetVectors = embeddingClient.getEmbedding(keyword);
         SearchParam param = SearchParam.newBuilder()
-                .withCollectionName(COLLECTION_NAME)
+                .withCollectionName(collectionName)
                 .withMetricType(MetricType.L2)
                 .withTopK(topK)
                 .withVectors(targetVectors)
@@ -239,5 +311,40 @@ public class MilvusClient {
             }
         }
         return result;
+    }
+
+    /**
+     * 删除指定用户和知识库的集合
+     * @param userId 用户ID
+     * @param knowledgeBaseId 知识库ID
+     * @return RpcStatus响应结果
+     */
+    public R<RpcStatus> dropCollection(Long userId, String knowledgeBaseId) {
+        String collectionName = generateCollectionName(userId, knowledgeBaseId);
+
+        // 先检查集合是否存在
+        R<Boolean> hasCollection = client.hasCollection(
+                HasCollectionParam.newBuilder()
+                        .withCollectionName(collectionName)
+                        .build());
+
+        if (!hasCollection.getData()) {
+            // 集合不存在，返回失败响应
+            return R.failed(R.Status.CollectionNotExists,
+                    String.format("Collection %s does not exist", collectionName));
+        }
+
+        // 执行删除集合操作
+        DropCollectionParam param = DropCollectionParam.newBuilder()
+                .withCollectionName(collectionName)
+                .build();
+
+        R<RpcStatus> response = client.dropCollection(param);
+
+        if (response.getStatus() != R.Status.Success.getCode()) {
+            System.out.println(response.getMessage());
+        }
+
+        return response;
     }
 }

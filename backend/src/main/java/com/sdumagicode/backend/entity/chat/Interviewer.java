@@ -1,32 +1,33 @@
 package com.sdumagicode.backend.entity.chat;
 
-import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.sdumagicode.backend.entity.milvus.MilvusDatabase;
+import com.sdumagicode.backend.entity.milvus.MilvusFile;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.mongodb.core.mapping.Document;
 
+import javax.persistence.Id;
 import java.util.List;
 import java.util.Map;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("interviewer")
+@Document("interviewer")
 public class Interviewer {
 
-    @TableId(type = IdType.AUTO)
+    @Id
     private Long interviewerId;
 
-    @TableField("user_id")
+
     private Long userId;
 
-    @TableField("data_base_id")
-    private String dataBaseId;
 
-    @TableField("prompt_template")
+    private MilvusDatabase database;
+
+
     private String promptTemplate;
 
     // 复杂类型需要特殊处理，MyBatis-Plus默认不支持直接映射
