@@ -8,8 +8,11 @@ import org.apache.poi.hwpf.extractor.WordExtractor;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 统一文件内容提取工具类
@@ -22,6 +25,8 @@ public class FileContentExtractor {
     public static final String SUFFIX_PDF = ".pdf";
     public static final String SUFFIX_DOC = ".doc";
     public static final String SUFFIX_DOCX = ".docx";
+
+    public static final String SUFFIX_TXT = ".txt";
 
     /**
      * 根据文件后缀提取文件内容
@@ -41,6 +46,8 @@ public class FileContentExtractor {
                 return extractDocContent(inputStream);
             case SUFFIX_DOCX:
                 return extractDocxContent(inputStream);
+            case SUFFIX_TXT:  // 新增TXT文件处理分支
+                return extractTxtContent(inputStream);
             default:
                 return null;
         }
@@ -112,6 +119,24 @@ public class FileContentExtractor {
             extractor.close();
             return content;
         } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 提取TXT文件内容
+     * @param inputStream TXT文件输入流
+     * @return TXT文本内容
+     */
+    private static String extractTxtContent(InputStream inputStream) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+            StringBuilder content = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                content.append(line).append("\n");
+            }
+            return content.toString().trim();
+        } catch (IOException e) {
             return null;
         }
     }

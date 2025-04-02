@@ -26,8 +26,8 @@ public class MilvusDatabaseController {
      * @return 创建结果
      */
     @PostMapping
-    public GlobalResult<Boolean> createDatabase() {
-        boolean result = milvusService.createMilvusDatabase();
+    public GlobalResult<Boolean> createDatabase(@RequestBody MilvusDatabase milvusDatabase) {
+        boolean result = milvusService.createMilvusDatabase(milvusDatabase);
         return result ?
                 GlobalResultGenerator.genSuccessResult("知识库创建成功") :
                 GlobalResultGenerator.genErrorResult("知识库创建失败");
@@ -98,7 +98,7 @@ public class MilvusDatabaseController {
     @DeleteMapping("/{knowledgeBaseId}/files/{milvusFileId}")
     public GlobalResult<Boolean> deleteFile(
             @PathVariable String knowledgeBaseId,
-            @PathVariable Long milvusFileId) {
+            @PathVariable String milvusFileId) {
         boolean result = milvusService.deleteMilvusFilse(knowledgeBaseId, milvusFileId);
         return result ?
                 GlobalResultGenerator.genSuccessResult("文件删除成功") :

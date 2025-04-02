@@ -14,8 +14,8 @@ import java.util.UUID;
 @Component
 public class FileUploadUtil {
 
-    @Value("${file.upload-dir}")
-    private static String uploadDir;
+
+    private static String uploadDir = new File("").getAbsolutePath() + "/src/main/resources/static/uploads/";
 
     /**
      * 上传文件并返回文件信息

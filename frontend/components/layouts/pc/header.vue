@@ -19,6 +19,7 @@
         <template slot="title">模拟面试官</template>
         <el-menu-item index="interview-simulate">模拟面试</el-menu-item>
         <el-menu-item index="interview-officer">我的面试官</el-menu-item>
+        <el-menu-item index="milvus-database">知识库管理</el-menu-item>
         <el-menu-item index="interview-record">面试记录</el-menu-item>
       </el-submenu>
       <!-- OJ主菜单 -->
@@ -220,6 +221,11 @@ export default {
         case 'portfolios':
           _ts.$router.push({
             path: '/portfolios?page=1'
+          })
+          break;
+         case 'milvus-database':
+           _ts.$router.push({
+            path: '/milvusDatabase/database'
           })
           break;
         case 'products':

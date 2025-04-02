@@ -4,9 +4,12 @@ import com.alibaba.fastjson.JSON;
 import com.google.common.collect.Lists;
 import com.sdumagicode.backend.entity.milvus.KnowledgeRecord;
 import com.sdumagicode.backend.entity.milvus.KnowledgeSearchVO;
+
+import io.grpc.StatusRuntimeException;
 import io.milvus.client.MilvusServiceClient;
 import io.milvus.common.clientenum.ConsistencyLevelEnum;
 import io.milvus.grpc.DataType;
+import io.milvus.grpc.GetVersionResponse;
 import io.milvus.grpc.MutationResult;
 import io.milvus.grpc.SearchResults;
 import io.milvus.param.IndexType;
@@ -24,6 +27,9 @@ import io.milvus.param.highlevel.dml.response.QueryResponse;
 import io.milvus.param.index.CreateIndexParam;
 import io.milvus.response.QueryResultsWrapper;
 import io.milvus.response.SearchResultsWrapper;
+import okhttp3.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
  
 import java.util.*;
@@ -32,7 +38,7 @@ public class MilvusClient {
 
     private static final int VECTOR_DIM = 1024;
 
-    private static final int MAX_CHUNK_SIZE = 2048; // 最大分块大小
+    private static final int MAX_CHUNK_SIZE = 400; // 最大分块大小
     private static final int OVERLAP_SIZE = 100;    // 分块重叠大小
     private static final String ID_FIELD = "id";
     private static final String VECTOR_FIELD = "title_vector";
@@ -43,12 +49,13 @@ public class MilvusClient {
  
     private final EmbeddingClient embeddingClient;
 
-
+    private static final Logger logger = LoggerFactory.getLogger(MilvusClient.class);
  
  
     public MilvusClient(MilvusServiceClient client, EmbeddingClient embeddingClient) {
         this.client = client;
         this.embeddingClient = embeddingClient;
+
     }
 
     /**
@@ -58,29 +65,41 @@ public class MilvusClient {
      */
     public List<String> splitDocument(String content) {
         List<String> chunks = new ArrayList<>();
+        if (content == null || content.isEmpty()) {
+            return chunks;
+        }
         int length = content.length();
         int start = 0;
-
         while (start < length) {
+            // 确保不超过最大长度
             int end = Math.min(start + MAX_CHUNK_SIZE, length);
 
-            // 确保不在单词中间分割
+            // 如果是中间位置，尝试在空格处分割
             if (end < length) {
-                while (end > start && !Character.isWhitespace(content.charAt(end))) {
-                    end--;
-                }
-                if (end == start) { // 如果遇到很长的单词
-                    end = Math.min(start + MAX_CHUNK_SIZE, length);
-                }
+                int lastSpace = findLastSpace(content, start, end);
+                end = (lastSpace > start) ? lastSpace : end; // 优先在空格处分割
             }
+            chunks.add(content.substring(start, end).trim());
 
-            chunks.add(content.substring(start, end));
+            // 计算下一个起始位置（考虑重叠）
+            start = (end - OVERLAP_SIZE > start) ? end - OVERLAP_SIZE : end;
 
-            // 处理重叠部分
-            start = Math.max(end - OVERLAP_SIZE, 0);
+            // 强制推进至少1个字符，防止死循环
+            if (start >= end) {
+                start = end;
+            }
         }
-
         return chunks;
+    }
+
+    // 辅助方法：查找最后一个空格位置
+    private int findLastSpace(String content, int start, int end) {
+        for (int i = end - 1; i >= start; i--) {
+            if (Character.isWhitespace(content.charAt(i))) {
+                return i + 1; // 包含空格后的位置
+            }
+        }
+        return end; // 没找到空格
     }
     /**
      * 生成集合名称
@@ -89,7 +108,7 @@ public class MilvusClient {
      * @return 格式为"user_{userId}_kb_{knowledgeBaseId}"
      */
     private String generateCollectionName(Long userId, String knowledgeBaseId) {
-        return String.format("user_%d_kb_%d", userId, knowledgeBaseId);
+        return String.format("user_%d_kb_%s", userId, knowledgeBaseId);
     }
 
     public R<RpcStatus> createCollection(Long userId, String knowledgeBaseId) {
@@ -106,12 +125,7 @@ public class MilvusClient {
                 .withDataType(DataType.Int64)
                 .withDescription("type_id")
                 .build();
-        FieldType title  = FieldType.newBuilder()
-                .withName("title")
-                .withDataType(DataType.VarChar)
-                .withMaxLength(10000)
-                .withDescription("title")
-                .build();
+
         FieldType content  = FieldType.newBuilder()
                 .withName("content")
                 .withDataType(DataType.VarChar)
@@ -129,7 +143,7 @@ public class MilvusClient {
                 .withCollectionName(collectionName)
                 .addFieldType(id)
                 .addFieldType(type_id)
-                .addFieldType(title)
+
                 .addFieldType(content)
                 .addFieldType(title_vector)
                 .build();
@@ -185,17 +199,25 @@ public class MilvusClient {
  
     public void insertMilvus(KnowledgeRecord record,Long userId, String knowledgeBaseId) {
         String collectionName = generateCollectionName(userId, knowledgeBaseId);
+
         List<InsertParam.Field> fields = new ArrayList<>();
         fields.add(new InsertParam.Field("id", Collections.singletonList(record.getRecordId())));
         fields.add(new InsertParam.Field("file_id", Collections.singletonList(record.getFileId())));
-        fields.add(new InsertParam.Field("chunk_text", Collections.singletonList(record.getChunkText())));
+        fields.add(new InsertParam.Field("type_id", Collections.singletonList(1L)));
+        fields.add(new InsertParam.Field("content", Collections.singletonList(record.getChunkText())));
         fields.add(new InsertParam.Field("chunk_index", Collections.singletonList(record.getChunkIndex())));
         fields.add(new InsertParam.Field(VECTOR_FIELD, embeddingClient.getEmbedding(record.getChunkText())));
         InsertParam insertParam = InsertParam.newBuilder()
                 .withCollectionName(collectionName)
                 .withFields(fields)
                 .build();
-        R<MutationResult> response = client.insert(insertParam);
+        R<MutationResult> response = new R<>();
+        try {
+            response = client.insert(insertParam);
+        } catch (StatusRuntimeException e) {
+            logger.error("gRPC error: ", e);
+            logger.error("Status: {}, Description: {}", e.getStatus(), e.getTrailers());
+        }
         if (response.getStatus() != R.Status.Success.getCode()) {
             System.out.println(response.getMessage());
         }
@@ -206,7 +228,8 @@ public class MilvusClient {
         List<InsertParam.Field> fields = new ArrayList<>();
         fields.add(new InsertParam.Field("id", Collections.singletonList(record.getRecordId())));
         fields.add(new InsertParam.Field("file_id", Collections.singletonList(record.getFileId())));
-        fields.add(new InsertParam.Field("chunk_text", Collections.singletonList(record.getChunkText())));
+        fields.add(new InsertParam.Field("type_id", Collections.singletonList(1L)));
+        fields.add(new InsertParam.Field("content", Collections.singletonList(record.getChunkText())));
         fields.add(new InsertParam.Field("chunk_index", Collections.singletonList(record.getChunkIndex())));
         fields.add(new InsertParam.Field(VECTOR_FIELD, embeddingClient.getEmbedding(record.getChunkText())));
         UpsertParam insertParam = UpsertParam.newBuilder()
@@ -259,7 +282,7 @@ public class MilvusClient {
         }
     }
 
-    public void deleteBatch(List<String> ids,Long userId, String knowledgeBaseId) {
+    public void deleteBatch(List<Long> ids,Long userId, String knowledgeBaseId) {
         String collectionName = generateCollectionName(userId, knowledgeBaseId);
 
         DeleteIdsParam param = DeleteIdsParam.newBuilder()

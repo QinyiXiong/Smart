@@ -37,16 +37,16 @@ public class MilvusServiceImpl implements MilvusService {
 
 
     @Override
-    public boolean createMilvusDatabase() {
+    public boolean createMilvusDatabase(MilvusDatabase milvusDatabase) {
         Long userId = UserUtils.getCurrentUserByToken().getIdUser();
-        MilvusDatabase milvusDatabase = new MilvusDatabase();
+
         milvusDatabase.setUserId(userId);
         milvusDatabase.setFileList(new ArrayList<MilvusFile>());
         MilvusDatabase save = milvusDatabaseRepository.save(milvusDatabase);
 
         //创建对应的milvus数据库
-        R<RpcStatus> collection = milvusClient.createCollection(userId, save.getKnowledgeBaseId());
-        System.out.println(collection.getMessage());
+        milvusClient.createCollection(userId, save.getKnowledgeBaseId());
+
         return true;
     }
 
@@ -123,7 +123,7 @@ public class MilvusServiceImpl implements MilvusService {
     }
 
     @Override
-    public boolean deleteMilvusFilse(String knowledgeBaseId, Long milvusFileId) {
+    public boolean deleteMilvusFilse(String knowledgeBaseId, String milvusFileId) {
         Long userId = UserUtils.getCurrentUserByToken().getIdUser();
 
         MilvusDatabase milvusDatabaseByKnowledgeBaseIdAAndUserId = milvusDatabaseRepository.findMilvusDatabaseByKnowledgeBaseIdAndUserId(knowledgeBaseId, userId);
@@ -136,12 +136,16 @@ public class MilvusServiceImpl implements MilvusService {
                 .orElse(null);
         //首先删除milvus中的相关数据
 
+        if(milvusFile != null){
+            List<Long> collect = milvusFile.getKnowledgeRecords().stream().map(item -> {
+                return item.getRecordId();
+            }).collect(Collectors.toList());
+            if(!collect.isEmpty()){
+                milvusClient.deleteBatch(collect,userId,knowledgeBaseId);
+            }
+        }
 
-        List<String> collect = milvusFile.getKnowledgeRecords().stream().map(item -> {
-            return item.getRecordId();
-        }).collect(Collectors.toList());
 
-        milvusClient.deleteBatch(collect,userId,knowledgeBaseId);
 
         //再删除mongo中的对应数据
         List<MilvusFile> updatedFileList = milvusDatabaseByKnowledgeBaseIdAAndUserId.getFileList().stream()
@@ -150,6 +154,6 @@ public class MilvusServiceImpl implements MilvusService {
 
         milvusDatabaseByKnowledgeBaseIdAAndUserId.setFileList(updatedFileList);
         milvusDatabaseRepository.save(milvusDatabaseByKnowledgeBaseIdAAndUserId);
-        return false;
+        return true;
     }
 }

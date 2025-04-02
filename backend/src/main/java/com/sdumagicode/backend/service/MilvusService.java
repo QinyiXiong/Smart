@@ -7,7 +7,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface MilvusService {
-    public boolean createMilvusDatabase();
+    public boolean createMilvusDatabase(MilvusDatabase milvusDatabase);
 
     public List<MilvusDatabase> getMilvusBases();
 
@@ -17,6 +17,6 @@ public interface MilvusService {
 
     public boolean uploadFile(String knowledgeBaseId,List<MultipartFile> fileList);
 
-    public boolean deleteMilvusFilse(String knowledgeBaseId,Long milvusFileId);
+    public boolean deleteMilvusFilse(String knowledgeBaseId,String milvusFileId);
 
 }

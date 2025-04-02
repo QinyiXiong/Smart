@@ -1,5 +1,6 @@
 package com.sdumagicode.backend.service.impl;
 
+import com.sdumagicode.backend.core.exception.ServiceException;
 import com.sdumagicode.backend.dto.chat.MessageFileDto;
 import com.sdumagicode.backend.entity.chat.Content;
 
@@ -9,6 +10,8 @@ import com.sdumagicode.backend.util.chatUtil.FileContentExtractor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -18,6 +21,8 @@ public class FileAnalysisService {
 
     @Autowired
     private AudioAnalysisUtil audioAnalysisUtil;
+
+    private static final String UPLOAD_DIR = new File("").getAbsolutePath() + "/src/main/resources/static/";
 
     public MessageFileDto analyzeFileInfo(FileInfo fileInfo){
         if(fileInfo.getType() == "mp3"){
@@ -75,7 +80,8 @@ public class FileAnalysisService {
             String suffix = getFileSuffix(fileInfo.getFileName());
             return FileContentExtractor.extractContent(suffix, inputStream);
         } catch (IOException e) {
-            return null;
+            e.printStackTrace();
+            throw new ServiceException("文件上传异常");
         }
     }
 
@@ -87,7 +93,7 @@ public class FileAnalysisService {
      */
     private InputStream getInputStreamFromFileInfo(FileInfo fileInfo) throws IOException {
         // 实现根据实际情况调整
-        return new URL(fileInfo.getUrl()).openStream();
+        return new FileInputStream(new File(UPLOAD_DIR, fileInfo.getUrl()));
     }
 
     private String getFileSuffix(String fileName) {
