@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.StringUtils;
 import com.sdumagicode.backend.core.exception.ServiceException;
 import com.sdumagicode.backend.core.result.GlobalResult;
 import com.sdumagicode.backend.core.result.GlobalResultGenerator;
+import com.sdumagicode.backend.entity.chat.AiSettings;
 import com.sdumagicode.backend.entity.chat.Interviewer;
 import com.sdumagicode.backend.service.InterviewerService;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
@@ -57,5 +58,10 @@ public class InterviewerController {
     public GlobalResult<List<Interviewer>> findInterviewers() {
         return GlobalResultGenerator.genSuccessResult(
                 interviewerService.findInterviewers());
+    }
+
+    @GetMapping("/getAiSettings")
+    public GlobalResult<List<AiSettings>> getAiSettings(){
+        return GlobalResultGenerator.genSuccessResult(interviewerService.getAllAiSettings());
     }
 }

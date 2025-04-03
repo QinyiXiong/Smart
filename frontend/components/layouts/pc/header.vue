@@ -223,9 +223,14 @@ export default {
             path: '/portfolios?page=1'
           })
           break;
-         case 'milvus-database':
-           _ts.$router.push({
+        case 'milvus-database':
+          _ts.$router.push({
             path: '/milvusDatabase/database'
+          })
+          break;
+        case 'interview-officer':
+          _ts.$router.push({
+            path: '/interviewer/interviewer'
           })
           break;
         case 'products':

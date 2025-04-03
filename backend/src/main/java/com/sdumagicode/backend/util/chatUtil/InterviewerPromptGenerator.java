@@ -4,8 +4,9 @@ import com.sdumagicode.backend.entity.chat.Interviewer;
 
 public class InterviewerPromptGenerator {
 
+    private static final String PROMPT_TEMPLATE = "test";
 
     public static String generatePrompt(Interviewer interviewer){
-        return interviewer.getCustomPrompt() + interviewer.getPromptTemplate();
+        return interviewer.getCustomPrompt() + PROMPT_TEMPLATE;
     }
 }

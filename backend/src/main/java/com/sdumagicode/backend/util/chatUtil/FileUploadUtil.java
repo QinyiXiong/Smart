@@ -71,4 +71,31 @@ public class FileUploadUtil {
             return "other";
         }
     }
+
+    /**
+     * 根据文件URL删除上传的文件
+     * @param fileUrl 文件的URL路径（如：/uploads/filename.ext）
+     * @return boolean 是否删除成功
+     * @throws IOException 文件操作异常
+     */
+    public static boolean deleteFileByUrl(String fileUrl) throws IOException {
+        if (fileUrl == null || fileUrl.isEmpty()) {
+            return false;
+        }
+
+        // 从URL中提取文件名
+        String fileName = fileUrl.substring(fileUrl.lastIndexOf("/") + 1);
+
+        // 构建文件完整路径
+        Path filePath = Paths.get(uploadDir, fileName);
+
+        // 检查文件是否存在并删除
+        if (Files.exists(filePath)) {
+            Files.delete(filePath);
+            return true;
+        }
+
+        return false;
+    }
+
 }

@@ -8,18 +8,24 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import javax.persistence.Column;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @TableName("ai_settings") // 指定表名
 public class AiSettings {
 
-    @TableId(type = IdType.AUTO) // 主键自增
+    @Id
+    @GeneratedValue(generator = "JDBC")
+    @Column(name = "id") // 主键自增
     private Integer id;
 
-    @TableField("setting_name") // 字段名映射
+    @Column(name = "setting_name") // 字段名映射
     private String settingName;
 
-    @TableField("description")
+    @Column(name = "description")
     private String description;
 }

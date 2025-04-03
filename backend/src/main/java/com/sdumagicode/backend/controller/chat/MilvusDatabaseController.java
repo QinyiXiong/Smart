@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -98,7 +99,7 @@ public class MilvusDatabaseController {
     @DeleteMapping("/{knowledgeBaseId}/files/{milvusFileId}")
     public GlobalResult<Boolean> deleteFile(
             @PathVariable String knowledgeBaseId,
-            @PathVariable String milvusFileId) {
+            @PathVariable String milvusFileId) throws IOException {
         boolean result = milvusService.deleteMilvusFilse(knowledgeBaseId, milvusFileId);
         return result ?
                 GlobalResultGenerator.genSuccessResult("文件删除成功") :

@@ -16,6 +16,7 @@ import io.milvus.param.RpcStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.ExampleMatcher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -123,7 +124,7 @@ public class MilvusServiceImpl implements MilvusService {
     }
 
     @Override
-    public boolean deleteMilvusFilse(String knowledgeBaseId, String milvusFileId) {
+    public boolean deleteMilvusFilse(String knowledgeBaseId, String milvusFileId) throws IOException {
         Long userId = UserUtils.getCurrentUserByToken().getIdUser();
 
         MilvusDatabase milvusDatabaseByKnowledgeBaseIdAAndUserId = milvusDatabaseRepository.findMilvusDatabaseByKnowledgeBaseIdAndUserId(knowledgeBaseId, userId);
@@ -154,6 +155,9 @@ public class MilvusServiceImpl implements MilvusService {
 
         milvusDatabaseByKnowledgeBaseIdAAndUserId.setFileList(updatedFileList);
         milvusDatabaseRepository.save(milvusDatabaseByKnowledgeBaseIdAAndUserId);
+
+        //最后删除本地的数据
+        FileUploadUtil.deleteFileByUrl(milvusFile.getFileInfo().getUrl());
         return true;
     }
 }

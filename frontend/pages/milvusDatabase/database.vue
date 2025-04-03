@@ -75,11 +75,11 @@
                 <el-table-column prop="updateTime" label="更新时间" width="180"></el-table-column>
                 <el-table-column label="操作" width="120">
                   <template #default="{row}">
-                    <el-button 
+                    <!-- <el-button 
                       type="text" 
                       icon="el-icon-download"
                       @click="downloadFile(row.id)"
-                    ></el-button>
+                    ></el-button> -->
                     <el-button 
                       type="text" 
                       icon="el-icon-delete"
@@ -343,23 +343,23 @@ export default {
 },
     
     // 下载文件
-    downloadFile(id) {
-      const file = this.files.find(item => item.id === id)
-      if (!file || !file.url) {
-        this.$message.warning('文件下载链接无效')
-        return
-      }
+    // downloadFile(id) {
+    //   const file = this.files.find(item => item.id === id)
+    //   if (!file || !file.url) {
+    //     this.$message.warning('文件下载链接无效')
+    //     return
+    //   }
       
-      // 创建隐藏的下载链接
-      const link = document.createElement('a')
-      link.href = file.url
-      link.download = file.name
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
+    //   // 创建隐藏的下载链接
+    //   const link = document.createElement('a')
+    //   link.href = file.url
+    //   link.download = file.name
+    //   document.body.appendChild(link)
+    //   link.click()
+    //   document.body.removeChild(link)
       
-      this.$message.success(`开始下载: ${file.name}`)
-    },
+    //   this.$message.success(`开始下载: ${file.name}`)
+    // },
     
     // 删除文件
     async deleteFile(id) {

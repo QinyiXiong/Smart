@@ -59,7 +59,7 @@ public class MilvusClient {
     }
 
     /**
-     * 文档分割方法 - 按固定大小分割文本
+     * 优化后的文档分割方法 - 适合RAG数据库的分段存储
      * @param content 原始文本内容
      * @return 分割后的文本块列表
      */
@@ -68,18 +68,35 @@ public class MilvusClient {
         if (content == null || content.isEmpty()) {
             return chunks;
         }
+
+
         int length = content.length();
         int start = 0;
+
         while (start < length) {
-            // 确保不超过最大长度
             int end = Math.min(start + MAX_CHUNK_SIZE, length);
 
-            // 如果是中间位置，尝试在空格处分割
-            if (end < length) {
-                int lastSpace = findLastSpace(content, start, end);
-                end = (lastSpace > start) ? lastSpace : end; // 优先在空格处分割
+            // 优先在句子边界分割
+            if (true && end < length) {
+                int sentenceEnd = findSentenceEnd(content, start, end);
+                if (sentenceEnd > start) {
+                    end = sentenceEnd;
+                } else {
+                    // 找不到句子边界则尝试在段落或空格分割
+                    int paragraphEnd = findParagraphEnd(content, start, end);
+                    if (paragraphEnd > start) {
+                        end = paragraphEnd;
+                    } else {
+                        int lastSpace = findLastSpace(content, start, end);
+                        end = (lastSpace > start) ? lastSpace : end;
+                    }
+                }
             }
-            chunks.add(content.substring(start, end).trim());
+
+            String chunk = content.substring(start, end).trim();
+            if (!chunk.isEmpty()) {
+                chunks.add(chunk);
+            }
 
             // 计算下一个起始位置（考虑重叠）
             start = (end - OVERLAP_SIZE > start) ? end - OVERLAP_SIZE : end;
@@ -89,10 +106,35 @@ public class MilvusClient {
                 start = end;
             }
         }
+
         return chunks;
     }
 
-    // 辅助方法：查找最后一个空格位置
+    // 查找句子结束位置（简单实现）
+    private int findSentenceEnd(String content, int start, int end) {
+        for (int i = end - 1; i >= start; i--) {
+            char c = content.charAt(i);
+            if (c == '.' || c == '!' || c == '?') {
+                // 确保不是缩写或数字中的点
+                if (i + 1 < content.length() && Character.isWhitespace(content.charAt(i + 1))) {
+                    return i + 1;
+                }
+            }
+        }
+        return -1; // 没找到句子边界
+    }
+
+    // 查找段落结束位置
+    private int findParagraphEnd(String content, int start, int end) {
+        for (int i = end - 1; i >= start; i--) {
+            if (content.charAt(i) == '\n') {
+                return i + 1;
+            }
+        }
+        return -1; // 没找到段落边界
+    }
+
+    // 查找最后一个空格位置
     private int findLastSpace(String content, int start, int end) {
         for (int i = end - 1; i >= start; i--) {
             if (Character.isWhitespace(content.charAt(i))) {
@@ -101,6 +143,7 @@ public class MilvusClient {
         }
         return end; // 没找到空格
     }
+
     /**
      * 生成集合名称
      * @param userId 用户ID
