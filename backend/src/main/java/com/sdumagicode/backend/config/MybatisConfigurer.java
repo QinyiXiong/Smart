@@ -41,6 +41,9 @@ public class MybatisConfigurer {
         //添加插件
         factory.setPlugins(pageHelper);
 
+        //添加自定义 TypeHandler
+        factory.setTypeHandlers(new JsonListTypeHandler());
+
         //添加XML目录
         ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
         factory.setMapperLocations(resolver.getResources("classpath:mapper/**/*.xml"));

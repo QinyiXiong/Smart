@@ -138,7 +138,6 @@ export default {
     },
     extend(config, ctx) {
       config.plugins.unshift(new LodashModuleReplacementPlugin())
-      // rules[2].use[0] is babel-loader
       config.module.rules.push({test: /\.txt$/, use: 'raw-loader'})
       config.module.rules[2].use[0].options.plugins = ['lodash']
     },
@@ -148,7 +147,8 @@ export default {
           [
             '@nuxt/babel-preset-app',
             {
-              loose: true
+              loose: true,
+              corejs: 3
             }
           ]
         ]

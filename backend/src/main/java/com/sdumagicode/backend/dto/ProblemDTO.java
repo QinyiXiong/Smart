@@ -1,68 +1,31 @@
 package com.sdumagicode.backend.dto;
 
+import lombok.Data;
+import java.time.LocalDateTime;
+import java.util.List;
+
+@Data
 public class ProblemDTO {
     private Long id;
+    private String problemCode;
     private String title;
     private String description;
+    private String inputDescription;
+    private String outputDescription;
     private String difficulty;
-    private String acceptance;
+    private Integer timeLimit;
+    private Integer memoryLimit;
+    private List<String> tags;
+    private String sampleInput;
+    private String sampleOutput;
     private String testCases;
-    private String category;
-    
-    // Getters and Setters
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public String getDifficulty() {
-        return difficulty;
-    }
-
-    public void setDifficulty(String difficulty) {
-        this.difficulty = difficulty;
-    }
-
-    public String getCategory() {
-        return category;
-    }
-
-    public void setCategory(String category) {
-        this.category = category;
-    }
-
-    public String getAcceptance() {
-        return acceptance;
-    }
-
-    public void setAcceptance(String acceptance) {
-        this.acceptance = acceptance;
-    }
-
-    public String getTestCases() {
-        return testCases;
-    }
-
-    public void setTestCases(String testCases) {
-        this.testCases = testCases;
-    }
+    private String hints;
+    private String source;
+    private Integer submitCount;
+    private Integer acceptCount;
+    private Double acceptanceRate;
+    private LocalDateTime createdTime;
+    private LocalDateTime updatedTime;
+    private Long creatorId;
+    private Integer visible;
 }

@@ -3,50 +3,112 @@
 <mapper namespace="com.sdumagicode.backend.mapper.ProblemMapper">
     <resultMap id="BaseResultMap" type="com.sdumagicode.backend.entity.Problem">
         <id column="id" property="id" jdbcType="BIGINT" />
+        <result column="problem_code" property="problemCode" jdbcType="VARCHAR" />
         <result column="title" property="title" jdbcType="VARCHAR" />
-        <result column="description" property="description" jdbcType="VARCHAR" />
+        <result column="description" property="description" jdbcType="LONGVARCHAR" />
+        <result column="input_description" property="inputDescription" jdbcType="LONGVARCHAR" />
+        <result column="output_description" property="outputDescription" jdbcType="LONGVARCHAR" />
         <result column="difficulty" property="difficulty" jdbcType="VARCHAR" />
-        <result column="acceptance" property="acceptance" jdbcType="VARCHAR" />
-        <result column="test_cases" property="testCases" jdbcType="VARCHAR" />
-        <result column="category" property="category" jdbcType="VARCHAR" />
+        <result column="time_limit" property="timeLimit" jdbcType="INTEGER" />
+        <result column="memory_limit" property="memoryLimit" jdbcType="INTEGER" />
+        <result column="tags" property="tags" typeHandler="com.sdumagicode.backend.config.JsonListTypeHandler" />
+        <result column="sample_input" property="sampleInput" jdbcType="LONGVARCHAR" />
+        <result column="sample_output" property="sampleOutput" jdbcType="LONGVARCHAR" />
+        <result column="test_cases" property="testCases" jdbcType="LONGVARCHAR" />
+        <result column="hints" property="hints" jdbcType="LONGVARCHAR" />
+        <result column="source" property="source" jdbcType="VARCHAR" />
+        <result column="submit_count" property="submitCount" jdbcType="INTEGER" />
+        <result column="accept_count" property="acceptCount" jdbcType="INTEGER" />
+        <result column="acceptance_rate" property="acceptanceRate" jdbcType="DOUBLE" />
         <result column="created_time" property="createdTime" jdbcType="TIMESTAMP" />
         <result column="updated_time" property="updatedTime" jdbcType="TIMESTAMP" />
+        <result column="creator_id" property="creatorId" jdbcType="BIGINT" />
+        <result column="visible" property="visible" jdbcType="INTEGER" />
     </resultMap>
 
     <resultMap id="DTOResultMap" type="com.sdumagicode.backend.dto.ProblemDTO">
         <id column="id" property="id" jdbcType="BIGINT" />
+        <result column="problem_code" property="problemCode" jdbcType="VARCHAR" />
         <result column="title" property="title" jdbcType="VARCHAR" />
-        <result column="description" property="description" jdbcType="VARCHAR" />
+        <result column="description" property="description" jdbcType="LONGVARCHAR" />
+        <result column="input_description" property="inputDescription" jdbcType="LONGVARCHAR" />
+        <result column="output_description" property="outputDescription" jdbcType="LONGVARCHAR" />
         <result column="difficulty" property="difficulty" jdbcType="VARCHAR" />
-        <result column="acceptance" property="acceptance" jdbcType="VARCHAR" />
-        <result column="test_cases" property="testCases" jdbcType="VARCHAR" />
-        <result column="category" property="category" jdbcType="VARCHAR" />
+        <result column="time_limit" property="timeLimit" jdbcType="INTEGER" />
+        <result column="memory_limit" property="memoryLimit" jdbcType="INTEGER" />
+        <result column="tags" property="tags" typeHandler="com.sdumagicode.backend.config.JsonListTypeHandler" />
+        <result column="sample_input" property="sampleInput" jdbcType="LONGVARCHAR" />
+        <result column="sample_output" property="sampleOutput" jdbcType="LONGVARCHAR" />
+        <result column="test_cases" property="testCases" jdbcType="LONGVARCHAR" />
+        <result column="hints" property="hints" jdbcType="LONGVARCHAR" />
+        <result column="source" property="source" jdbcType="VARCHAR" />
+        <result column="submit_count" property="submitCount" jdbcType="INTEGER" />
+        <result column="accept_count" property="acceptCount" jdbcType="INTEGER" />
+        <result column="acceptance_rate" property="acceptanceRate" jdbcType="DOUBLE" />
         <result column="created_time" property="createdTime" jdbcType="TIMESTAMP" />
         <result column="updated_time" property="updatedTime" jdbcType="TIMESTAMP" />
+        <result column="creator_id" property="creatorId" jdbcType="BIGINT" />
+        <result column="visible" property="visible" jdbcType="INTEGER" />
     </resultMap>
 
     <select id="selectProblems" resultMap="DTOResultMap">
-        select * from oj_problem
+        SELECT * FROM oj_problem
         <where>
             <if test="difficulty != null">
-                and difficulty = #{difficulty}
+                AND difficulty = #{difficulty}
             </if>
-            <if test="category != null">
-                and category = #{category}
+            <if test="tags != null">
+                AND tags LIKE CONCAT('%', #{tags}, '%')
             </if>
+            AND visible = 1
         </where>
-        order by updated_time desc
+        ORDER BY problem_code ASC
     </select>
 
     <select id="selectProblemById" resultMap="DTOResultMap">
-        select * from oj_problem where id = #{id}
+        SELECT * FROM oj_problem 
+        WHERE id = #{id} AND visible = 1
     </select>
 
-    <select id="selectProblemsByCategory" resultMap="DTOResultMap">
-        select * from oj_problem where category = #{category} order by updated_time desc
+    <select id="selectAllTags" resultType="java.lang.String">
+        SELECT DISTINCT tag
+        FROM (
+            SELECT JSON_UNQUOTE(JSON_EXTRACT(tags, '$[*]')) as tag
+            FROM oj_problem
+            WHERE visible = 1 AND tags IS NOT NULL
+        ) t
+        WHERE tag IS NOT NULL
+    </select>
+
+    <select id="getAcceptanceStatistics" resultType="java.util.HashMap">
+        SELECT 
+            difficulty,
+            COUNT(*) as total,
+            COALESCE(SUM(accept_count), 0) as accepted,
+            COALESCE(ROUND(AVG(NULLIF(acceptance_rate, 0)), 2), 0.00) as avg_rate,
+            COALESCE(SUM(CASE WHEN accept_count > 0 THEN 1 ELSE 0 END), 0) as solved
+        FROM oj_problem
+        WHERE visible = 1
+        GROUP BY difficulty
+    </select>
+
+    <select id="selectProblemsByTags" resultMap="DTOResultMap">
+        SELECT * FROM oj_problem 
+        WHERE tags LIKE CONCAT('%', #{tags}, '%')
+        AND visible = 1
+        ORDER BY problem_code ASC
     </select>
 
     <select id="selectProblemsByDifficulty" resultMap="DTOResultMap">
-        select * from oj_problem where difficulty = #{difficulty} order by updated_time desc
+        SELECT * FROM oj_problem 
+        WHERE difficulty = #{difficulty}
+        AND visible = 1
+        ORDER BY problem_code ASC
+    </select>
+
+    <select id="countByDifficulty" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM oj_problem
+        WHERE difficulty = #{difficulty}
+        AND visible = 1
     </select>
 </mapper>

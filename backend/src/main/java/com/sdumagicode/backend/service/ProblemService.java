@@ -3,6 +3,7 @@ package com.sdumagicode.backend.service;
 import com.sdumagicode.backend.dto.ProblemDTO;
 
 import java.util.List;
+import java.util.Map;
 
 public interface ProblemService {
     ProblemDTO getProblemById(Long id);
@@ -21,4 +22,8 @@ public interface ProblemService {
     Integer delete(Long id);
     
     ProblemDTO selectProblemById(Long id);
+
+    List<String> getAllTags();
+    
+    Map<String, Object> getStatistics();
 }

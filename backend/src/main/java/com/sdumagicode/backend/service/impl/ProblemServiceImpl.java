@@ -12,7 +12,9 @@ import tk.mybatis.mapper.entity.Condition;
 
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.HashMap;
 
 /**
  * 题目服务实现类
@@ -202,5 +204,58 @@ public class ProblemServiceImpl extends AbstractService<Problem> implements Prob
         ProblemDTO problemDTO = new ProblemDTO();
         BeanCopierUtil.convert(problem, problemDTO);
         return problemDTO;
+    }
+
+    @Override
+    public List<String> getAllTags() {
+        return problemMapper.selectAllTags();
+    }
+
+    @Override
+    public Map<String, Object> getStatistics() {
+        List<Map<String, Object>> stats = problemMapper.getAcceptanceStatistics();
+        Map<String, Object> result = new HashMap<>();
+        
+        int totalProblems = 0;
+        int totalSolved = 0;
+        int totalAttempted = 0;
+        double avgAcceptanceRate = 0.0;
+        
+        // 计算总数和已解决数
+        for (Map<String, Object> stat : stats) {
+            int total = ((Number) stat.get("total")).intValue();
+            int solved = ((Number) stat.get("solved")).intValue();
+            double avgRate = ((Number) stat.get("avg_rate")).doubleValue();
+            
+            totalProblems += total;
+            totalSolved += solved;
+            // 累加每个难度的平均通过率，后面再取平均
+            avgAcceptanceRate += avgRate * total; // 根据题目数量加权
+        }
+        
+        // 计算总体平均通过率
+        avgAcceptanceRate = totalProblems > 0 ? avgAcceptanceRate / totalProblems : 0;
+        
+        // 构造前端需要的数据结构
+        Map<String, Object> totalStat = new HashMap<>();
+        totalStat.put("title", "总题数");
+        totalStat.put("value", totalProblems);
+        totalStat.put("rate", Math.round(avgAcceptanceRate)); // 使用加权平均通过率
+        
+        Map<String, Object> solvedStat = new HashMap<>();
+        solvedStat.put("title", "已解决");
+        solvedStat.put("value", totalSolved);
+        solvedStat.put("rate", totalProblems > 0 ? Math.round((double) totalSolved / totalProblems * 100) : 0);
+        
+        Map<String, Object> attemptedStat = new HashMap<>();
+        attemptedStat.put("title", "尝试过");
+        attemptedStat.put("value", totalSolved); // 使用已解决数作为尝试过的数量
+        attemptedStat.put("rate", totalProblems > 0 ? Math.round((double) totalSolved / totalProblems * 100) : 0);
+        
+        result.put("total", totalStat);
+        result.put("solved", solvedStat);
+        result.put("attempted", attemptedStat);
+        
+        return result;
     }
 }

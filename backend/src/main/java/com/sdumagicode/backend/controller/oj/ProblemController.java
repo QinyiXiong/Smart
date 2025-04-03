@@ -7,25 +7,23 @@ import com.sdumagicode.backend.core.result.GlobalResult;
 import com.sdumagicode.backend.core.result.GlobalResultGenerator;
 import com.sdumagicode.backend.core.service.security.annotation.AuthorshipInterceptor;
 import com.sdumagicode.backend.dto.ProblemDTO;
-import com.sdumagicode.backend.entity.Problem;
-import com.sdumagicode.backend.mapper.ProblemMapper;
+import com.sdumagicode.backend.enumerate.Module;
 import com.sdumagicode.backend.service.ProblemService;
-import com.sdumagicode.backend.util.UserUtils;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
-import com.sdumagicode.backend.enumerate.Module;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @RestController
-@RequestMapping("/api/v1/problem")
+@RequestMapping("/api/v1/problems")
 public class ProblemController {
     @Autowired
     private ProblemService problemService;
 
-    @GetMapping("/list")
+    @GetMapping
     public GlobalResult<PageInfo<ProblemDTO>> getProblemList(
             @RequestParam(required = false) String difficulty,
             @RequestParam(required = false) String category,
@@ -35,6 +33,16 @@ public class ProblemController {
         List<ProblemDTO> list = problemService.selectProblems(difficulty, category);
         PageInfo<ProblemDTO> pageInfo = new PageInfo<>(list);
         return GlobalResultGenerator.genSuccessResult(pageInfo);
+    }
+
+    @GetMapping("/tags")
+    public GlobalResult<List<String>> getAllTags() {
+        return GlobalResultGenerator.genSuccessResult(problemService.getAllTags());
+    }
+
+    @GetMapping("/statistics")
+    public GlobalResult<Map<String, Object>> getStatistics() {
+        return GlobalResultGenerator.genSuccessResult(problemService.getStatistics());
     }
 
     @GetMapping("/{id}")

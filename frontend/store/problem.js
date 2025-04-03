@@ -4,7 +4,11 @@ const { mapActions, mapState } = createNamespacedHelpers('problem');
 
 const getDefaultListData = () => ({
   data: [],
-  pagination: {}
+  pagination: {},
+  statistics: {
+    total: 0,
+    byDifficulty: {}
+  }
 });
 
 export const state = () => ({
@@ -15,6 +19,10 @@ export const state = () => ({
   currentProblem: {
     fetching: false,
     data: null
+  },
+  filters: {
+    difficulties: ['简单', '中等', '困难'],
+    tags: []
   }
 });
 
@@ -32,76 +40,125 @@ export const mutations = {
   },
   updateCurrentProblemData(state, action) {
     state.currentProblem.data = action;
+  },
+  // 更新统计信息
+  updateStatistics(state, action) {
+    state.list.data.statistics = action;
+  },
+  // 更新标签列表
+  updateTags(state, action) {
+    state.filters.tags = action;
   }
 };
 
 export const actions = {
   // 获取问题列表
-  fetchList({ commit }, params = {}) {
+  async fetchList({ commit }, params = {}) {
     commit('updateListFetching', true);
-    // 清空已有数据
     commit('updateListData', getDefaultListData());
-    const { difficulty, category, page = 1, rows = 10 } = params;
-    return this.$axios.get('/api/v1/problem/list', {
-      params: { difficulty, category, page, rows }
-    })
-    .then(response => {
+    
+    try {
+      const { difficulty, tags, page = 1, pageSize = 10 } = params;
+      const response = await this.$axios.get('/api/v1/problems', {
+        params: { difficulty, tags, page, pageSize }
+      });
+      
+      commit('updateListData', {
+        data: response.data.list,
+        pagination: {
+          current: page,
+          pageSize,
+          total: response.data.total
+        }
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('获取题目列表失败:', error);
+      throw error;
+    } finally {
       commit('updateListFetching', false);
-      commit('updateListData', response.data);
-    })
-    .catch(error => {
-      console.error(error);
-      commit('updateListFetching', false);
-    });
+    }
   },
+
   // 获取问题详情
-  fetchProblemById({ commit }, id) {
+  async fetchProblemById({ commit }, id) {
     commit('updateCurrentProblemFetching', true);
-    return this.$axios.get(`/api/v1/problem/${id}`)
-    .then(response => {
-      commit('updateCurrentProblemFetching', false);
+    
+    try {
+      const response = await this.$axios.get(`/api/v1/problems/${id}`);
       commit('updateCurrentProblemData', response.data);
-    })
-    .catch(error => {
-      console.error(error);
+      return response.data;
+    } catch (error) {
+      console.error('获取题目详情失败:', error);
+      throw error;
+    } finally {
       commit('updateCurrentProblemFetching', false);
-    });
+    }
   },
-  // 按分类获取问题
-  fetchProblemsByCategory({ commit }, { category, page = 1, rows = 10 }) {
-    commit('updateListFetching', true);
-    commit('updateListData', getDefaultListData());
-    return this.$axios.get(`/api/v1/problem/category/${category}`, {
-      params: { page, rows }
-    })
-    .then(response => {
-      commit('updateListFetching', false);
-      commit('updateListData', response.data);
-    })
-    .catch(error => {
-      console.error(error);
-      commit('updateListFetching', false);
-    });
+
+  // 获取题目统计信息
+  async fetchStatistics({ commit }) {
+    try {
+      const response = await this.$axios.get('/api/v1/problems/statistics');
+      commit('updateStatistics', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('获取统计信息失败:', error);
+      throw error;
+    }
   },
-  // 按难度获取问题
-  fetchProblemsByDifficulty({ commit }, { difficulty, page = 1, rows = 10 }) {
-    commit('updateListFetching', true);
-    commit('updateListData', getDefaultListData());
-    return this.$axios.get(`/api/v1/problem/difficulty/${difficulty}`, {
-      params: { page, rows }
-    })
-    .then(response => {
-      commit('updateListFetching', false);
-      commit('updateListData', response.data);
-    })
-    .catch(error => {
-      console.error(error);
-      commit('updateListFetching', false);
-    });
+
+  // 获取所有标签
+  async fetchTags({ commit }) {
+    try {
+      const response = await this.$axios.get('/api/v1/problems/tags');
+      commit('updateTags', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('获取标签列表失败:', error);
+      throw error;
+    }
+  },
+
+  // 提交题目
+  async submitProblem({ commit }, data) {
+    try {
+      const response = await this.$axios.post('/api/v1/problems', data);
+      return response.data;
+    } catch (error) {
+      console.error('提交题目失败:', error);
+      throw error;
+    }
+  },
+
+  // 更新题目
+  async updateProblem({ commit }, { id, data }) {
+    try {
+      const response = await this.$axios.put(`/api/v1/problems/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error('更新题目失败:', error);
+      throw error;
+    }
+  },
+
+  // 删除题目
+  async deleteProblem({ commit }, id) {
+    try {
+      const response = await this.$axios.delete(`/api/v1/problems/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('删除题目失败:', error);
+      throw error;
+    }
   }
 };
 
 export const getters = {
   list: state => state.list,
-  currentProblem: state => state.currentProblem
+  currentProblem: state => state.currentProblem,
+  difficulties: state => state.filters.difficulties,
+  tags: state => state.filters.tags,
+  statistics: state => state.list.data.statistics
 };

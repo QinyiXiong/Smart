@@ -81,3 +81,10 @@ resource:
 openai:
   token: # Open Ai Key
 
+mybatis:
+  mapper-locations: classpath*:com/sdumagicode/backend/**/mapper/*.xml, classpath*:mapper/*.xml
+  type-aliases-package: com.sdumagicode.backend.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
