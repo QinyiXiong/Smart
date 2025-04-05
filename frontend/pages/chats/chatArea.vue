@@ -24,11 +24,11 @@
           :rows="3"
           placeholder="请输入您的问题..."
           v-model="inputMessage"
-          @keyup.enter.native="sendMessageWithFlux"
+          @keyup.enter.native="sendMessageWithPolling"
         ></el-input>
         <el-button
           type="primary"
-          @click="sendMessageWithFlux"
+          @click="sendMessageWithPolling"
           :disabled="!inputMessage.trim() || isLoading"
           class="send-button"
         >{{ isLoading ? '发送中...' : '发送' }}</el-button>
@@ -238,68 +238,122 @@
         }
       },
   // 修改后的startPolling方法
-    async startPolling() {
-    if (this.pollingInterval) {
-      clearTimeout(this.pollingInterval);
-    }
+    // async startPolling() {
+    // if (this.pollingInterval) {
+    //   clearTimeout(this.pollingInterval);
+    // }
     
-    const poll = async () => {
-      if (!this.isPolling) return;
+    // const poll = async () => {
+    //   if (!this.isPolling) return;
       
-      try {
-        const response = await this.$axios.get('/api/chat/pollMessage');
+    //   try {
+    //     const response = await this.$axios.get('/api/chat/pollMessage');
         
-        // 找到当前AI消息
-        const aiMessageIndex = this.chatMessages.findIndex(
-          msg => msg.id === 1
-        );
+    //     // 找到当前AI消息
+    //     const aiMessageIndex = this.chatMessages.findIndex(
+    //       msg => msg.id === 1
+    //     );
         
-        if (aiMessageIndex !== -1) {
-          // 更新AI消息内容
-          if (response.data && response.data.text) {
-            // 确保content对象存在
-            if (!this.chatMessages[aiMessageIndex].content) {
-              this.chatMessages[aiMessageIndex].content = { text: '' };
-            }
+    //     if (aiMessageIndex !== -1) {
+    //       // 更新AI消息内容
+    //       if (response.data && response.data.text) {
+    //         // 确保content对象存在
+    //         if (!this.chatMessages[aiMessageIndex].content) {
+    //           this.chatMessages[aiMessageIndex].content = { text: '' };
+    //         }
             
-            // 追加新内容
-            this.chatMessages[aiMessageIndex].content.text += response.data.text;
+    //         // 追加新内容
+    //         this.chatMessages[aiMessageIndex].content.text += response.data.text;
             
-            // 触发视图更新
-            this.$forceUpdate();
-            this.scrollToBottom();
+    //         // 触发视图更新
+    //         this.$forceUpdate();
+    //         this.scrollToBottom();
             
-            console.log(response.data.finish)
-            // 检查是否结束
-            if (response.data.finish == "stop") {
-              this.stopPolling();
-              return;
-            }
-          }
-        } else {
-          this.stopPolling();
-          return;
-        }
+    //         console.log(response.data.finish)
+    //         // 检查是否结束
+    //         if (response.data.finish == "stop") {
+    //           this.stopPolling();
+    //           return;
+    //         }
+    //       }
+    //     } else {
+    //       this.stopPolling();
+    //       return;
+    //     }
         
-        // 继续轮询
-        this.pollingInterval = setTimeout(poll, 5);
-      } catch (error) {
-        console.error('轮询出错:', error);
-        this.stopPolling();
-      }
-    };
+    //     // 继续轮询
+    //     //this.pollingInterval = setTimeout(poll, 5);
+    //     Promise.resolve().then(poll);
+    //   } catch (error) {
+    //     console.error('轮询出错:', error);
+    //     this.stopPolling();
+    //   }
+    // };
     
-    poll();
+    // poll();
+    // },
+    // // 修改后的stopPolling方法
+    // stopPolling() {
+    //   this.isPolling = false;
+    //   this.isLoading = false;
+    //   if (this.pollingInterval) {
+    //     clearTimeout(this.pollingInterval);
+    //     this.pollingInterval = null;
+    //   }
+    // },
+    async startPolling() {
+      const processBatch = async () => {
+          try {
+              const response = await this.$axios.get('/api/chat/pollMessages');
+
+                  if (response.data?.length) {
+                      let shouldStop = false; // 新增标志位判断是否需要停止轮询
+
+                      // 批量处理消息
+                      response.data.forEach(msg => {
+                          console.log(msg.data);
+
+                          // 检查是否收到停止信号
+                          if (msg.finish === "stop") {
+                              shouldStop = true;
+                          }
+
+                          const aiMsg = this.chatMessages.find(m => m.id === 1);
+                          if (aiMsg) {
+                              aiMsg.content = aiMsg.content || { text: '' };
+                              aiMsg.content.text += msg.text;
+                          }
+                      });
+
+                      this.$forceUpdate();
+                      this.scrollToBottom();
+
+                      // 如果收到停止信号，则中止轮询
+                      if (shouldStop) {
+                          this.stopPolling();
+                          this.isLoading=false;
+                          return;
+                      }
+                  }
+
+                  // 使用requestAnimationFrame实现高效循环
+                  this.pollingAnimationFrame = requestAnimationFrame(processBatch);
+              } catch (error) {
+                  console.error('轮询出错:', error);
+                  this.stopPolling();
+              }
+          };
+        
+        this.isPolling = true;
+        processBatch();
     },
-    // 修改后的stopPolling方法
-    stopPolling() {
-      this.isPolling = false;
-      this.isLoading = false;
-      if (this.pollingInterval) {
-        clearTimeout(this.pollingInterval);
-        this.pollingInterval = null;
-      }
-    },
+
+
+stopPolling() {
+    cancelAnimationFrame(this.pollingAnimationFrame);
+    this.isPolling = false;
+},
+
    
     
     beforeDestroy() {

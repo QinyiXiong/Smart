@@ -40,6 +40,7 @@ public class BaseExceptionHandler {
     @SuppressWarnings("Duplicates")
     @ExceptionHandler(Exception.class)
     public Object errorHandler(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+        ex.printStackTrace();
         if (isAjax(request)) {
             GlobalResult<ResultCode> result = new GlobalResult<>();
             if (ex instanceof UnauthenticatedException) {

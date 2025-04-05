@@ -11,8 +11,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.util.ResourceUtils;
 import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
@@ -82,5 +84,18 @@ public class WebMvcConfigurer extends WebMvcConfigurationSupport {
         //将所有/static/** 访问都映射到classpath:/static/ 目录下
         registry.addResourceHandler("/static/**").addResourceLocations(ResourceUtils.CLASSPATH_URL_PREFIX + "/static/");
         super.addResourceHandlers(registry);
+    }
+
+    @Override
+    public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
+        ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
+        taskExecutor.setCorePoolSize(10); // 核心线程数
+        taskExecutor.setMaxPoolSize(50); // 最大线程数
+        taskExecutor.setQueueCapacity(100); // 队列容量
+        taskExecutor.setThreadNamePrefix("mvc-async-"); // 线程名前缀
+        taskExecutor.initialize();
+
+        configurer.setTaskExecutor(taskExecutor);
+        configurer.setDefaultTimeout(30000); // 设置默认超时时间(毫秒)
     }
 }

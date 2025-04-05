@@ -92,7 +92,10 @@ public class ChatServiceImpl  implements ChatService {
         try {
             // 1. 调用AI接口并转换为Flux流
             Flowable<ApplicationResult> aiStream = chatUtil.streamCall(messageList, Prompt, appType);
-
+            aiStream.subscribe(
+                    data -> System.out.println("Received: " + data),
+                    error -> System.out.println("Error in streamCall: " + error) // 检查是否这里先报错
+            );
             // 2. 将Flowable转换为Flux并映射为ChatRecords
             return Flux.from(aiStream)
                     .map(applicationResult -> {
@@ -102,7 +105,8 @@ public class ChatServiceImpl  implements ChatService {
                         return chatOutput;
                     })
                     .onErrorResume(error -> {
-
+                        System.out.println(error.getMessage());
+                        System.out.println(error.getCause());
                         return Flux.error(new ServiceException("转换流错误: " + error.getMessage()));
                     });
 
@@ -150,7 +154,7 @@ public class ChatServiceImpl  implements ChatService {
             // 4. 使用Consumer处理流式输出
             aiStream.blockingSubscribe(data -> {
                 ChatOutput chatOutput = new ChatOutput(data.getOutput());
-                        System.out.println("content: " + chatOutput);
+                        System.out.println("content: " + chatOutput.getText());
                 outputConsumer.accept(chatOutput);
             }
 

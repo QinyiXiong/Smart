@@ -19,12 +19,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.async.DeferredResult;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 @RestController
@@ -62,7 +67,7 @@ public class ChatController {
 
 
     @PostMapping(value = "/sendMessageWithFlux" ,produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public GlobalResult<Flux<ChatOutput>> sendMessageWithFlux(@RequestBody ChatRequest chatRequest){
+    public Flux<GlobalResult<ChatOutput>> sendMessageWithFlux(@RequestBody ChatRequest chatRequest){
         if (chatRequest.getMessageList() == null || chatRequest.getMessageList().isEmpty()) {
             throw new ServiceException("缺少发送信息");
         }
@@ -70,7 +75,8 @@ public class ChatController {
             throw new ServiceException("未设置面试官");
         }
         Flux<ChatOutput> globalResultFlux = chatService.sendMessageToInterviewerAndGetFlux(chatRequest.getMessageList(), chatRequest.getInterviewer());
-        return GlobalResultGenerator.genSuccessResult(globalResultFlux);
+
+        return globalResultFlux.map(GlobalResultGenerator::genSuccessResult);
 
     }
 
@@ -94,8 +100,9 @@ public class ChatController {
                     idUser,
                     output -> {
                         // 将每个输出添加到队列
-                        System.out.println(output);
+
                         MessageQueueUtil.addMessage(output);
+                        System.out.println("add queue: "+ output.getText());
                     }
             );
         } catch (Exception e) {
@@ -104,15 +111,46 @@ public class ChatController {
         }
         return GlobalResultGenerator.genSuccessResult("发送成功");
     }
-    @GetMapping("/pollMessage")
-    public GlobalResult<ChatOutput> pollMessage() throws InterruptedException {
-        // 设置超时时间（例如30秒）
-        ChatOutput message = MessageQueueUtil.getQueue().poll(30, TimeUnit.SECONDS);
-        if (message == null) {
-            return GlobalResultGenerator.genErrorResult("请求超时");
+//    @GetMapping("/pollMessage")
+//    public GlobalResult<ChatOutput> pollMessage() throws InterruptedException {
+//        // 设置超时时间（例如30秒）
+//        ChatOutput message = MessageQueueUtil.getQueue().poll(30, TimeUnit.SECONDS);
+//        if (message == null) {
+//            return GlobalResultGenerator.genErrorResult("请求超时");
+//        }
+//        return GlobalResultGenerator.genSuccessResult(message);
+//    }
+
+    @GetMapping("/pollMessages")
+    public GlobalResult<List<ChatOutput>> pollMessages() {
+        List<ChatOutput> batch = new ArrayList<>();
+        long startTime = System.currentTimeMillis();
+        long timeout = 10000; // 5秒超时
+
+        // 轮询等待新消息
+        while (batch.isEmpty() && (System.currentTimeMillis() - startTime) < timeout) {
+            ChatOutput message;
+            while((message = MessageQueueUtil.getQueue().poll()) != null && batch.size() < 5) {
+                System.out.println("get queue:"+message.getText());
+                batch.add(message);
+            }
+
+            // 如果还没有消息，短暂休眠避免CPU空转
+            if (batch.isEmpty()) {
+                try {
+                    Thread.sleep(200); // 200毫秒检查一次
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return GlobalResultGenerator.genErrorResult("轮询被中断");
+                }
+            }
         }
-        return GlobalResultGenerator.genSuccessResult(message);
+
+        return GlobalResultGenerator.genSuccessResult(batch);
     }
+
+
+
 
 
 
