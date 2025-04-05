@@ -26,11 +26,6 @@
                   <el-col class="mt-2rem">总文章数</el-col>
                 </el-card>
               </el-col>
-              <el-col :span="6">
-                <el-card style="max-height: 210px;">
-                  <el-image :src="gzh"></el-image>
-                </el-card>
-              </el-col>
             </el-row>
           </el-col>
           <el-col class="mt-2rem">
@@ -49,7 +44,6 @@
 import Vue from 'vue';
 import { mapState } from 'vuex';
 import echarts from 'echarts';
-import gzh from "assets/rymcugzh.jpg";
 
 Vue.prototype.$echarts = echarts;
 export default {

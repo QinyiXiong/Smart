@@ -1,5 +1,5 @@
 export const meta = {
-  title: 'RYMCU - 嵌入式知识学习交流平台',
+  title: '山灵智码 - AI面试官',
   keywords: 'RYMCU,嵌入式,51,单片机,STM,STM8,STM32',
   description: 'RYMCU 致力于打造一个即严谨又活泼、专业又不失有趣，为数百万人服务的开源嵌入式知识学习交流平台。',
   url: 'https://rymcu.com',

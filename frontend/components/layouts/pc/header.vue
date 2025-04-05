@@ -2,7 +2,7 @@
   <el-row :gutter="20" justify="space-between" type="flex">
     <el-col :md="4" :span="4" :xs="8">
       <a class="navbar-brand" href="/" rel="nofollow">
-        <img alt="RYMCU" class="navbar-brand-img" src="@/assets/rymcu.png">
+        <img alt="logo" class="navbar-brand-img" src="@/assets/logo.svg">
       </a>
     </el-col>
     <el-col :md="14" :span="10" :xs="0" style="max-height: 58px;overflow: hidden">
@@ -385,9 +385,10 @@ export default {
 }
 
 .navbar-brand-img {
-  height: 60px;
-  line-height: 3rem;
-  vertical-align: top;
+  height: 100px;
+  /* line-height: 3rem;
+  vertical-align: top; */
+  object-fit: cover;
   width: auto;
 }
 

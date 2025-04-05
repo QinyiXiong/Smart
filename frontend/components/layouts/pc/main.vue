@@ -7,21 +7,6 @@
       <nuxt/>
     </el-main>
     <div v-if="isPostArticle && isShow" style="position: fixed;bottom: 10vh;right: 3vw;">
-      <el-col v-if="isPostArticle" :xs="0" :xl="24">
-        <el-popover
-          placement="right"
-          width="20"
-          trigger="hover">
-          <el-col>
-            <el-image :src="gzh"></el-image>
-          </el-col>
-          <el-col class="text-center">
-            <span>扫码关注公众号</span>
-          </el-col>
-          <el-button slot="reference" circle><img style="width: 14px;height: 14px;" :src="wx" fit="cover"/>
-          </el-button>
-        </el-popover>
-      </el-col>
       <el-col style="padding-top: 1rem;" :xs="0" :xl="24">
         <el-button circle @click="backTop" icon="el-icon-caret-top"></el-button>
       </el-col>
@@ -34,7 +19,6 @@ import {mapState} from 'vuex';
 import HeaderView from "./header";
 import FooterView from "./footer";
 import wx from "~/assets/weixin.png";
-import gzh from "~/assets/rymcugzh.jpg";
 
 export default {
   name: "PcMain",
@@ -57,7 +41,6 @@ export default {
       return {
         isShow: false,
         wx: wx,
-        gzh: gzh
       }
     },
     methods: {

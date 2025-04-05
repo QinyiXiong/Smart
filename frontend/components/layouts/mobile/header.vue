@@ -3,7 +3,7 @@
     <el-col :span="24">
       <el-col :xs="8" :sm="4" :md="4" :xl="3" style="padding-top: .5rem;">
         <a class="navbar-brand" href="/" rel="nofollow">
-          <img src="@/assets/rymcu.png" alt="RYMCU" class="navbar-brand-img">
+          <img src="@/assets/logo.svg" alt="logo" class="navbar-brand-img">
         </a>
       </el-col>
       <el-col :xs="0" :sm="12" :md="8" :xl="8" style="text-align: center;">
@@ -228,10 +228,7 @@ export default {
 }
 
 .navbar-brand-img {
-  height: 2rem;
-  line-height: 2rem;
-  vertical-align: bottom;
-  margin-right: .5rem;
-  width: auto;
+  height: 100px;  /* 调整为你需要的大小 */
+  width: auto;   /* 保持宽高比 */
 }
 </style>

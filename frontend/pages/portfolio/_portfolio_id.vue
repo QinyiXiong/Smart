@@ -100,7 +100,7 @@ export default {
   },
   head() {
     return {
-      title: this.portfolio.portfolioTitle || 'RYMCU - 嵌入式知识学习交流平台',
+      title: this.portfolio.portfolioTitle || '山灵智码 - AI面试官',
       meta: [
         {
           name: 'keywords',

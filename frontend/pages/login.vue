@@ -3,7 +3,7 @@
     <el-col :xs="24" :sm="12" :xl="12" class="verify-wrap flex-inline">
       <el-form :model="user" ref="user" status-icon label-width="100px" style="width: 375px;">
         <el-form-item>
-          <img src="~/assets/rymcu.png" alt="RYMCU" class="icon-rymcu">
+          <img src="~/assets/logo.svg" alt="logo" class="icon-rymcu">
         </el-form-item>
         <el-form-item label="账号" prop="account" :rules="[{ required: true, message: '请输入账号', trigger: 'blur' }]">
           <el-input v-model="user.account" autocomplete="off"></el-input>
@@ -158,7 +158,7 @@ export default {
 .icon-rymcu {
   margin: 0 auto;
   display: block;
-  height: 4rem;
+  height: 150px;
 }
 
 .verify .verify-wrap {
