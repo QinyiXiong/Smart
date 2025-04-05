@@ -67,6 +67,7 @@ public class EmbeddingClient {
                 throw new RuntimeException("Embedding API request failed: " + response.getStatus() + " - " + response.getBody());
             }
         } catch (Exception e) {
+            e.printStackTrace();
             throw new RuntimeException("Failed to get embeddings", e);
         }
     }

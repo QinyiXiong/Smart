@@ -85,3 +85,7 @@ resource:
   file-path: https://test.rymcu.com
   pic-path: /opt/nebula/static
   answer-api-url: https://test.rymcu.com/subject/question
+mybatis-plus:
+  mapper-locations: classpath:mybatis-mapper/*.xml
+  configuration:
+    map-underscore-to-camel-case: true

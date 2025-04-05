@@ -10,31 +10,28 @@ import com.alibaba.dashscope.exception.InputRequiredException;
 import com.alibaba.dashscope.exception.NoApiKeyException;
 import com.sdumagicode.backend.entity.chat.MessageLocal;
 import io.reactivex.Flowable;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Component
 public class ChatUtil {
     // 应用ID配置
-    private static final String APP_ID_INTERVIEWER = "${interviewer.app.id}";
-    private static final String APP_ID_CODER = "${coder.app.id}";
-    
-    private final String apiKey = "${openai.api.key}";
-    private final String appId;
+    @Value("${interviewer.app.id}")
+    private String APP_ID_INTERVIEWER;
 
-    private final String prompt;
-    
-    /**
-     * 构造函数
+    @Value("${coder.app.id}")
+    private String APP_ID_CODER;
 
-     * @param appType 应用类型(INTERVIEWER或CODER)
-     * @param prompt 提示模板
-     */
-    public ChatUtil(AppType appType, String prompt) {
+    @Value("${openai.api.key}")
+    private String apiKey;
 
-        this.appId = appType == AppType.INTERVIEWER ? APP_ID_INTERVIEWER : APP_ID_CODER;
-        this.prompt = prompt;
-    }
+    private String appId;
+
+
     
     /**
      * 流式调用AI接口
@@ -44,16 +41,23 @@ public class ChatUtil {
      * @throws NoApiKeyException 无API Key异常
      * @throws InputRequiredException 输入必需异常
      */
-    public Flowable<ApplicationResult> streamCall(List<MessageLocal> messageList)
+    public Flowable<ApplicationResult> streamCall(List<MessageLocal> messageList,String prompt,AppType appType)
             throws ApiException, NoApiKeyException, InputRequiredException {
         // 转换消息格式
-        List<Message> messages = convertMessages(messageList);
-        
+        List<Message> messages = convertMessages(messageList,prompt);
+//        System.out.println("apikey: " + apiKey);
+//        System.out.println("app_id: " + APP_ID_INTERVIEWER);
+
+        if (appType == AppType.INTERVIEWER){
+            appId = APP_ID_INTERVIEWER;
+        }else if(appType == AppType.CODER){
+            appId = APP_ID_CODER;
+        }
         // 构建参数
         ApplicationParam param = ApplicationParam.builder()
-                .apiKey(this.apiKey)
-                .appId(this.appId)
-                .incrementalOutput(false)
+                .apiKey(apiKey)
+                .appId(appId)
+                .incrementalOutput(true)
                 .hasThoughts(true)
                 .messages(messages)
                 .build();
@@ -71,31 +75,31 @@ public class ChatUtil {
      * @throws NoApiKeyException 无API Key异常
      * @throws InputRequiredException 输入必需异常
      */
-    public ApplicationResult call(List<MessageLocal> messageList)
-            throws ApiException, NoApiKeyException, InputRequiredException {
-        // 转换消息格式
-        List<Message> messages = convertMessages(messageList);
-        
-        // 构建参数
-        ApplicationParam param = ApplicationParam.builder()
-                .apiKey(this.apiKey)
-                .appId(this.appId)
-                .incrementalOutput(false)
-                .hasThoughts(true)
-                .messages(messages)
-                .build();
-        
-        // 调用接口
-        Application application = new Application();
-        return application.call(param);
-    }
+//    public ApplicationResult call(List<MessageLocal> messageList)
+//            throws ApiException, NoApiKeyException, InputRequiredException {
+//        // 转换消息格式
+//        List<Message> messages = convertMessages(messageList);
+//
+//        // 构建参数
+//        ApplicationParam param = ApplicationParam.builder()
+//                .apiKey(this.apiKey)
+//                .appId(this.appId)
+//                .incrementalOutput(false)
+//                .hasThoughts(true)
+//                .messages(messages)
+//                .build();
+//
+//        // 调用接口
+//        Application application = new Application();
+//        return application.call(param);
+//    }
     
     /**
      * 转换消息格式
      * @param messageList 原始消息列表
      * @return 转换后的消息列表
      */
-    private List<Message> convertMessages(List<MessageLocal> messageList) {
+    private List<Message> convertMessages(List<MessageLocal> messageList,String prompt) {
         List<Message> messages = new ArrayList<>();
         
         // 添加系统提示

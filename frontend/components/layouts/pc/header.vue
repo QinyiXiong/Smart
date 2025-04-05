@@ -223,6 +223,11 @@ export default {
             path: '/portfolios?page=1'
           })
           break;
+        case 'interview-simulate':
+          _ts.$router.push({
+            path: '/chats/interviewContainer'
+          })
+          break;  
         case 'milvus-database':
           _ts.$router.push({
             path: '/milvusDatabase/database'

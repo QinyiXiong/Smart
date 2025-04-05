@@ -6,10 +6,14 @@ import com.alibaba.dashscope.exception.ApiException;
 import com.alibaba.dashscope.exception.InputRequiredException;
 import com.alibaba.dashscope.exception.NoApiKeyException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.sdumagicode.backend.core.exception.ServiceException;
 import com.sdumagicode.backend.core.result.GlobalResult;
 import com.sdumagicode.backend.core.result.GlobalResultGenerator;
 import com.sdumagicode.backend.core.service.AbstractService;
+import com.sdumagicode.backend.dto.chat.ChatOutput;
 import com.sdumagicode.backend.dto.chat.MessageFileDto;
+import com.sdumagicode.backend.entity.User;
 import com.sdumagicode.backend.entity.chat.*;
 import com.sdumagicode.backend.mapper.ChatMapper;
 import com.sdumagicode.backend.mapper.mongoRepo.BranchRepository;
@@ -21,15 +25,19 @@ import com.sdumagicode.backend.util.chatUtil.InterviewerPromptGenerator;
 import com.sdumagicode.backend.util.embeddingUtil.MilvusClient;
 import io.reactivex.Flowable;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
 
 @Service
-public class ChatServiceImpl extends AbstractService<ChatRecords> implements ChatService {
+public class ChatServiceImpl  implements ChatService {
 
     @Autowired
     private ChatMapper chatMapper;
@@ -43,15 +51,35 @@ public class ChatServiceImpl extends AbstractService<ChatRecords> implements Cha
     @Autowired
     MilvusClient milvusClient;
 
+    @Autowired
+    ChatUtil chatUtil;
+
     @Override
     public List<ChatRecords> getChatRecords(ChatRecords chatRecords) {
         Long userId = UserUtils.getCurrentUserByToken().getIdUser();
-        LambdaQueryWrapper<ChatRecords> lqw = new LambdaQueryWrapper<>();
-        lqw.eq(ChatRecords::getUserId,userId);
-        lqw.eq(ChatRecords::getInterviewerId,chatRecords.getInterviewerId());
+        List<ChatRecords> chatRecordsList = chatMapper.selectChatRecords(userId, chatRecords);
+        return chatRecordsList;
+    }
 
+    @Override
+    public ChatRecords saveChatRecords(ChatRecords chatRecords) {
+        chatRecords.setUserId(UserUtils.getCurrentUserByToken().getIdUser());
+        if(chatRecords.getChatId() == null){
+            chatRecords.setCreatedAt(LocalDateTime.now());
+            chatRecords.setUpdatedAt(LocalDateTime.now());
+            // 使用 insert 方法，会自动填充主键
+            chatMapper.insertChatRecord(chatRecords);
+        }else{
+            chatRecords.setUpdatedAt(LocalDateTime.now());
+            chatMapper.updateChatRecord(chatRecords);
+        }
+        return chatRecords;
+    }
 
-        return chatMapper.selectByCondition(lqw);
+    @Override
+    public boolean deleteChatRecords(ChatRecords chatRecords) {
+        chatMapper.deleteChatRecord(chatRecords.getChatId());
+        return true;
     }
 
     @Override
@@ -60,43 +88,32 @@ public class ChatServiceImpl extends AbstractService<ChatRecords> implements Cha
     }
 
     @Override
-    public Flux<GlobalResult<ApplicationOutput>> sendMessageAndGetFlux(List<MessageLocal> messageList, String Prompt) {
+    public Flux<ChatOutput> sendMessageAndGetFlux(List<MessageLocal> messageList, String Prompt, ChatUtil.AppType appType) {
         try {
-            // 1. 创建工具类实例
-            ChatUtil chatUtil = new ChatUtil(
-                    ChatUtil.AppType.INTERVIEWER,
-                    Prompt);
+            // 1. 调用AI接口并转换为Flux流
+            Flowable<ApplicationResult> aiStream = chatUtil.streamCall(messageList, Prompt, appType);
 
-
-            // 2. 调用AI接口并转换为Flux流
-            Flowable<ApplicationResult> aiStream = chatUtil.streamCall(messageList);
-
-
-            // 3. 将Flowable转换为Flux并包装成GlobalResult
+            // 2. 将Flowable转换为Flux并映射为ChatRecords
             return Flux.from(aiStream)
-                    .map(result -> {
-                        ApplicationOutput output = result.getOutput();
-                        return GlobalResultGenerator.genSuccessResult(output);
+                    .map(applicationResult -> {
+                        // 创建ChatOutput对象
+                        ChatOutput chatOutput = new ChatOutput(applicationResult.getOutput());
+
+                        return chatOutput;
                     })
-                    .onErrorResume(e -> {
-                        if (e instanceof ApiException) {
-                            return Flux.just(GlobalResultGenerator.genErrorResult("API调用异常: " + e.getMessage()));
-                        } else if (e instanceof NoApiKeyException) {
-                            return Flux.just(GlobalResultGenerator.genErrorResult("API密钥缺失: " + e.getMessage()));
-                        } else if (e instanceof InputRequiredException) {
-                            return Flux.just(GlobalResultGenerator.genErrorResult("输入参数缺失: " + e.getMessage()));
-                        } else {
-                            return Flux.just(GlobalResultGenerator.genErrorResult("系统异常: " + e.getMessage()));
-                        }
+                    .onErrorResume(error -> {
+
+                        return Flux.error(new ServiceException("转换流错误: " + error.getMessage()));
                     });
 
         } catch (Exception e) {
-            return Flux.just(GlobalResultGenerator.genErrorResult("处理异常: " + e.getMessage()));
+
+            throw new ServiceException("处理异常: " + e.getMessage());
         }
     }
 
     @Override
-    public Flux<GlobalResult<ApplicationOutput>> sendMessageToInterviewerAndGetFlux(List<MessageLocal> messageList, Interviewer interviewer) {
+    public Flux<ChatOutput> sendMessageToInterviewerAndGetFlux(List<MessageLocal> messageList, Interviewer interviewer) {
         //对用户最后一条信息进行RAG搜索
         MessageLocal messageLocal = messageList.get(messageList.size() - 1);
 
@@ -104,7 +121,44 @@ public class ChatServiceImpl extends AbstractService<ChatRecords> implements Cha
         milvusClient.buildRAGContent(idUser,interviewer.getKnowledgeBaseId(),messageLocal.getContent().getText(),5);
 
 
-        return sendMessageAndGetFlux(messageList,InterviewerPromptGenerator.generatePrompt(interviewer));
+        return sendMessageAndGetFlux(messageList,InterviewerPromptGenerator.generatePrompt(interviewer), ChatUtil.AppType.INTERVIEWER);
+    }
+
+    @Override
+    @Async
+    public void sendMessageToInterviewer(List<MessageLocal> messageList, Interviewer interviewer,Long userId, Consumer<ChatOutput> outputConsumer) {
+        try {
+            // 1. RAG搜索（保持原有逻辑）
+            MessageLocal lastMessage = messageList.get(messageList.size() - 1);
+
+
+            milvusClient.buildRAGContent(
+                    userId,
+                    interviewer.getKnowledgeBaseId(),
+                    lastMessage.getContent().getText(),
+                    5
+            );
+            // 2. 生成Prompt（保持原有逻辑）
+            String prompt = InterviewerPromptGenerator.generatePrompt(interviewer);
+
+            // 3. 调用AI接口
+            Flowable<ApplicationResult> aiStream = chatUtil.streamCall(
+                    messageList,
+                    prompt,
+                    ChatUtil.AppType.INTERVIEWER
+            );
+            // 4. 使用Consumer处理流式输出
+            aiStream.blockingSubscribe(data -> {
+                ChatOutput chatOutput = new ChatOutput(data.getOutput());
+                        System.out.println("content: " + chatOutput);
+                outputConsumer.accept(chatOutput);
+            }
+
+            );
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new ServiceException("处理异常: " + e.getMessage());
+        }
     }
 
     @Override

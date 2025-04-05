@@ -1,5 +1,9 @@
 package com.sdumagicode.backend.entity.chat;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,26 +17,23 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "interview_chat_records")
+@TableName("interview_chat_records")
 public class ChatRecords {
-    @Id
-    @GeneratedValue(generator = "JDBC")
-    @Column(name = "chat_id")
+    @TableId(value = "chat_id", type = IdType.AUTO)
     private Long chatId;
 
-    @Column(name = "user_id")
+    @TableField("user_id")  // 替换为 MyBatis-Plus 的注解
     private Long userId;
 
-    @Column(name = "interviewer_id")
-    private Long interviewerId;
+    @TableField("interviewer_id")
+    private String interviewerId;
 
-    @Column(name = "created_at")
+    @TableField("created_at")
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @TableField("updated_at")
     private LocalDateTime updatedAt;
 
-    @Column(name = "topic")
+    @TableField("topic")
     private String topic;
-
 }
