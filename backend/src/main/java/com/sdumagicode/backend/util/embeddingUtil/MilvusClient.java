@@ -44,7 +44,8 @@ public class MilvusClient {
     private static final String VECTOR_FIELD = "title_vector";
     private static final String TITLE = "title";
     private static final String CONTENT = "content";
- 
+
+    private static final String TYPE_ID = "type_id";
     private final MilvusServiceClient client;
  
     private final EmbeddingClient embeddingClient;
@@ -350,12 +351,12 @@ public class MilvusClient {
         List<List<Float>> targetVectors = embeddingClient.getEmbedding(keyword);
         SearchParam param = SearchParam.newBuilder()
                 .withCollectionName(collectionName)
-                .withMetricType(MetricType.L2)
+                .withMetricType(MetricType.COSINE)
                 .withTopK(topK)
                 .withVectors(targetVectors)
                 .withVectorFieldName(VECTOR_FIELD)
                 .withConsistencyLevel(ConsistencyLevelEnum.EVENTUALLY)
-                .withOutFields(Arrays.asList(ID_FIELD, TITLE, CONTENT ))
+                .withOutFields(Arrays.asList(ID_FIELD,TYPE_ID,CONTENT ))
                 .withParams("{\"nprobe\":10}")
                 .build();
         R<SearchResults> response = client.search(param);
@@ -423,6 +424,10 @@ public class MilvusClient {
      * @return 用<RAG></RAG>标签包围的整合后的搜索内容
      */
     public String buildRAGContent(Long userId, String knowledgeBaseId, String keyword, Integer topK) {
+        if(keyword == null || keyword.isEmpty()){
+            return "";
+        }
+
         // 1. 执行搜索获取结果列表
         List<KnowledgeSearchVO> searchResults = search(keyword, topK, userId, knowledgeBaseId);
 

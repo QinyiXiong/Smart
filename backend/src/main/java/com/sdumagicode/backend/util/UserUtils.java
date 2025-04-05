@@ -14,6 +14,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.shiro.authz.UnauthenticatedException;
 
 import javax.crypto.SecretKey;
+import javax.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
@@ -32,7 +33,8 @@ public class UserUtils {
      * @return
      */
     public static User getCurrentUserByToken() {
-        String authHeader = ContextHolderUtils.getRequest().getHeader(JwtConstants.AUTHORIZATION);
+        HttpServletRequest request = ContextHolderUtils.getRequest();
+        String authHeader = request.getHeader(JwtConstants.AUTHORIZATION);
         if (authHeader == null) {
             throw new UnauthenticatedException();
         }
