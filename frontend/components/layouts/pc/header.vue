@@ -390,11 +390,12 @@ export default {
 }
 
 .navbar-brand-img {
-  height: 100px;
+  height: 120px;
   /* line-height: 3rem;
   vertical-align: top; */
   object-fit: cover;
   width: auto;
+  margin-top: -30px;
 }
 
 .search-result-box {

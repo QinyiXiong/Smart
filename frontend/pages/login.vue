@@ -1,33 +1,39 @@
 <template>
-  <el-row class="wrapper verify" style="background-color: #F6F7F8;padding-top: 10%;">
-    <el-col :xs="24" :sm="12" :xl="12" class="verify-wrap flex-inline">
-      <el-form :model="user" ref="user" status-icon label-width="100px" style="width: 375px;">
-        <el-form-item>
-          <img src="~/assets/logo.svg" alt="logo" class="icon-rymcu">
-        </el-form-item>
-        <el-form-item label="账号" prop="account" :rules="[{ required: true, message: '请输入账号', trigger: 'blur' }]">
-          <el-input v-model="user.account" autocomplete="off"></el-input>
-        </el-form-item>
-        <el-form-item label="密码" prop="password" :rules="[{ required: true, message: '请输入密码', trigger: 'blur' }]">
-          <el-input type="password" v-model="user.password" autocomplete="off" show-password></el-input>
-        </el-form-item>
-        <el-form-item>
-          <el-link rel="nofollow" style="float: right;" :underline="false" @click="forgetPassword">忘记密码</el-link>
-        </el-form-item>
-        <el-form-item>
-          <el-button style="width: 60%;" type="primary" @click="login" :loading="loginLoading" plain>立即登录</el-button>
-          <el-button style="width: 32%;" @click="register" plain>注册</el-button>
-        </el-form-item>
-      </el-form>
-    </el-col>
-    <el-col :xs="24" :sm="12" :xl="12" class="intro vditor-reset verify__sign">
-      <div>
-        <h2>欢迎来到 RYMCU</h2>
-        <p><a rel="nofollow" href="/">RYMCU</a> 是一个嵌入式知识学习交流平台，专注于单片机学习。</p>
-        <p>我们正在构建一个小众社区。大家在这里相互<strong>信任</strong>，以<em>平等 • 自由 • 奔放</em>的价值观进行分享交流。最终，希望大家能够找到与自己志同道合的伙伴，共同成长。</p>
-        <p>最后请大家共同爱护这个<i>自由</i>的交流环境，相信这里一定是你注册过的所有社区中用户体验最好的 😍</p>
+  <div 
+  class="background-layer" 
+  :style="{ backgroundImage: `url(${require('@/assets/background.png')})` }"
+>
+  <el-row class="wrapper verify" style="background: url('a.png') no-repeat center center fixed;
+   background-size: cover; padding-top: 10%; min-height: 100px;">
+    <el-col :xs="24" :sm="24" :xl="24" class="verify-wrap flex-inline">
+      <div class="login-form-container">
+        
+        <el-form :model="user" ref="user" status-icon  style="width: 400px;">
+          <el-form-item style="text-align: center;" label-width="10px">
+            <img src="~/assets/logo.svg" alt="logo" class="icon-rymcu">
+          </el-form-item>
+
+          <el-form-item style="text-align: center;" label="账号" prop="account" :rules="[{ required: true, message: '请输入账号', trigger: 'blur' }]">
+            <el-input v-model="user.account" autocomplete="off"></el-input>
+          </el-form-item>
+          <el-form-item style="text-align: center;" label="密码" prop="password" :rules="[{ required: true, message: '请输入密码', trigger: 'blur' }]">
+            <el-input type="password" v-model="user.password" autocomplete="off" show-password></el-input>
+          </el-form-item>
+
+          <!-- <el-form-item>
+            <el-link rel="nofollow" style="float: right;" :underline="false" @click="forgetPassword">忘记密码</el-link>
+          </el-form-item> -->
+          <div style="height: 50px;"></div>
+
+          <el-form-item>
+            <el-button style="width: 60%; border-radius: 20px;" color="#66b1ff"  type="primary" @click="login" :loading="loginLoading" plain>立即登录</el-button>
+            <el-button style="width: 32%; border-radius: 20px; background-color: white;" @click="register" plain>注册</el-button>
+          </el-form-item>
+        </el-form>
       </div>
     </el-col>
+
+
     <el-dialog
       title="找回密码"
       :visible.sync="forget"
@@ -49,6 +55,7 @@
       </el-form>
     </el-dialog>
   </el-row>
+  </div>
 </template>
 
 <script>
@@ -93,9 +100,10 @@ export default {
             console.log(response)
             if (response.success) {
               _ts.$auth.setUserToken(response.data.token, response.data.refreshToken);
-              if (_ts.historyUrl) {
-                window.location.href = _ts.historyUrl
-              }
+              // if (_ts.historyUrl) {
+              //   window.location.href = _ts.historyUrl
+              // }
+              await _ts.$router.push('/hot-posts');
             }
             _ts.$set(_ts, 'loginLoading', false);
           } catch (err) {
@@ -161,8 +169,27 @@ export default {
   height: 150px;
 }
 
+.background-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.wrapper.verify {
+  position: relative; 
+  z-index: 1; 
+}
+
 .verify .verify-wrap {
-  /*width: 60%;*/
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 400px; 
 }
 
 .flex-inline {
@@ -170,11 +197,34 @@ export default {
   align-items: center;
 }
 
+.login-form-container {
+  background: rgba(255, 255, 255, 0.95);
+  padding:10px 60px 20px 40px;
+  border-radius: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 575px;
+  max-height: 500px;
+  min-height: 400px;
+  margin: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* 垂直居中 */
+  align-items: center;
+  position: relative; /* 确保它位于最上层 */
+  z-index: 2;
+}
+
 .verify .intro {
   padding: 50px;
-  background-color: #f1f7fe;
-  /*width: 40%;*/
   color: #616161;
+}
+
+.intro-content {
+  background: rgba(255, 255, 255, 0.85);
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .verify__sign {
