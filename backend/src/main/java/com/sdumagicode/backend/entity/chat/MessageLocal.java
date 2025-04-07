@@ -12,11 +12,11 @@ import java.util.Date;
 public class MessageLocal {
 
     @Id
-    private String id;
+    private String messageId;
 
 
     private String branchId;
-    private String messageId;
+
     private String role; // "user" or "assistant"
     private String inputType; // "text", "voice", "mixed"
     private Content content;

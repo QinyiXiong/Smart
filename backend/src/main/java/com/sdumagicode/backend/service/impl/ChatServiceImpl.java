@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 @Service
@@ -84,7 +85,8 @@ public class ChatServiceImpl  implements ChatService {
 
     @Override
     public List<Branch> getAllBranches(ChatRecords chatRecords) {
-        return branchRepository.findByChatId(chatRecords.getChatId()+"");
+        List<Branch> byChatId = branchRepository.findByChatId(chatRecords.getChatId() + "");
+        return byChatId;
     }
 
     @Override
@@ -130,7 +132,7 @@ public class ChatServiceImpl  implements ChatService {
 
     @Override
     @Async
-    public void sendMessageToInterviewer(List<MessageLocal> messageList, Interviewer interviewer,Long userId, Consumer<ChatOutput> outputConsumer) {
+    public void sendMessageToInterviewer(List<MessageLocal> messageList, Interviewer interviewer,Long userId,String messageId, Consumer<ChatOutput> outputConsumer) {
         try {
             // 1. RAG搜索（保持原有逻辑）
             MessageLocal lastMessage = messageList.get(messageList.size() - 1);
@@ -151,14 +153,19 @@ public class ChatServiceImpl  implements ChatService {
                     prompt,
                     ChatUtil.AppType.INTERVIEWER
             );
+
             // 4. 使用Consumer处理流式输出
             aiStream.blockingSubscribe(data -> {
                 ChatOutput chatOutput = new ChatOutput(data.getOutput());
-                        System.out.println("content: " + chatOutput.getText());
+                //System.out.println("content: " + chatOutput.getText());
+                //添加验证信息和标识信息
+                chatOutput.setUserId(userId);
+                chatOutput.setMessageId(messageId);
                 outputConsumer.accept(chatOutput);
             }
 
             );
+
         } catch (Exception e) {
             e.printStackTrace();
             throw new ServiceException("处理异常: " + e.getMessage());

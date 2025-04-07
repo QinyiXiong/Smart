@@ -39,6 +39,11 @@ public class GlobalResultGenerator {
         return genResult(true, data, null);
     }
 
+    public static <T> GlobalResult<T> genSuccessStringDataResult(T data) {
+
+        return genResult(true, data, null);
+    }
+
     /**
      * error message
      *

@@ -69,6 +69,7 @@
       <chat-area 
         :current-interviewer="currentInterviewer" 
         :chat-record-id="activeChatRecord"
+       
       />
     </div>
   </template>

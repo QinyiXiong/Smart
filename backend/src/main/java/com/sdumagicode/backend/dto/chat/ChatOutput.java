@@ -20,6 +20,9 @@ public class ChatOutput {
     private String thoughts;
     private String finish;
 
+    private String messageId;
+    private Long userId;
+
     public ChatOutput(String s) {
         this.text = s;
     }

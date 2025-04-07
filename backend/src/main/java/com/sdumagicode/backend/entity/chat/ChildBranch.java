@@ -13,7 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 public class ChildBranch {
     @Id
-    private String branchId;
+    private String branchIndex;
     private String tag;
 
 }

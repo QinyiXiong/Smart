@@ -1,5 +1,6 @@
 package com.sdumagicode.backend.entity.chat;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -17,12 +18,14 @@ import java.util.List;
 @Document(collection = "branch")
 public class Branch {
     @Id
-    private String id;
-
     private String branchId;
-    private String chatId;
-    private String userId;
 
+    private Integer index;
+
+    private String chatId;
+    private Long userId;
+
+    @JsonProperty("messageLocals")
     private List<MessageLocal> messageLocals;
     private String parentBranchId;
     private List<ChildBranch> children;

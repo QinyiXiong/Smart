@@ -7,7 +7,7 @@
   
       <div class="chat-messages" ref="chatMessages">
         <div
-          v-for="(message, index) in chatMessages"
+          v-for="(message, index) in messageListForShow"
           :key="index"
           :class="['message', message.role === 'user' ? 'user-message' : 'ai-message']"
         >
@@ -37,8 +37,8 @@
   </template>
   
   <script>
-  import axios from 'axios';
-  
+
+  import qs from 'qs';
   export default {
     name: 'ChatArea',
     props: {
@@ -58,7 +58,11 @@
     data() {
       return {
         inputMessage: '',
-        chatMessages: [],
+        chatMessages: [],//用于发送信息的messagelist
+        messageListForShow: [],//处理分支信息后展示用的messagelist
+        allBranches: [], // 存储所有分支数据
+        branchPath: [], // 当前分支路径 [{branchIndex, childIndex}]
+        branchSelectionMap: new Map(), // 记录每个分支的选择 {branchIndex: childIndex}
         isLoading: false,
         currentBranch: null,
         messageReceived: '',
@@ -85,17 +89,20 @@
     methods: {
       async loadChatMessages(chatId) {
         try {
-          // 首先获取所有分支
-          const branchRes = await this.$axios.post('/api/chat/getAllBranches', {
-            chatId: chatId
-          });
+          this.branchPath = [];
+          this.messageListForShow = [];
+          // 获取所有分支
+          const response = await this.$axios.post('/api/chat/getAllBranches', { chatId });
           
-          if (branchRes.data && branchRes.data.code === 200 && branchRes.data.data) {
-            // 找到根分支或第一个分支
-            const branches = branchRes.data.data;
-            // 默认加载第一个分支
-            if (branches.length > 0) {
-              this.loadBranchMessages(branches[0].branchId);
+          if (response.data) {
+            this.allBranches = response.data;
+
+            // 找到根分支（parent_branchId的index为0）
+            const rootBranch = this.allBranches.find(b => b.index == 0);
+
+            if (rootBranch) {
+              // 构建初始分支路径
+              await this.buildBranchPath(rootBranch);
             }
           }
         } catch (error) {
@@ -103,93 +110,88 @@
           console.error(error);
         }
       },
-      async sendMessageWithFlux() {
-        if (!this.inputMessage.trim() || this.isLoading) return;
-        if (!this.currentInterviewer) {
-          this.$message.warning('请先选择面试官');
-          return;
+
+      async buildBranchPath(startBranch) {
+        
+        
+        let currentBranch = startBranch;
+
+        while (currentBranch) {
+          console.log(currentBranch)
+          // 添加当前分支的消息
+          if (currentBranch.messageLocals?.length) {
+            
+            this.messageListForShow.push(...currentBranch.messageLocals);
+          }
+
+          // 获取当前分支的选择
+          let childIndex = this.branchPath.find(p => p.branchIndex === currentBranch.index)?.childIndex
+          // 如果没有选择，则选择第一个分支
+          if(!childIndex){
+            if(currentBranch.children && currentBranch.children.length > 0){
+              childIndex = currentBranch.children[0].branchIndex
+            }else{
+                childIndex = null; // 没有子分支时设为null
+                break; // 退出循环
+            }
+          }
+
+
+          this.branchPath.push({
+            branchIndex: currentBranch.index,
+            childIndex
+          });
+
+          // 移动到下一个分支
+          
+          currentBranch = childIndex ? this.allBranches.find(b => b.branchIndex === childIndex): null;
         }
-      
-        const userMessage = this.createMessage('user', this.inputMessage);
-      
-        // 先将用户消息添加到界面
-        this.chatMessages.push(userMessage);
-        this.scrollToBottom();
-      
-        // 清空输入框
-        const userInput = this.inputMessage;
-        this.inputMessage = '';
-        this.isLoading = true;
-      
-        try {
-          // 准备要发送的消息列表
-          
-        
-        
-          // 创建AI消息对象
-          const aiMessage = this.createMessage('assistant', '');
-          this.chatMessages.push(aiMessage);
-        
-          // 使用responseType: 'text'来接收文本流
-         // 第一步：发起请求获取流式连接
-         console.log(this.messageList)
-          const response = await this.$axios.post(
-            '/api/chat/sendMessageWithFlux',
-            {
-              messageList: this.chatMessages,
-              interviewer: this.currentInterviewer,
-            },
-            { responseType: 'stream' } // 关键配置：声明需要流式响应
-          );
-  
-          const streamUrl = URL.createObjectURL(new Blob([response.data]));
-          const eventSource = new EventSource(streamUrl);
-          console.log(response)
-          eventSource.onmessage = (event) => {
-        try {
-                const chunk = JSON.parse(event.data); // 解析单条数据块
-                if (chunk.code === 200) { // 假设 GlobalResult 的 code 字段
-                  // 实际流数据在 chunk.data 中（根据您的 GlobalResult 结构调整）
-                  console.log('收到流数据:', chunk.data);
-                  this.chatMessages.push(chunk.data); // 示例：存入数组
-                } else {
-                  console.error('服务端返回错误:', chunk.message);
-                }
-              } catch (e) {
-                console.error('解析流数据失败:', e);
-              }
-            };
-          // 流式响应处理完成后，将更新后的消息列表保存到分支
-          console.log("SSE流处理完成");
-        
-          // 流式响应处理完成后，将更新后的消息列表保存到分支
-          if (this.currentBranch) {
-            // 更新分支中的消息列表
-            this.currentBranch.messageLocals = this.chatMessages;
-          
-            // 保存分支数据
-            await this.$axios.post('/api/chat/saveBranches', [this.currentBranch]);
-          }
-        } catch (error) {
-          // 检查是否是由于请求中断等正常情况引起的错误
-          if (error.response) {
-            console.error('发送消息请求返回错误:', error.response.status, error.response.data);
-            this.$message.error(`发送消息失败: ${error.response.status}`);
-          } else if (error.request) {
-            console.error('发送消息请求未收到响应:', error.request);
-            this.$message.error('发送消息超时，请重试');
-          } else {
-            console.error('发送消息错误:', error.message);
-            this.$message.error(`发送消息出错: ${error.message}`);
-          }
-        
-          // 将最后一条消息(AI响应)从界面移除
-          this.chatMessages.pop();
-        } finally {
-          this.isLoading = false;
-          this.scrollToBottom();
+
+        // 更新当前分支
+        if (this.branchPath.length > 0) {
+          const lastBranchIndex = this.branchPath[this.branchPath.length - 1].branchIndex;
+          this.currentBranch = this.allBranches.find(b => b.index === lastBranchIndex);
         }
       },
+
+   
+
+      async createNewBranch() {
+        try {
+
+          const newIndex = this.allBranches.length;
+
+          // 本地创建分支对象
+          const newBranch = {
+            branchId: this.generateUuid(),
+            chatId: this.chatRecordId,
+            index: newIndex,
+            parent_branchId: null, // 根分支
+            children: [],
+            messageLocals: []
+          };
+
+          // 添加到分支列表
+          this.allBranches.push(newBranch);
+
+          // 更新当前分支
+          this.currentBranch = newBranch;
+          this.branchPath = [{
+            branchId: newBranch.branchId,
+            childIndex: 0
+          }];
+
+         
+
+        } catch (error) {
+          console.error('创建分支失败:', error);
+          throw error;
+        }
+      },
+
+
+
+     
       
       async sendMessageWithPolling() {
         if (!this.inputMessage.trim() || this.isLoading) return;
@@ -197,17 +199,44 @@
           this.$message.warning('请先选择面试官');
           return;
         }
+        if (!this.currentBranch) {
+          await this.createNewBranch();
+          
+        }
         const userMessage = this.createMessage('user', this.inputMessage);
-        this.chatMessages.push(userMessage);
-        this.scrollToBottom();
-        const userInput = this.inputMessage;
+        this.messageListForShow.push(userMessage);
+        // 检查并创建初始分支
+        
+        if (this.currentBranch ) {
+          if (!this.currentBranch.messageLocals) {
+            this.currentBranch.messageLocals = [];
+          }
+          this.currentBranch.messageLocals.push(userMessage);
+          
+        }
+        this.buildContextMessages();
+
         this.inputMessage = '';
         this.isLoading = true;
-  
+        let messageId = null; // 用于存储消息ID
+
         try {
+          
+  
+          
+          this.scrollToBottom();
+          // 发送消息到后端
+          const response = await this.$axios.post('/api/chat/sendMessageWithPoll', {
+            messageList: this.chatMessages,
+            interviewer: this.currentInterviewer
+          });
+         
+          messageId = response.data; // 获取后端返回的消息ID
+          
+          
           // 创建AI消息占位对象
           const aiMessage = {
-            id: 1, // 添加前缀便于识别
+            id: messageId, // 添加前缀便于识别
             role: 'assistant',
             content: {
               text: '', // 初始为空
@@ -216,20 +245,16 @@
             },
             timestamp: new Date().toISOString()
           };
-  
-  
-          this.scrollToBottom();
-          // 发送消息到后端
-          await this.$axios.post('/api/chat/sendMessageWithPoll', {
-            messageList: this.chatMessages,
-            interviewer: this.currentInterviewer
-          });
-          this.chatMessages.push(aiMessage);
+         
+
+          this.messageListForShow.push(aiMessage);
           this.currentAiMessageId = aiMessage.id;
+          this.scrollToBottom();
           // 开始轮询
           if (!this.isPolling) {
             this.isPolling = true;
-            this.startPolling();
+            this.startPolling(messageId);
+            console.log(this.chatMessages)
           }
         } catch (error) {
           this.$message.error('发送消息失败');
@@ -237,93 +262,50 @@
           console.error(error);
         }
       },
-  // 修改后的startPolling方法
-    // async startPolling() {
-    // if (this.pollingInterval) {
-    //   clearTimeout(this.pollingInterval);
-    // }
-    
-    // const poll = async () => {
-    //   if (!this.isPolling) return;
-      
-    //   try {
-    //     const response = await this.$axios.get('/api/chat/pollMessage');
-        
-    //     // 找到当前AI消息
-    //     const aiMessageIndex = this.chatMessages.findIndex(
-    //       msg => msg.id === 1
-    //     );
-        
-    //     if (aiMessageIndex !== -1) {
-    //       // 更新AI消息内容
-    //       if (response.data && response.data.text) {
-    //         // 确保content对象存在
-    //         if (!this.chatMessages[aiMessageIndex].content) {
-    //           this.chatMessages[aiMessageIndex].content = { text: '' };
-    //         }
-            
-    //         // 追加新内容
-    //         this.chatMessages[aiMessageIndex].content.text += response.data.text;
-            
-    //         // 触发视图更新
-    //         this.$forceUpdate();
-    //         this.scrollToBottom();
-            
-    //         console.log(response.data.finish)
-    //         // 检查是否结束
-    //         if (response.data.finish == "stop") {
-    //           this.stopPolling();
-    //           return;
-    //         }
-    //       }
-    //     } else {
-    //       this.stopPolling();
-    //       return;
-    //     }
-        
-    //     // 继续轮询
-    //     //this.pollingInterval = setTimeout(poll, 5);
-    //     Promise.resolve().then(poll);
-    //   } catch (error) {
-    //     console.error('轮询出错:', error);
-    //     this.stopPolling();
-    //   }
-    // };
-    
-    // poll();
-    // },
-    // // 修改后的stopPolling方法
-    // stopPolling() {
-    //   this.isPolling = false;
-    //   this.isLoading = false;
-    //   if (this.pollingInterval) {
-    //     clearTimeout(this.pollingInterval);
-    //     this.pollingInterval = null;
-    //   }
-    // },
-    async startPolling() {
-      const processBatch = async () => {
-          try {
-              const response = await this.$axios.get('/api/chat/pollMessages');
 
-                  if (response.data?.length) {
-                      let shouldStop = false; // 新增标志位判断是否需要停止轮询
+      async startPolling(messageId) {
+        const POLLING_TIMEOUT = 5000; // 5秒超时
+        let pollingStartTime = Date.now();
+
+          const processBatch = async () => {
+              if (!this.isPolling) return;
+
+              try {
+                  // 检查是否超时
+                  if (Date.now() - pollingStartTime > POLLING_TIMEOUT) {
+                      throw new Error('轮询超时，未收到有效响应');
+                  }
+
+                  const params = new URLSearchParams();
+                  params.append('messageId', messageId);  // 确保参数名完全匹配
+                  params.append('batchSize', '10');  // 字符串形式
+
+                  const response = await this.$axios.get('/api/chat/pollMessages', {
+                      params: params,
+                      paramsSerializer: params => params.toString()  // 使用默认序列化
+                  });
+
+                  if (response.data && response.data.length) {
+                      let shouldStop = false;
+                      // 重置超时计时器（每次收到有效数据就重置）
+                      pollingStartTime = Date.now();
 
                       // 批量处理消息
-                      response.data.forEach(msg => {
-                          console.log(msg.data);
+                      for (const msg of response.data) {
+                          
 
                           // 检查是否收到停止信号
                           if (msg.finish === "stop") {
                               shouldStop = true;
                           }
 
-                          const aiMsg = this.chatMessages.find(m => m.id === 1);
+                          // 更新AI消息内容
+                          const aiMsg = this.messageListForShow.find(m => m.id === messageId);
                           if (aiMsg) {
                               aiMsg.content = aiMsg.content || { text: '' };
-                              aiMsg.content.text += msg.text;
+                              await this.typeText(aiMsg, msg.text);
                           }
-                      });
+                      }
 
                       this.$forceUpdate();
                       this.scrollToBottom();
@@ -331,30 +313,64 @@
                       // 如果收到停止信号，则中止轮询
                       if (shouldStop) {
                           this.stopPolling();
-                          this.isLoading=false;
+                          const aiMsg = this.messageListForShow.find(m => m.id === messageId);
+                          if (aiMsg) {
+                              // 将AI消息加入currentBranch
+                              this.currentBranch.messageLocals.push({
+                                  messageId:aiMsg.id,
+                                  role: 'assistant',
+                                  branchId: this.currentBranch.branchId,
+                                  content: {
+                                      text: aiMsg.content.text,
+                                      voice: null,
+                                      files: []
+                                  },
+                                  timestamp: new Date()
+                              });
+                              console.log(this.currentBranch)
+                              // 调用封装的方法保存currentBranch，并手动传入branchList
+                              const newBranchList = [this.currentBranch];
+                              console.log(newBranchList)
+                              await this.saveBranchList(newBranchList);
+                          }
+                          this.isLoading = false;
                           return;
                       }
                   }
 
-                  // 使用requestAnimationFrame实现高效循环
-                  this.pollingAnimationFrame = requestAnimationFrame(processBatch);
+                  // 继续轮询
+                   this.pollingAnimationFrame = requestAnimationFrame(processBatch); // 200ms轮询间隔
+
               } catch (error) {
                   console.error('轮询出错:', error);
                   this.stopPolling();
+                  this.isLoading = false;
+                  this.$message.error('获取消息失败: ' + error.message);
               }
           };
-        
-        this.isPolling = true;
-        processBatch();
+
+          this.isPolling = true;
+          processBatch();
+      },
+      stopPolling() {
+          this.isPolling = false;
+          if (this.pollingTimer) {
+              clearTimeout(this.pollingTimer);
+              this.pollingTimer = null;
+          }
+      },
+
+   // 打字机效果方法
+    async typeText(messageObj, newText) {
+        const typingSpeed = 30; // 控制打字速度(ms/字)
+
+        for (let i = 0; i < newText.length; i++) {
+            await new Promise(resolve => setTimeout(resolve, typingSpeed));
+            messageObj.content.text += newText[i];
+            this.$forceUpdate();
+            this.scrollToBottom();
+        }
     },
-
-
-stopPolling() {
-    cancelAnimationFrame(this.pollingAnimationFrame);
-    this.isPolling = false;
-},
-
-   
     
     beforeDestroy() {
       this.stopPolling()
@@ -363,74 +379,30 @@ stopPolling() {
   
   
    
-  
-  
-  
-  
-  
-  
-  async loadBranchMessages(branchId) {
-    try {
-      const response = await this.$axios.post('/api/chat/getBranchMessages', {
-        branchId: branchId
-      });
-  
-      if (response.data && response.data.code === 200) {
-        this.chatMessages = response.data.data || [];
-        // 设置当前分支
-        this.currentBranch = {
-          branchId: branchId
-        };
-        this.scrollToBottom();
-      }
-    } catch (error) {
-      this.$message.error('获取分支消息失败');
-      console.error(error);
-    }
-  },
-  
-  
-  
-  // 增加一个方法来保存聊天记录到后端
-  async saveChatMessage(message) {
-    if (!this.chatRecordId || !this.currentBranch) {
-      return; // 没有聊天记录ID或分支ID时不保存
-    }
+    buildContextMessages() {
     
-    try {
-      await this.$axios.post('/api/chat/saveMessage', {
-        chatId: this.chatRecordId,
-        branchId: this.currentBranch.branchId,
-        message: message
-      });
-    } catch (error) {
-      console.error('保存消息失败:', error);
-    }
-  },
-  
-  // 增加加载分支消息的方法
-  async loadBranchMessages(branchId) {
-    if (!this.chatRecordId) return;
     
-    try {
-      this.isLoading = true;
-      const response = await this.$axios.post('/api/chat/getBranchMessages', {
-        chatId: this.chatRecordId,
-        branchId: branchId
-      });
-      
-      if (response.data && response.data.code === 200) {
-        this.chatMessages = response.data.data || [];
-        this.currentBranch = { branchId: branchId };
-        this.scrollToBottom();
-      }
-    } catch (error) {
-      this.$message.error('获取分支消息失败');
-      console.error(error);
-    } finally {
-      this.isLoading = false;
-    }
-  },
+      const maxContextLength = 40; // 保留最近20轮对话(用户和AI各20条)
+      const startIndex = Math.max(0, this.chatMessages.length - maxContextLength);
+      this.chatMessages = this.messageListForShow.slice(startIndex);
+
+    },
+  
+  
+  
+  
+      async saveBranchList() {
+        try {
+          const response = await this.$axios.post('/api/chat/saveBranches', this.allBranches);
+          
+            //this.$message.success('分支保存成功');
+          
+        } catch (error) {
+          console.error('保存分支列表失败:', error);
+          this.$message.error('保存分支列表失败: ' + error.message);
+        }
+      },
+  
   
   
   

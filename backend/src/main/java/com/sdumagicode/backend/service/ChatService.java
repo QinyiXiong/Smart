@@ -35,6 +35,7 @@ public interface ChatService {
             List<MessageLocal> messages,
             Interviewer interviewer,
             Long userId,
+            String messageId,
             Consumer<ChatOutput> outputConsumer
     );
 

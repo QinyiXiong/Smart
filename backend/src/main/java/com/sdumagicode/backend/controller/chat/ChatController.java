@@ -28,6 +28,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -66,89 +67,118 @@ public class ChatController {
     }
 
 
-    @PostMapping(value = "/sendMessageWithFlux" ,produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<GlobalResult<ChatOutput>> sendMessageWithFlux(@RequestBody ChatRequest chatRequest){
-        if (chatRequest.getMessageList() == null || chatRequest.getMessageList().isEmpty()) {
-            throw new ServiceException("缺少发送信息");
-        }
-        if (chatRequest.getInterviewer() == null) {
-            throw new ServiceException("未设置面试官");
-        }
-        Flux<ChatOutput> globalResultFlux = chatService.sendMessageToInterviewerAndGetFlux(chatRequest.getMessageList(), chatRequest.getInterviewer());
-
-        return globalResultFlux.map(GlobalResultGenerator::genSuccessResult);
-
-    }
+//    @PostMapping(value = "/sendMessageWithFlux" ,produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+//    public Flux<GlobalResult<ChatOutput>> sendMessageWithFlux(@RequestBody ChatRequest chatRequest){
+//        if (chatRequest.getMessageList() == null || chatRequest.getMessageList().isEmpty()) {
+//            throw new ServiceException("缺少发送信息");
+//        }
+//        if (chatRequest.getInterviewer() == null) {
+//            throw new ServiceException("未设置面试官");
+//        }
+//        Flux<ChatOutput> globalResultFlux = chatService.sendMessageToInterviewerAndGetFlux(chatRequest.getMessageList(), chatRequest.getInterviewer());
+//
+//        return globalResultFlux.map(GlobalResultGenerator::genSuccessResult);
+//
+//    }
 
 
 
     @PostMapping("/sendMessageWithPoll")
-    public GlobalResult sendMessage(@RequestBody ChatRequest chatRequest) {
+    public GlobalResult<String> sendMessage(@RequestBody ChatRequest chatRequest) {
+        List<MessageLocal> messageList = chatRequest.getMessageList();
+        Interviewer interviewer = chatRequest.getInterviewer();
         // 参数验证
-        if (chatRequest.getMessageList() == null || chatRequest.getMessageList().isEmpty()) {
+        if (messageList == null || messageList.isEmpty() || messageList.get(messageList.size() - 1).getContent().getText().isEmpty()) {
             throw new ServiceException("缺少发送信息");
         }
-        if (chatRequest.getInterviewer() == null) {
+        if (interviewer == null) {
             throw new ServiceException("未设置面试官");
         }
         Long idUser = UserUtils.getCurrentUserByToken().getIdUser();
         // 异步处理消息
+
+        String messageId = String.valueOf(UUID.randomUUID());
         try {
-            chatService.sendMessageToInterviewer(
-                    chatRequest.getMessageList(),
-                    chatRequest.getInterviewer(),
+                    chatService.sendMessageToInterviewer(
+                    messageList,
+                    interviewer,
                     idUser,
+                    messageId,
                     output -> {
                         // 将每个输出添加到队列
 
                         MessageQueueUtil.addMessage(output);
-                        System.out.println("add queue: "+ output.getText());
+                        //System.out.println("add queue: "+ output.getText());
                     }
             );
         } catch (Exception e) {
             e.printStackTrace();
             MessageQueueUtil.addMessage(new ChatOutput("系统错误: " + e.getMessage()));
         }
-        return GlobalResultGenerator.genSuccessResult("发送成功");
+        return GlobalResultGenerator.genSuccessStringDataResult(messageId);
     }
-//    @GetMapping("/pollMessage")
-//    public GlobalResult<ChatOutput> pollMessage() throws InterruptedException {
-//        // 设置超时时间（例如30秒）
-//        ChatOutput message = MessageQueueUtil.getQueue().poll(30, TimeUnit.SECONDS);
-//        if (message == null) {
-//            return GlobalResultGenerator.genErrorResult("请求超时");
-//        }
-//        return GlobalResultGenerator.genSuccessResult(message);
-//    }
+
 
     @GetMapping("/pollMessages")
-    public GlobalResult<List<ChatOutput>> pollMessages() {
-        List<ChatOutput> batch = new ArrayList<>();
-        long startTime = System.currentTimeMillis();
-        long timeout = 10000; // 5秒超时
-
-        // 轮询等待新消息
-        while (batch.isEmpty() && (System.currentTimeMillis() - startTime) < timeout) {
-            ChatOutput message;
-            while((message = MessageQueueUtil.getQueue().poll()) != null && batch.size() < 5) {
-                System.out.println("get queue:"+message.getText());
-                batch.add(message);
-            }
-
-            // 如果还没有消息，短暂休眠避免CPU空转
-            if (batch.isEmpty()) {
-                try {
-                    Thread.sleep(200); // 200毫秒检查一次
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return GlobalResultGenerator.genErrorResult("轮询被中断");
-                }
-            }
+    public GlobalResult<List<ChatOutput>> pollMessages(
+            @RequestParam("messageId") String messageId,
+            @RequestParam(defaultValue = "10") int batchSize) {
+//        MessageQueueUtil.check();
+//        System.out.println("messageId: "+ messageId);
+        // 参数校验
+        if (messageId == null || messageId.isEmpty()) {
+            return GlobalResultGenerator.genErrorResult("messageId不能为空");
         }
+        if (batchSize <= 0 || batchSize > 100) {
+            batchSize = 10; // 设置合理的默认值
+        }
+        Long userId = UserUtils.getCurrentUserByToken().getIdUser();
+        long startTime = System.currentTimeMillis();
+        final long timeout = 5000; // 5秒超时
+        final long pollInterval = 200; // 轮询间隔200ms
+        List<ChatOutput> batch = new ArrayList<>(batchSize);
+        boolean hasStopSignal = false; // 新增状态位
 
-        return GlobalResultGenerator.genSuccessResult(batch);
+        try {
+            while ((System.currentTimeMillis() - startTime) < timeout) {
+                List<ChatOutput> messages = MessageQueueUtil.pollBatch(messageId, batchSize);
+
+
+
+                if (!messages.isEmpty()) {
+                    //增加验证信息
+                    ChatOutput chatOutput = messages.get(0);
+                    if(!userId.equals(chatOutput.getUserId())){
+                        throw new ServiceException("验证失败");
+                    }
+
+
+                    // 检查当前批次是否有stop信号
+                    hasStopSignal = messages.stream()
+                            .anyMatch(msg -> "stop".equals(msg.getFinish())) ;
+                    System.out.println("get from queue");
+                    batch.addAll(messages);
+
+
+                    if (hasStopSignal) {
+                        MessageQueueUtil.removeQueue(messageId);
+                        break;
+                    }
+
+                    // 如果有消息立即返回，不等待超时
+                    if (!batch.isEmpty()) {
+                        break;
+                    }
+                }
+
+                Thread.sleep(pollInterval);
+            }
+
+            return GlobalResultGenerator.genSuccessResult(batch);
+        } catch (Exception e) {
+            return GlobalResultGenerator.genErrorResult("获取消息失败");
+        }
     }
-
 
 
 
@@ -156,6 +186,10 @@ public class ChatController {
 
     @PostMapping("/saveBranches")
     public GlobalResult saveBranches(@RequestBody List<Branch> branchList){
+        Long userId = UserUtils.getCurrentUserByToken().getIdUser();
+        for (Branch branch:branchList) {
+            branch.setUserId(userId);
+        }
         boolean res = chatService.saveBranches(branchList);
         if(res){
             return GlobalResultGenerator.genSuccessResult();
