@@ -217,6 +217,55 @@
               </el-card>
             </div>
           </transition>
+
+          <div v-if="judgeResult" class="judge-result">
+            <el-card class="result-card">
+              <div class="result-header">
+                <h3>评测结果</h3>
+                <el-tag :type="getJudgeStatusType(judgeResult.status)" effect="dark">
+                  {{ getJudgeStatusText(judgeResult.status) }}
+                </el-tag>
+              </div>
+              <div class="result-info">
+                <div class="info-item">
+                  <span class="label">执行时间:</span>
+                  <span class="value">{{ judgeResult.time }}ms</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">内存消耗:</span>
+                  <span class="value">{{ judgeResult.memory }}MB</span>
+                </div>
+              </div>
+              <div v-if="judgeResult.testcases" class="testcase-results">
+                <div v-for="(testcase, index) in judgeResult.testcases" :key="index" class="testcase">
+                  <div class="testcase-header">
+                    <span>测试用例 #{{ index + 1 }}</span>
+                    <el-tag :type="getJudgeStatusType(testcase.status)" size="small">
+                      {{ getJudgeStatusText(testcase.status) }}
+                    </el-tag>
+                  </div>
+                  <div v-if="testcase.status !== 'success'" class="testcase-detail">
+                    <div class="detail-item">
+                      <div class="detail-label">输入:</div>
+                      <pre>{{ testcase.input }}</pre>
+                    </div>
+                    <div class="detail-item">
+                      <div class="detail-label">预期输出:</div>
+                      <pre>{{ testcase.expectedOutput }}</pre>
+                    </div>
+                    <div class="detail-item">
+                      <div class="detail-label">实际输出:</div>
+                      <pre>{{ testcase.actualOutput }}</pre>
+                    </div>
+                    <div v-if="testcase.error" class="detail-item error">
+                      <div class="detail-label">错误信息:</div>
+                      <pre>{{ testcase.error }}</pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </el-card>
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -269,6 +318,7 @@ export default {
       },
       code: '',
       language: 'java',
+      hasLoadedTemplate: false,
       testType: 'custom',
       testCase: '',
       selectedExample: 0,
@@ -276,6 +326,7 @@ export default {
       isRunning: false,
       isSubmitting: false,
       runResult: null,
+      judgeResult: null,
       languages: [
         { label: 'Java', value: 'java', icon: 'el-icon-platform-eleme' },
         { label: 'C++', value: 'cpp', icon: 'el-icon-cpu' },
@@ -326,6 +377,8 @@ export default {
   },
   async created() {
     await this.fetchProblemDetail()
+    // 加载代码模板
+    await this.$store.dispatch('code-template/fetchAllTemplates')
   },
   mounted() {
     this.loadMonaco()
@@ -336,6 +389,24 @@ export default {
     }
   },
   methods: {
+    /**
+     * 加载指定语言的代码模板
+     */
+    async loadTemplateForLanguage(language) {
+      try {
+        // 从store获取模板
+        const template = this.$store.getters['code-template/getTemplate'](language)
+        if (template) {
+          this.code = template
+          if (this.monacoInstance) {
+            this.monacoInstance.setValue(template)
+          }
+        }
+      } catch (error) {
+        console.error('加载代码模板失败:', error)
+      }
+    },
+    
     getDifficultyTagType(difficulty) {
       switch(difficulty) {
         case '简单': return 'success'
@@ -345,20 +416,38 @@ export default {
       }
     },
     getResultTagType(status) {
-      switch(status) {
-        case 'success': return 'success'
-        case 'error': return 'danger'
-        case 'timeout': return 'warning'
-        default: return 'info'
+      const statusMap = {
+        'ACCEPTED': 'success',
+        'WRONG_ANSWER': 'danger',
+        'TIME_LIMIT_EXCEEDED': 'warning',
+        'MEMORY_LIMIT_EXCEEDED': 'warning',
+        'RUNTIME_ERROR': 'danger',
+        'COMPILATION_ERROR': 'info',
+        'SYSTEM_ERROR': 'danger',
+        'PENDING': 'info',
+        'JUDGING': 'warning'
       }
+      return statusMap[status] || 'info'
     },
     getResultText(status) {
-      switch(status) {
-        case 'success': return '通过'
-        case 'error': return '错误'
-        case 'timeout': return '超时'
-        default: return '未知'
+      const statusMap = {
+        'ACCEPTED': '通过',
+        'WRONG_ANSWER': '答案错误',
+        'TIME_LIMIT_EXCEEDED': '超时',
+        'MEMORY_LIMIT_EXCEEDED': '内存超限',
+        'RUNTIME_ERROR': '运行时错误',
+        'COMPILATION_ERROR': '编译错误',
+        'SYSTEM_ERROR': '系统错误',
+        'PENDING': '等待评测',
+        'JUDGING': '评测中'
       }
+      return statusMap[status] || '未知状态'
+    },
+    getJudgeStatusType(status) {
+      return this.getResultTagType(status)
+    },
+    getJudgeStatusText(status) {
+      return this.getResultText(status)
     },
     loadMonaco() {
       const loadScript = (src) => {
@@ -428,11 +517,17 @@ export default {
         })
 
         // 监听语言变化
-        this.$watch('language', (newLang) => {
+        this.$watch('language', async (newLang) => {
           if (this.monacoInstance) {
             const model = this.monacoInstance.getModel()
             if (model) {
               window.monaco.editor.setModelLanguage(model, newLang)
+              
+              // 如果代码为空或者用户确认要替换代码，则加载新语言的模板
+              const currentCode = this.monacoInstance.getValue().trim()
+              if (!currentCode || confirm('切换语言将替换当前代码，是否继续？')) {
+                await this.loadTemplateForLanguage(newLang)
+              }
             }
           }
         })
@@ -450,6 +545,12 @@ export default {
             this.monacoInstance.layout()
           }
         }, 100)
+        
+        // 如果还没有加载过模板，则加载当前语言的模板
+        if (!this.hasLoadedTemplate) {
+          this.loadTemplateForLanguage(this.language)
+          this.hasLoadedTemplate = true
+        }
       } catch (error) {
         console.error('Failed to initialize Monaco Editor:', error)
         this.$message.error('代码编辑器初始化失败')
@@ -526,7 +627,7 @@ export default {
         if (res.code === 0) {
           this.$message.success('运行成功')
           this.runResult = {
-            status: res.data.status,
+            status: res.data.status || 'SYSTEM_ERROR',  // 确保有状态值
             time: res.data.time || 0,
             memory: res.data.memory || 0,
             output: res.data.output || ''
@@ -534,7 +635,7 @@ export default {
         } else {
           this.$message.error(res.message || '运行失败')
           this.runResult = {
-            status: 'error',
+            status: 'SYSTEM_ERROR',
             time: 0,
             memory: 0,
             output: res.message || '运行失败'
@@ -543,7 +644,7 @@ export default {
       } catch (error) {
         this.$message.error('运行异常: ' + error.message)
         this.runResult = {
-          status: 'error',
+          status: 'SYSTEM_ERROR',
           time: 0,
           memory: 0,
           output: error.message || '运行异常'
@@ -552,6 +653,46 @@ export default {
         this.isRunning = false
       }
     },
+    
+    /**
+     * 获取提交结果
+     */
+    async fetchSubmissionResult(submissionId) {
+      try {
+        const res = await this.$axios.get(`/api/problems/submissions/${submissionId}`)
+        if (res.code === 0) {
+          const result = res.data
+          console.log('轮询获取的评测结果:', result)
+          
+          // 如果状态还是running或judging，继续轮询
+          if (result.status === 'running' || result.status === 'PENDING' || result.status === 'JUDGING') {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // 等待1秒
+            this.fetchSubmissionResult(submissionId);
+            return;
+          }
+          
+          // 更新评测结果
+          this.judgeResult = {
+            status: result.status,
+            time: result.time || 0,
+            memory: result.memory || 0,
+            errorMessage: result.errorMessage,
+            passedTestCases: result.passedTestCases || 0,
+            totalTestCases: result.totalTestCases || 0,
+            testcases: result.testcases || []
+          }
+          
+          // 更新题目统计信息
+          if (result.status === 'ACCEPTED') {
+            this.problem.acceptCount++
+            this.problem.acceptanceRate = this.problem.acceptCount / this.problem.submitCount
+          }
+        }
+      } catch (error) {
+        console.error('获取评测结果失败:', error)
+      }
+    },
+    
     async submitCode() {
       if (!this.code) {
         this.$message.warning('请输入代码')
@@ -559,6 +700,8 @@ export default {
       }
 
       this.isSubmitting = true
+      this.judgeResult = null
+
       try {
         const res = await this.$axios.post('/api/problems/submit', {
           problemId: this.$route.params.id,
@@ -566,18 +709,34 @@ export default {
           language: this.language
         })
 
+        console.log('提交响应数据:', res)
+
         if (res.code === 0) {
           this.$message.success('提交成功')
-          // 更新题目统计信息
+          
+          // 更新题目提交计数
           this.problem.submitCount++
-          if (res.data.status === 'success') {
-            this.problem.acceptCount++
-            this.problem.acceptanceRate = this.problem.acceptCount / this.problem.submitCount
+          
+          // 开始轮询获取评测结果
+          if (res.data.submissionId) {
+            this.fetchSubmissionResult(res.data.submissionId)
+          }
+          
+          // 设置初始评测状态
+          this.judgeResult = {
+            status: 'JUDGING',
+            time: 0,
+            memory: 0,
+            passedTestCases: 0,
+            totalTestCases: res.data.totalTestCases || 0,
+            testcases: []
           }
         } else {
+          console.error('提交失败:', res.message)
           this.$message.error(res.message || '提交失败')
         }
       } catch (error) {
+        console.error('提交异常:', error)
         this.$message.error('提交异常: ' + error.message)
       } finally {
         this.isSubmitting = false
@@ -877,6 +1036,97 @@ export default {
 
 .result-output.error {
   color: #f56c6c;
+}
+
+.judge-result {
+  margin-top: 24px;
+}
+
+.result-card {
+  background: #fff;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.result-info {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-item .label {
+  color: #606266;
+  font-weight: 500;
+}
+
+.info-item .value {
+  color: #409EFF;
+  font-family: 'Fira Code', monospace;
+}
+
+.testcase-results {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.testcase {
+  border: 1px solid #EBEEF5;
+  border-radius: 4px;
+  padding: 16px;
+}
+
+.testcase-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.testcase-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-item {
+  background: #F8F9FA;
+  padding: 12px;
+  border-radius: 4px;
+}
+
+.detail-label {
+  color: #606266;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.detail-item pre {
+  margin: 0;
+  font-family: 'Fira Code', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.detail-item.error {
+  background: #FEF0F0;
+}
+
+.detail-item.error pre {
+  color: #F56C6C;
 }
 
 .fade-enter-active,

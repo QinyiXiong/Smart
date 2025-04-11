@@ -304,9 +304,16 @@ export default {
       try {
         await this.$refs.problemForm.validate();
 
+        // 处理测试用例中的换行符
+        const processedTestCases = this.testCases.map(testCase => ({
+          ...testCase,
+          input: testCase.input.replace(/\n/g, '\\n'),
+          output: testCase.output.replace(/\n/g, '\\n')
+        }));
+
         const formData = {
           ...this.problemForm,
-          testCases: JSON.stringify(this.testCases)
+          testCases: JSON.stringify(processedTestCases)
         };
 
         const res = await this.$axios.post('/api/problems', formData);

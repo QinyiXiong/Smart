@@ -78,7 +78,15 @@ public class Problem implements Serializable, Cloneable {
     private String sampleOutput;
 
     /**
-     * 测试用例（JSON格式存储）
+     * 测试用例（JSON格式存储，包含输入、预期输出、分值等信息）
+     * 格式：[
+     *   {"input": "测试输入", "output": "期望输出", "score": 10},
+     *   ...
+     * ]
+     * 其中：
+     * - input: 测试输入数据
+     * - output: 期望的输出结果
+     * - score: 该测试点的分值，默认为0
      */
     @Column(columnDefinition = "TEXT")
     private String testCases;
