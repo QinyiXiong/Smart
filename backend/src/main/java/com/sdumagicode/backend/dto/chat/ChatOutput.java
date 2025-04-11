@@ -26,4 +26,5 @@ public class ChatOutput {
     public ChatOutput(String s) {
         this.text = s;
     }
+
 }

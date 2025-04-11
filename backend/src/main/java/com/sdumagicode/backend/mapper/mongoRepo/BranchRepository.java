@@ -13,7 +13,7 @@ public interface BranchRepository extends MongoRepository<Branch, String> {
      * @param chatId 聊天会话ID
      * @return 该聊天下的所有分支列表
      */
-    List<Branch> findByChatId(String chatId);
+    List<Branch> findByChatId(Long chatId);
     
 
 

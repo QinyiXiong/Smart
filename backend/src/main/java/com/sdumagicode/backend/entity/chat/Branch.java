@@ -22,12 +22,12 @@ public class Branch {
 
     private Integer index;
 
-    private String chatId;
+    private Long chatId;
     private Long userId;
 
     @JsonProperty("messageLocals")
     private List<MessageLocal> messageLocals;
-    private String parentBranchId;
+    private String parentBranchIndex;
     private List<ChildBranch> children;
 
 }

@@ -64,35 +64,11 @@ public class ChatUtil {
         
         // 调用接口
         Application application = new Application();
+        
         return application.streamCall(param);
     }
     
-    /**
-     * 同步调用AI接口
-     * @param messageList 消息列表
-     * @return ApplicationResult
-     * @throws ApiException API异常
-     * @throws NoApiKeyException 无API Key异常
-     * @throws InputRequiredException 输入必需异常
-     */
-//    public ApplicationResult call(List<MessageLocal> messageList)
-//            throws ApiException, NoApiKeyException, InputRequiredException {
-//        // 转换消息格式
-//        List<Message> messages = convertMessages(messageList);
-//
-//        // 构建参数
-//        ApplicationParam param = ApplicationParam.builder()
-//                .apiKey(this.apiKey)
-//                .appId(this.appId)
-//                .incrementalOutput(false)
-//                .hasThoughts(true)
-//                .messages(messages)
-//                .build();
-//
-//        // 调用接口
-//        Application application = new Application();
-//        return application.call(param);
-//    }
+
     
     /**
      * 转换消息格式

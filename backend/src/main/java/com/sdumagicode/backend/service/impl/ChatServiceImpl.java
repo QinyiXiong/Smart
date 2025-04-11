@@ -79,13 +79,18 @@ public class ChatServiceImpl  implements ChatService {
 
     @Override
     public boolean deleteChatRecords(ChatRecords chatRecords) {
+
+        //先删除对应的branch
+        branchRepository.deleteAll(branchRepository.findByChatId(chatRecords.getChatId()));
+
         chatMapper.deleteChatRecord(chatRecords.getChatId());
+
         return true;
     }
 
     @Override
     public List<Branch> getAllBranches(ChatRecords chatRecords) {
-        List<Branch> byChatId = branchRepository.findByChatId(chatRecords.getChatId() + "");
+        List<Branch> byChatId = branchRepository.findByChatId(chatRecords.getChatId());
         return byChatId;
     }
 
@@ -134,7 +139,7 @@ public class ChatServiceImpl  implements ChatService {
     @Async
     public void sendMessageToInterviewer(List<MessageLocal> messageList, Interviewer interviewer,Long userId,String messageId, Consumer<ChatOutput> outputConsumer) {
         try {
-            // 1. RAG搜索（保持原有逻辑）
+            // 1. RAG搜索
             MessageLocal lastMessage = messageList.get(messageList.size() - 1);
 
 
@@ -144,7 +149,7 @@ public class ChatServiceImpl  implements ChatService {
                     lastMessage.getContent().getText(),
                     5
             );
-            // 2. 生成Prompt（保持原有逻辑）
+            // 2. 生成Prompt
             String prompt = InterviewerPromptGenerator.generatePrompt(interviewer);
 
             // 3. 调用AI接口
@@ -154,6 +159,7 @@ public class ChatServiceImpl  implements ChatService {
                     ChatUtil.AppType.INTERVIEWER
             );
 
+
             // 4. 使用Consumer处理流式输出
             aiStream.blockingSubscribe(data -> {
                 ChatOutput chatOutput = new ChatOutput(data.getOutput());
@@ -161,6 +167,7 @@ public class ChatServiceImpl  implements ChatService {
                 //添加验证信息和标识信息
                 chatOutput.setUserId(userId);
                 chatOutput.setMessageId(messageId);
+                System.out.println(chatOutput);
                 outputConsumer.accept(chatOutput);
             }
 
@@ -172,11 +179,15 @@ public class ChatServiceImpl  implements ChatService {
         }
     }
 
+    /**
+     * 上传文件，并解析文件相关内容
+     * @param multipartFile
+     * @return
+     * @throws IOException
+     */
     @Override
     public MessageFileDto convertMessageFile(MultipartFile multipartFile) throws IOException {
         FileInfo fileInfo = FileUploadUtil.uploadFile(multipartFile);
-
-
 
         return fileAnalysisService.analyzeFileInfo(fileInfo);
     }

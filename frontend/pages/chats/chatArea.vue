@@ -11,9 +11,61 @@
           :key="index"
           :class="['message', message.role === 'user' ? 'user-message' : 'ai-message']"
         >
+          
           <div class="message-content">
-            <div class="message-text">{{ message.content.text }}</div>
-            <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+            <div v-if="!message.editing" class="message-text">{{ message.content.text }}</div>
+            <el-input
+              v-else
+              type="textarea"
+              :rows="3"
+              v-model="message.editText"
+              class="edit-input"
+            ></el-input>
+           
+          </div>
+          <!-- 添加分支切换按钮 -->
+          <div 
+            v-if="isFirstMessageInBranch(message) && 
+                  checkSiblings(message) &&
+                  !isLoading""
+            class="branch-switch"
+          >
+            <el-button
+              type="text"
+              @click="toggleBranchSwitchPanel(message)"
+            >切换分支</el-button>
+          </div>
+        
+          <!-- 分支切换面板 -->
+          <div 
+            v-if="showBranchSwitch && currentSwitchMessageId === message.messageId && !isLoading"
+            class="branch-switch-panel"
+          >
+            <div 
+              v-for="sibling in siblingNodes.find(node => node.branchId === message.branchId)?.siblings || []"
+              :key="sibling.index"
+              class="branch-option"
+              @click="switchBranch(sibling.index)"
+            >
+              {{ sibling.tag }}
+            </div>
+          </div>
+          <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+          <div v-if="message.role === 'user'" class="message-actions">
+            <el-button
+              v-if="!message.editing"
+              type="text"
+              icon="el-icon-edit"
+              @click="startEditMessage(message)"
+            ></el-button>
+            <div v-else class="edit-actions">
+              <el-button size="mini" @click="cancelEdit(message)">取消</el-button>
+              <el-button
+                size="mini"
+                type="primary"
+                @click="sendModifiedMessage(message)"
+              >发送</el-button>
+            </div>
           </div>
         </div>
       </div>
@@ -24,7 +76,7 @@
           :rows="3"
           placeholder="请输入您的问题..."
           v-model="inputMessage"
-          @keyup.enter.native="sendMessageWithPolling"
+          @keyup.enter.native="handleKeyEnter"
         ></el-input>
         <el-button
           type="primary"
@@ -66,6 +118,11 @@
         isLoading: false,
         currentBranch: null,
         messageReceived: '',
+        rootBranch: null,
+        modifiedBranch: [],
+        siblingNodes: [], // 存储当前路径上每个节点的兄弟节点信息
+        showBranchSwitch: false, // 控制分支切换面板的显示
+        currentSwitchMessageId: null // 当前显示切换面板的消息ID
       }
     },
     watch: {
@@ -77,19 +134,89 @@
         },
         immediate: true
       },
-      currentBranchId: {
-        handler(newVal) {
-          if (newVal && this.chatRecordId) {
-            this.loadBranchMessages(newVal);
-          }
-        },
-        immediate: true
-      }
+      
     },
     methods: {
+
+      handleKeyEnter(e) {
+          // 阻止默认行为（避免在textarea中换行）
+          e.preventDefault();
+          // 只有当输入框有内容时才发送
+          if (this.inputMessage.trim()) {
+            this.sendMessageWithPolling();
+          }
+        },
+        toggleBranchSwitchPanel(message) {
+          if (this.currentSwitchMessageId === message.messageId) {
+            // 如果点击的是当前已显示的面板，则隐藏
+            this.showBranchSwitch = false;
+            this.currentSwitchMessageId = null;
+          } else {
+            // 否则显示新面板
+            this.currentSwitchMessageId = message.messageId;
+            this.showBranchSwitch = true;
+          }
+        },
+      
+        // 切换分支
+      async switchBranch(targetIndex) {
+      
+        const targetBranch = this.allBranches.find(b => b.index == targetIndex);
+        
+        if (targetBranch) {
+          await this.buildPathForTargetBranch(targetBranch);
+          this.showBranchSwitch = false;
+        }
+      },
+      checkSiblings(message){
+       
+        const siblingNode = this.siblingNodes.find(b => b.branchId == message.branchId)
+        
+        if(siblingNode && siblingNode.siblings){
+          return siblingNode.siblings.length > 1
+        }
+        return false;
+      },
+      isFirstMessageInBranch(message) {
+        
+        
+        // console.log(message)
+        // 获取当前消息在branch中的索引
+        const branch = this.allBranches.find(b => b.branchId == message.branchId);
+        if (!branch || !branch.messageLocals) return false;
+      
+        const branchMsgIndex = branch.messageLocals.findIndex(
+
+          msg => msg.messageId == message.messageId
+        );
+        
+        // console.log(branchMsgIndex)
+        // 如果是branch中的第一条消息，返回true
+        return branchMsgIndex == 0;
+      },
+      async fetchData(chatId){
+        try {
+          
+          // 获取所有分支
+          const response = await this.$axios.post('/api/chat/getAllBranches', { chatId });
+          
+          if (response.data) {
+            this.allBranches = response.data;
+
+            // 找到根分支（parent_branchId的index为0）
+            this.rootBranch = this.allBranches.find(b => b.index == 0);
+
+     
+          }
+        } catch (error) {
+          this.$message.error('同步聊天记录失败');
+          console.error(error);
+        }
+      },
+
       async loadChatMessages(chatId) {
         try {
-          this.branchPath = [];
+          // this.branchPath = [];
           this.messageListForShow = [];
           // 获取所有分支
           const response = await this.$axios.post('/api/chat/getAllBranches', { chatId });
@@ -98,60 +225,158 @@
             this.allBranches = response.data;
 
             // 找到根分支（parent_branchId的index为0）
-            const rootBranch = this.allBranches.find(b => b.index == 0);
+            this.rootBranch = this.allBranches.find(b => b.index == 0);
 
-            if (rootBranch) {
-              // 构建初始分支路径
-              await this.buildBranchPath(rootBranch);
+            if (!this.rootBranch) {
+              await this.createNewBranch();
+              this.rootBranch = this.currentBranch
             }
+            await this.buildPathForTargetBranch(this.rootBranch);
           }
         } catch (error) {
           this.$message.error('获取聊天记录失败');
           console.error(error);
         }
       },
-
+      //按照默认方式构建分支路径（没有指定需要经过哪个节点）
       async buildBranchPath(startBranch) {
-        
-        
+     
+        this.currentBranch = startBranch;
         let currentBranch = startBranch;
-
+       
         while (currentBranch) {
-          console.log(currentBranch)
+          
           // 添加当前分支的消息
           if (currentBranch.messageLocals?.length) {
             
             this.messageListForShow.push(...currentBranch.messageLocals);
+            
           }
+
+          
 
           // 获取当前分支的选择
-          let childIndex = this.branchPath.find(p => p.branchIndex === currentBranch.index)?.childIndex
-          // 如果没有选择，则选择第一个分支
-          if(!childIndex){
-            if(currentBranch.children && currentBranch.children.length > 0){
-              childIndex = currentBranch.children[0].branchIndex
-            }else{
-                childIndex = null; // 没有子分支时设为null
-                break; // 退出循环
-            }
-          }
-
-
-          this.branchPath.push({
-            branchIndex: currentBranch.index,
-            childIndex
-          });
-
-          // 移动到下一个分支
+          // let childIndex = this.branchPath.find(p => p.index === currentBranch.index)?.index
           
-          currentBranch = childIndex ? this.allBranches.find(b => b.branchIndex === childIndex): null;
+          // 如果没有选择，则选择第一个分支
+          let childIndex = -1
+          if(currentBranch.children && currentBranch.children.length > 0){
+            childIndex = currentBranch.children[0].branchIndex
+            // console.log(childIndex)
+          }else{
+              //到达叶子节
+              childIndex = -1; // 没有子分支时设为-
+              this.branchPath.push({
+                index: currentBranch.index,
+                childIndex
+              })
+              
+              break; // 退出循环
+          }
+          
+          let child = this.allBranches.find(p => p.index == childIndex);
+          
+          //以当前节点添加其子节点的兄弟信息
+          this.siblingNodes.push({
+            index: childIndex,
+            branchId: child?.branchId,
+            siblings: currentBranch.children.map(child => ({
+              index: child.branchIndex,
+              tag: child.tag
+            }))
+          })
+       
+
+          // this.branchPath.push({
+          //   index: currentBranch.index,
+          //   childIndex
+          // });
+         
+          
+          // 移动到下一个分支
+          currentBranch = childIndex ? this.allBranches.find(b => b.index == childIndex): null;
+          
         }
 
         // 更新当前分支
-        if (this.branchPath.length > 0) {
-          const lastBranchIndex = this.branchPath[this.branchPath.length - 1].branchIndex;
-          this.currentBranch = this.allBranches.find(b => b.index === lastBranchIndex);
+        
+        this.currentBranch = currentBranch;
+      },
+      async buildPathForTargetBranch(targetBranch) {
+        //如果不存在（如新建分支时接受信息，则使用兄弟分支）
+        if (!targetBranch) return;
+          
+        
+       
+        // 1. 向上查找父分支链
+        const parentChain = [];
+        let current = targetBranch;
+        
+        while (current && current.parentBranchIndex !== -1) {
+          const parent = this.allBranches.find(b => b.index == current.parentBranchIndex);
+          if (parent) {
+            parentChain.unshift(parent); // 添加到数组开头
+            current = parent;
+          } else {
+            break;
+          }
         }
+
+        // 2. 从根分支开始向下构建路径
+        // this.branchPath = []; // 重置分支路径
+        this.siblingNodes = [];
+        this.messageListForShow = []; // 清空消息展示列表
+        let parentBranch = this.rootBranch;
+        // 遍历父链中的每个分支
+        for (const branch of parentChain) {
+
+          if (branch) {
+            if(branch.index != 0){
+                // 获取当前分支的所有消息
+                const branchMessages = branch?.messageLocals || [];
+                // 将消息添加到展示列表中
+                this.messageListForShow.push(...branchMessages);
+
+                //以当前节点添加其子节点的兄弟信息
+
+
+                // this.branchPath.push({
+                //   index: parentBranch.index,
+                //   childIndex: branch.index
+                // });
+
+                this.siblingNodes.push({
+                  index: branch.index,
+                  branchId:branch.branchId,
+                  siblings: parentBranch.children.map(child => ({
+                    index: child.branchIndex,
+                    tag: child.tag
+                  }))
+                })
+            
+            }
+
+            parentBranch = branch;
+          }  
+        }
+        
+        // this.branchPath.push({
+        //   index:parentBranch.index,
+        //   childIndex: targetBranch.index,
+        // })
+        this.siblingNodes.push({
+          index: targetBranch.index,
+          branchId:targetBranch.branchId,
+          siblings: parentBranch.children.map(child => ({
+            index: child.branchIndex,
+            tag: child.tag
+          }))
+        })
+        
+        // 3. 添加目标以及之后的分支到路径
+        await this.buildBranchPath(targetBranch);
+       
+      
       },
 
    
@@ -166,9 +391,10 @@
             branchId: this.generateUuid(),
             chatId: this.chatRecordId,
             index: newIndex,
-            parent_branchId: null, // 根分支
+            parentBranchIndex: -1, // 根分支
             children: [],
-            messageLocals: []
+            messageLocals: [],
+           
           };
 
           // 添加到分支列表
@@ -176,10 +402,10 @@
 
           // 更新当前分支
           this.currentBranch = newBranch;
-          this.branchPath = [{
-            branchId: newBranch.branchId,
-            childIndex: 0
-          }];
+          // this.branchPath = [{
+          //   branchId: 0,
+          //   childIndex: -1,
+          // }];
 
          
 
@@ -188,73 +414,243 @@
           throw error;
         }
       },
+      //message为产生分支操作的原message（不是新message）
+      async newChatBranch(index) {
+        
+        try {
+          // 情况1：是分支的第一个消息（index为0）
+          if (index == 0) {
+           
+            const newBranch = {
+              branchId: this.generateUuid(),
+              chatId: this.chatRecordId,
+              index: this.allBranches.length,
+              parentBranchIndex: this.currentBranch.parentBranchIndex,
+              children: [],
+              messageLocals: []
+            };
+            
+            // 添加到分支列表
+            this.allBranches.push(newBranch);
+          
+            // 在父分支的children中添加新分支
+            const parentBranch = this.allBranches.find(
+              b => b.index == this.currentBranch.parentBranchIndex
+            );
+          
+            if (parentBranch) {
+              parentBranch.children.push({
+                branchIndex: newBranch.index,
+                tag: 'new_branch'
+              });
+            }
+          
+           
+            
+            // 切换当前分支
+            this.currentBranch = newBranch;
+            this.modifiedBranch.push(parentBranch);//先不加入新增的branch，到后面消息接受完毕后再更新
+          } 
+          // 情况2：不是第一个消息
+          else {
+            
+            // 创建新父分支（包含index之前的消息）
+            const newParentBranch = {
+              branchId: this.generateUuid(),
+              chatId: this.chatRecordId,
+              index: this.allBranches.length,
+              parentBranchIndex: this.currentBranch.parentBranchIndex,
+              children: [
+              {
+                branchIndex: this.currentBranch.index,  // 新index分配给当前分支
+                tag: 'origin_branch'
+              }
+            ],
+              messageLocals: []
+            };
+            newParentBranch.messageLocals = this.currentBranch.messageLocals.slice(0, index).map(msg => ({
+                ...msg,
+                branchId: newParentBranch.branchId // 更新branchId
+              }))
+            // 找到newParentBranch的父分支
+            const grandParentBranch = this.allBranches.find(
+              b => b.index == newParentBranch.parentBranchIndex
+            );
+            if (grandParentBranch) {
+              // 遍历父分支的children数组
+              grandParentBranch.children.forEach(child => {
+                if (child.branchIndex == this.currentBranch.index) {
+                  // 将当前分支的引用改为新父分支
+                  child.branchIndex = newParentBranch.index;
+                }
+              });
+            }
+          
+            // 将当前分支从index开始的message分配给新分支
+            this.currentBranch.messageLocals = this.currentBranch.messageLocals.slice(index).map(msg => ({
+              ...msg,
+              branchId: this.currentBranch.branchId // 保持当前branchId
+            }));
+            this.currentBranch.parentBranchIndex = newParentBranch.index;
+          
+            // 创建新子分支（包含index及之后的消息）
+            const newChildBranch = {
+              branchId: this.generateUuid(),
+              chatId: this.chatRecordId,
+              index: this.allBranches.length + 1,
+              parentBranchIndex: newParentBranch.index,
+              children: [],
+              messageLocals: []
+            };
+            
+            newParentBranch.children.push({
+                branchIndex: newChildBranch.index,
+                tag: 'new_branch'
+              });
+            // 添加到分支列表
+            this.allBranches.push(newParentBranch, newChildBranch);
+            //新建的分支在正式接受到信息之后再保存
+            this.modifiedBranch.push(newParentBranch, this.currentBranch,grandParentBranch);
+          
+            // 切换当前分支到新创建的子分支
+            this.currentBranch = newChildBranch;
+          }
+        
+          
+          //console.log(this.currentBranch)
+          // 重新构建经过currentBranch的路径
+          // console.log(this.branchPath)
+          await this.buildPathForTargetBranch(this.currentBranch);
+        
+          
+        } catch (error) {
+          console.error('创建分支失败:', error);
+          this.$message.error('创建分支失败');
+        }
+      },
 
+      startEditMessage(message, index) {
+        this.$set(message, 'editing', true);
+        this.$set(message, 'editText', message.content.text);
+      },
 
+      cancelEdit(message) {
+        this.$set(message, 'editing', false);
+        this.$set(message, 'editText', '');
+      },
+
+      async sendModifiedMessage(message) {
+        const modifiedText = message.editText;
+        if (!modifiedText.trim()) {
+          this.$message.warning('修改内容不能为空');
+          return;
+        }
+
+      try {
+        this.currentBranch = this.allBranches.find(b => b.branchId == message.branchId)
+        // 在当前分支中查找要修改的消息索引
+        const messageIndex = this.currentBranch.messageLocals.findIndex(
+          msg => msg.messageId == message.messageId
+        );
+        
+        if (messageIndex !== -1) {
+          await this.newChatBranch(messageIndex);
+          this.currentBranch.messageLocals = [];
+          this.messageListForShow = [];
+          
+          await this.buildPathForTargetBranch(this.currentBranch)
+          await this.sendMessageWithPolling(modifiedText);
+
+        }
+      } catch (error) {
+        console.error('修改消息失败:', error);
+        this.$message.error('修改消息失败');
+      }
+
+      },
+      
 
      
       
-      async sendMessageWithPolling() {
-        if (!this.inputMessage.trim() || this.isLoading) return;
-        if (!this.currentInterviewer) {
-          this.$message.warning('请先选择面试官');
-          return;
-        }
-        if (!this.currentBranch) {
-          await this.createNewBranch();
-          
-        }
-        const userMessage = this.createMessage('user', this.inputMessage);
-        this.messageListForShow.push(userMessage);
-        // 检查并创建初始分支
-        
-        if (this.currentBranch ) {
-          if (!this.currentBranch.messageLocals) {
-            this.currentBranch.messageLocals = [];
-          }
-          this.currentBranch.messageLocals.push(userMessage);
-          
-        }
-        this.buildContextMessages();
+      async sendMessageWithPolling(messageContent = null) {
+         // 参数messageContent为null时表示来自聊天框的消息，否则表示修改后的消息
 
-        this.inputMessage = '';
-        this.isLoading = true;
-        let messageId = null; // 用于存储消息ID
-
-        try {
-          
-  
-          
-          this.scrollToBottom();
-          // 发送消息到后端
-          const response = await this.$axios.post('/api/chat/sendMessageWithPoll', {
-            messageList: this.chatMessages,
-            interviewer: this.currentInterviewer
-          });
+         // 参数messageContent为null时表示来自聊天框的消息，否则表示修改后的消息
+         const messageText = messageContent !== null ? String(messageContent) : String(this.inputMessage);
+         if (!messageText || !messageText.trim() || this.isLoading) return;
+         if (!messageText.trim() || this.isLoading) return;
+         if (!this.currentInterviewer) {
+           this.$message.warning('请先选择面试官');
+           return;
+         }
          
-          messageId = response.data; // 获取后端返回的消息ID
-          
-          
-          // 创建AI消息占位对象
-          const aiMessage = {
-            id: messageId, // 添加前缀便于识别
-            role: 'assistant',
-            content: {
-              text: '', // 初始为空
-              voice: null,
-              files: []
-            },
-            timestamp: new Date().toISOString()
-          };
+         // 如果当前分支是0号根节点，则创建新分支
+         if (!this.currentBranch || this.currentBranch.index == 0) {
+           await this.createNewBranch();
+           this.rootBranch.children.push({
+             branchIndex: this.currentBranch.index,
+             tag: 'new_branch'
+           });
+           this.currentBranch.parentBranchIndex = 0;
+           this.modifiedBranch.push(this.rootBranch);
+         }
          
-
-          this.messageListForShow.push(aiMessage);
+         const userMessage = this.createMessage('user', messageText);
+         this.messageListForShow.push(userMessage);
+         
+         if (this.currentBranch) {
+           if (!this.currentBranch.messageLocals) {
+             this.currentBranch.messageLocals = [];
+           }
+           this.currentBranch.messageLocals.push(userMessage);
+         }
+         
+         this.buildContextMessages();
+         
+         // 如果是来自聊天框的消息，清空输入框
+         if (!messageContent) {
+           this.inputMessage = '';
+         }
+         
+         this.isLoading = true;
+         let messageId = null; // 用于存储消息ID
+       
+         try {
+           
+         
+           
+           this.scrollToBottom();
+           // 发送消息到后端
+           const response = await this.$axios.post('/api/chat/sendMessageWithPoll', {
+             messageList: this.chatMessages,
+             interviewer: this.currentInterviewer
+           });
+         
+           messageId = response.data; // 获取后端返回的消息ID
+           
+           
+           // 创建AI消息占位对象
+           const aiMessage = {
+             id: messageId, // 添加前缀便于识别
+             role: 'assistant',
+             content: {
+               text: '', // 初始为空
+               voice: null,
+               files: []
+             },
+             timestamp: new Date().toISOString()
+           };
+         
+         
+           this.messageListForShow.push(aiMessage);
           this.currentAiMessageId = aiMessage.id;
           this.scrollToBottom();
           // 开始轮询
           if (!this.isPolling) {
             this.isPolling = true;
             this.startPolling(messageId);
-            console.log(this.chatMessages)
+
+            
           }
         } catch (error) {
           this.$message.error('发送消息失败');
@@ -264,13 +660,14 @@
       },
 
       async startPolling(messageId) {
-        const POLLING_TIMEOUT = 5000; // 5秒超时
+        const POLLING_TIMEOUT = 20000; // 5秒超时
         let pollingStartTime = Date.now();
 
           const processBatch = async () => {
               if (!this.isPolling) return;
 
               try {
+                
                   // 检查是否超时
                   if (Date.now() - pollingStartTime > POLLING_TIMEOUT) {
                       throw new Error('轮询超时，未收到有效响应');
@@ -278,18 +675,18 @@
 
                   const params = new URLSearchParams();
                   params.append('messageId', messageId);  // 确保参数名完全匹配
-                  params.append('batchSize', '10');  // 字符串形式
+                  params.append('batchSize', '5');  // 字符串形式
 
                   const response = await this.$axios.get('/api/chat/pollMessages', {
                       params: params,
                       paramsSerializer: params => params.toString()  // 使用默认序列化
                   });
-
+                
                   if (response.data && response.data.length) {
                       let shouldStop = false;
                       // 重置超时计时器（每次收到有效数据就重置）
                       pollingStartTime = Date.now();
-
+                      let hasNewContent = false;  
                       // 批量处理消息
                       for (const msg of response.data) {
                           
@@ -303,18 +700,26 @@
                           const aiMsg = this.messageListForShow.find(m => m.id === messageId);
                           if (aiMsg) {
                               aiMsg.content = aiMsg.content || { text: '' };
+                              const oldLength = aiMsg.content.text.length;
                               await this.typeText(aiMsg, msg.text);
+                              if (aiMsg.content.text.length > oldLength) {
+                                  hasNewContent = true;  // 只有内容变化时才标记
+                              }
                           }
                       }
 
-                      this.$forceUpdate();
-                      this.scrollToBottom();
+                      // 只有内容变化时才强制更新和滚动
+                      if (hasNewContent) {
+                          this.$forceUpdate();
+                          this.scrollToBottom();
+                      }
 
                       // 如果收到停止信号，则中止轮询
                       if (shouldStop) {
                           this.stopPolling();
                           const aiMsg = this.messageListForShow.find(m => m.id === messageId);
                           if (aiMsg) {
+                            
                               // 将AI消息加入currentBranch
                               this.currentBranch.messageLocals.push({
                                   messageId:aiMsg.id,
@@ -327,11 +732,12 @@
                                   },
                                   timestamp: new Date()
                               });
-                              console.log(this.currentBranch)
+                              this.modifiedBranch.push(this.currentBranch);
                               // 调用封装的方法保存currentBranch，并手动传入branchList
-                              const newBranchList = [this.currentBranch];
-                              console.log(newBranchList)
-                              await this.saveBranchList(newBranchList);
+                              console.log(this.modifiedBranch)
+                              await this.saveBranchList(this.modifiedBranch);
+                              this.modifiedBranch = [];
+                              await this.fetchData(this.chatRecordId)
                           }
                           this.isLoading = false;
                           return;
@@ -339,12 +745,15 @@
                   }
 
                   // 继续轮询
-                   this.pollingAnimationFrame = requestAnimationFrame(processBatch); // 200ms轮询间隔
+                   this.pollingAnimationFrame = requestAnimationFrame(processBatch); 
 
               } catch (error) {
-                  console.error('轮询出错:', error);
+                 
+                  this.modifiedBranch = [];
                   this.stopPolling();
                   this.isLoading = false;
+                  await this.loadChatMessages(this.chatRecordId)
+                  await this.buildPathForTargetBranch(this.rootBranch);
                   this.$message.error('获取消息失败: ' + error.message);
               }
           };
@@ -391,9 +800,9 @@
   
   
   
-      async saveBranchList() {
+      async saveBranchList(branchList) {
         try {
-          const response = await this.$axios.post('/api/chat/saveBranches', this.allBranches);
+          const response = await this.$axios.post('/api/chat/saveBranches', branchList);
           
             //this.$message.success('分支保存成功');
           
@@ -434,9 +843,12 @@
         if (!timestamp) return '';
         
         const date = new Date(timestamp);
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
         const hours = date.getHours().toString().padStart(2, '0');
         const minutes = date.getMinutes().toString().padStart(2, '0');
-        return `${hours}:${minutes}`;
+        return `${year}-${month}-${day} ${hours}:${minutes}`;
       },
       
       scrollToBottom() {
@@ -481,17 +893,21 @@
   .message {
     margin-bottom: 20px;
     display: flex;
+    flex-direction: column;
+    align-items: flex-start;
   }
+  
   
   .message-content {
     max-width: 70%;
     padding: 10px 15px;
     border-radius: 5px;
     position: relative;
+    margin-top: 5px;
   }
   
   .user-message {
-    justify-content: flex-end;
+    align-items: flex-end;
   }
   
   .user-message .message-content {
@@ -511,7 +927,7 @@
   .message-time {
     font-size: 12px;
     color: #999;
-    margin-top: 5px;
+    margin-bottom: 5px;
   }
   
   .chat-input {
@@ -522,6 +938,38 @@
   .send-button {
     margin-top: 10px;
     float: right;
+  }
+  .message-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 5px;
+  }
+
+  .edit-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .branch-switch {
+    margin-top: 5px;
+    text-align: center;
+  }
+  
+  .branch-switch-panel {
+    margin-top: 10px;
+    padding: 10px;
+    background: #f5f7fa;
+    border-radius: 4px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  }
+  
+  .branch-option {
+    padding: 8px;
+    cursor: pointer;
+    &:hover {
+      background: #e6e6e6;
+    }
   }
   </style>
   

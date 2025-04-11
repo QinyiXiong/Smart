@@ -361,15 +361,15 @@ public class MilvusClient {
                 .build();
         R<SearchResults> response = client.search(param);
         if (response.getStatus() != R.Status.Success.getCode()) {
-            System.out.println(response.getMessage());
+            //System.out.println(response.getMessage());
         }
  
         SearchResultsWrapper wrapper = new SearchResultsWrapper(response.getData().getResults());
-        System.out.println("Search results:");
+        //System.out.println("Search results:");
         for (int i = 0; i < targetVectors.size(); ++i) {
             List<SearchResultsWrapper.IDScore> scores = wrapper.getIDScore(i);
             for (SearchResultsWrapper.IDScore score:scores) {
-                System.out.println(score);
+                //System.out.println(score);
                 Float scoreValue = score.getScore();
                 Map<String, Object> fieldValues = score.getFieldValues();
                 KnowledgeSearchVO vo = JSON.parseObject(JSON.toJSONString(fieldValues), KnowledgeSearchVO.class);

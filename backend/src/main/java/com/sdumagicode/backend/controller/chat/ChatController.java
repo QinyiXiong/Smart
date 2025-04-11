@@ -141,6 +141,8 @@ public class ChatController {
 
         try {
             while ((System.currentTimeMillis() - startTime) < timeout) {
+
+
                 List<ChatOutput> messages = MessageQueueUtil.pollBatch(messageId, batchSize);
 
 
@@ -156,7 +158,7 @@ public class ChatController {
                     // 检查当前批次是否有stop信号
                     hasStopSignal = messages.stream()
                             .anyMatch(msg -> "stop".equals(msg.getFinish())) ;
-                    System.out.println("get from queue");
+
                     batch.addAll(messages);
 
 
@@ -176,6 +178,7 @@ public class ChatController {
 
             return GlobalResultGenerator.genSuccessResult(batch);
         } catch (Exception e) {
+            e.printStackTrace();
             return GlobalResultGenerator.genErrorResult("获取消息失败");
         }
     }
@@ -187,6 +190,9 @@ public class ChatController {
     @PostMapping("/saveBranches")
     public GlobalResult saveBranches(@RequestBody List<Branch> branchList){
         Long userId = UserUtils.getCurrentUserByToken().getIdUser();
+        if(branchList == null || branchList.isEmpty()){
+            throw new ServiceException("缺少保存列表");
+        }
         for (Branch branch:branchList) {
             branch.setUserId(userId);
         }
