@@ -32,23 +32,59 @@
           >
             <el-button
               type="text"
-              @click="toggleBranchSwitchPanel(message)"
-            >切换分支</el-button>
+              @click="toggleShowBranch(message)"
+            >{{ message.showBranchTag ? '关闭' : '显示分支' }}</el-button>
           </div>
         
-          <!-- 分支切换面板 -->
+          
+          <!-- 分支编辑面板 -->
           <div 
-            v-if="showBranchSwitch && currentSwitchMessageId === message.messageId && !isLoading"
-            class="branch-switch-panel"
+            v-if="message.showBranchTag && !isLoading"
+            class="branch-edit-panel"
           >
+          <div class="branch-tag-list">
             <div 
-              v-for="sibling in siblingNodes.find(node => node.branchId === message.branchId)?.siblings || []"
+              v-for="(sibling, idx) in siblingNodes.find(node => node.branchId === message.branchId)?.siblings || []"
               :key="sibling.index"
-              class="branch-option"
-              @click="switchBranch(sibling.index)"
+              class="branch-tag-item"
             >
-              {{ sibling.tag }}
+              <!-- 显示模式 -->
+              <template v-if="!sibling.editing">
+                <span 
+                  class="branch-tag-text"
+                  @click="switchBranch(sibling.index)"
+                >{{ sibling.tag }}</span>
+                <el-button
+                  type="text"
+                  size="mini"
+                  @click="startEditBranchTag(sibling)"
+                >修改</el-button>
+              </template>
+              
+              <!-- 编辑模式 -->
+              <template v-else>
+                <el-input
+                  v-model="sibling.tag"
+                  size="mini"
+                  class="branch-tag-input"
+                  @keyup.enter.native="saveBranchTag(sibling, message)"
+                ></el-input>
+                <div class="branch-tag-actions">
+                  <el-button
+                    type="text"
+                    size="mini"
+                    @click="cancelEditBranchTag(sibling)"
+                  >取消</el-button>
+                  <el-button
+                    type="text"
+                    size="mini"
+                    @click="saveBranchTag(sibling, message)"
+                  >保存</el-button>
+                </div>
+              </template>
             </div>
+          </div>
+          
           </div>
           <div class="message-time">{{ formatTime(message.timestamp) }}</div>
           <div v-if="message.role === 'user'" class="message-actions">
@@ -57,6 +93,12 @@
               type="text"
               icon="el-icon-edit"
               @click="startEditMessage(message)"
+            ></el-button>
+            <el-button
+              v-if="!message.editing"
+              type="text"
+              icon="el-icon-refresh"
+              @click="regenerateMessage(message)"
             ></el-button>
             <div v-else class="edit-actions">
               <el-button size="mini" @click="cancelEdit(message)">取消</el-button>
@@ -80,7 +122,7 @@
         ></el-input>
         <el-button
           type="primary"
-          @click="sendMessageWithPolling"
+          @click="sendMessageWithPolling()"
           :disabled="!inputMessage.trim() || isLoading"
           class="send-button"
         >{{ isLoading ? '发送中...' : '发送' }}</el-button>
@@ -122,7 +164,9 @@
         modifiedBranch: [],
         siblingNodes: [], // 存储当前路径上每个节点的兄弟节点信息
         showBranchSwitch: false, // 控制分支切换面板的显示
-        currentSwitchMessageId: null // 当前显示切换面板的消息ID
+        currentSwitchMessageId: null, // 当前显示切换面板的消息ID
+        branchTagBackup: null,
+        
       }
     },
     watch: {
@@ -137,37 +181,6 @@
       
     },
     methods: {
-
-      handleKeyEnter(e) {
-          // 阻止默认行为（避免在textarea中换行）
-          e.preventDefault();
-          // 只有当输入框有内容时才发送
-          if (this.inputMessage.trim()) {
-            this.sendMessageWithPolling();
-          }
-        },
-        toggleBranchSwitchPanel(message) {
-          if (this.currentSwitchMessageId === message.messageId) {
-            // 如果点击的是当前已显示的面板，则隐藏
-            this.showBranchSwitch = false;
-            this.currentSwitchMessageId = null;
-          } else {
-            // 否则显示新面板
-            this.currentSwitchMessageId = message.messageId;
-            this.showBranchSwitch = true;
-          }
-        },
-      
-        // 切换分支
-      async switchBranch(targetIndex) {
-      
-        const targetBranch = this.allBranches.find(b => b.index == targetIndex);
-        
-        if (targetBranch) {
-          await this.buildPathForTargetBranch(targetBranch);
-          this.showBranchSwitch = false;
-        }
-      },
       checkSiblings(message){
        
         const siblingNode = this.siblingNodes.find(b => b.branchId == message.branchId)
@@ -206,7 +219,7 @@
             // 找到根分支（parent_branchId的index为0）
             this.rootBranch = this.allBranches.find(b => b.index == 0);
 
-     
+          
           }
         } catch (error) {
           this.$message.error('同步聊天记录失败');
@@ -238,6 +251,101 @@
           console.error(error);
         }
       },
+
+
+      async regenerateMessage(message) {
+     
+        this.$set(message, 'editing', true);
+        this.$set(message, 'editText', message.content.text);
+       
+        // 等待一个事件循环让UI更新
+        await this.$nextTick();
+
+        await this.sendModifiedMessage(message);
+      },
+
+      handleKeyEnter(e) {
+          // 阻止默认行为（避免在textarea中换行）
+          e.preventDefault();
+          // 只有当输入框有内容时才发送
+          if (this.inputMessage.trim()) {
+            this.sendMessageWithPolling();
+          }
+        },
+      toggleShowBranch(message) {
+        if (message.showBranchTag) {
+            // 退出状态时，将所有sibling.editing状态改为false，恢复原样
+            const siblings = this.siblingNodes.find(node => node.branchId === message.branchId)?.siblings || [];
+            siblings.forEach(sibling => {
+              if (sibling.editing) {
+                this.cancelEditBranchTag(sibling);
+              }
+            });
+            this.$set(message, 'showBranchTag', false);
+          } else {
+            // 进入编辑状态时，关闭其他message正在打开的分支页面
+            this.messageListForShow.forEach(msg => {
+              if (msg.showBranchTag && msg !== message) {
+                this.$set(msg, 'showBranchTag', false);
+              }
+            });
+            this.$set(message, 'showBranchTag', true);
+          }
+        },
+      
+      
+      
+        // 切换分支
+      async switchBranch(targetIndex) {
+      
+        const targetBranch = this.allBranches.find(b => b.index == targetIndex);
+        
+        if (targetBranch) {
+          await this.buildPathForTargetBranch(targetBranch);
+          this.showBranchSwitch = false;
+        }
+      },
+
+      startEditBranchTag(sibling) {
+        // 备份原始标签以便取消时可以恢复
+        this.branchTagBackup = sibling.tag;
+        this.$set(sibling, 'editing', true);
+      },
+      cancelEditBranchTag(sibling) {
+        // 恢复备份的标签
+        sibling.tag = this.branchTagBackup;
+        this.$set(sibling, 'editing', false);
+      },
+      async saveBranchTag(sibling, message) {
+        this.$set(sibling, 'editing', false);
+        try {
+          // 找到对应的父分支
+          const branch = this.allBranches.find(b => b.branchId == message.branchId);
+          
+          if (!branch) return;
+          
+          const parentBranch = this.allBranches.find(b => 
+            b.children?.some(child => child.branchIndex == branch.index)
+          );
+          console.log(parentBranch)
+          if (parentBranch) {
+            // 更新标签
+            const siblings = this.siblingNodes.find(node => node.branchId == message.branchId)?.siblings || [];
+            parentBranch.children.forEach(child => {
+              const sibling = siblings.find(s => s.index == child.branchIndex);
+              if (sibling) {
+                child.tag = sibling.tag;
+              }
+            });
+            console.log(parentBranch)
+            // 保存到服务器
+            await this.saveBranchList([parentBranch]);
+          }
+        } catch (error) {
+          console.error('保存分支标签失败:', error);
+        }
+      },
+      
       //按照默认方式构建分支路径（没有指定需要经过哪个节点）
       async buildBranchPath(startBranch) {
      
@@ -287,10 +395,7 @@
           })
        
 
-          // this.branchPath.push({
-          //   index: currentBranch.index,
-          //   childIndex
-          // });
+     
          
           
           // 移动到下一个分支
@@ -337,13 +442,7 @@
                 // 将消息添加到展示列表中
                 this.messageListForShow.push(...branchMessages);
 
-                //以当前节点添加其子节点的兄弟信息
-
-
-                // this.branchPath.push({
-                //   index: parentBranch.index,
-                //   childIndex: branch.index
-                // });
+               
 
                 this.siblingNodes.push({
                   index: branch.index,
@@ -360,10 +459,7 @@
           }  
         }
         
-        // this.branchPath.push({
-        //   index:parentBranch.index,
-        //   childIndex: targetBranch.index,
-        // })
+     
         this.siblingNodes.push({
           index: targetBranch.index,
           branchId:targetBranch.branchId,
@@ -437,11 +533,11 @@
             const parentBranch = this.allBranches.find(
               b => b.index == this.currentBranch.parentBranchIndex
             );
-          
+            
             if (parentBranch) {
               parentBranch.children.push({
                 branchIndex: newBranch.index,
-                tag: 'new_branch'
+                tag:  `分支${parentBranch.children.length + 1}`
               });
             }
           
@@ -463,7 +559,7 @@
               children: [
               {
                 branchIndex: this.currentBranch.index,  // 新index分配给当前分支
-                tag: 'origin_branch'
+                tag: '原分支'
               }
             ],
               messageLocals: []
@@ -505,7 +601,7 @@
             
             newParentBranch.children.push({
                 branchIndex: newChildBranch.index,
-                tag: 'new_branch'
+                tag: `分支${newParentBranch.children.length + 1}`
               });
             // 添加到分支列表
             this.allBranches.push(newParentBranch, newChildBranch);
@@ -529,7 +625,7 @@
         }
       },
 
-      startEditMessage(message, index) {
+      startEditMessage(message) {
         this.$set(message, 'editing', true);
         this.$set(message, 'editText', message.content.text);
       },
@@ -540,6 +636,7 @@
       },
 
       async sendModifiedMessage(message) {
+        console.log(message)
         const modifiedText = message.editText;
         if (!modifiedText.trim()) {
           this.$message.warning('修改内容不能为空');
@@ -738,6 +835,7 @@
                               await this.saveBranchList(this.modifiedBranch);
                               this.modifiedBranch = [];
                               await this.fetchData(this.chatRecordId)
+                              this.scrollToBottom();
                           }
                           this.isLoading = false;
                           return;
@@ -755,6 +853,7 @@
                   await this.loadChatMessages(this.chatRecordId)
                   await this.buildPathForTargetBranch(this.rootBranch);
                   this.$message.error('获取消息失败: ' + error.message);
+                  this.scrollToBottom();
               }
           };
 
@@ -971,5 +1070,31 @@
       background: #e6e6e6;
     }
   }
+  .branch-tag-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  
+  .branch-tag-text {
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    background-color: #f5f7fa;
+    margin-right: 8px;
+    &:hover {
+      background-color: #e6e9ed;
+    }
+  }
+  
+  .branch-tag-input {
+    flex: 1;
+    margin-right: 8px;
+  }
+  
+  .branch-tag-actions {
+    display: flex;
+  }
+  
   </style>
   

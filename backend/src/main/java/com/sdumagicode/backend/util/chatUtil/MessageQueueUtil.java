@@ -86,7 +86,7 @@ public class MessageQueueUtil {
     // 批量获取消息
     public static List<ChatOutput> pollBatch(String messageId, int maxSize) {
         QueueWithTimestamp queueWithTime = messageQueues.get(messageId);
-        System.out.println(queueWithTime);
+
         if (queueWithTime == null) {
             return Collections.emptyList();
         }
