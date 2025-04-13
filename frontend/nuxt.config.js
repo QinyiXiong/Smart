@@ -140,6 +140,11 @@ export default {
       config.plugins.unshift(new LodashModuleReplacementPlugin())
       config.module.rules.push({test: /\.txt$/, use: 'raw-loader'})
       config.module.rules[2].use[0].options.plugins = ['lodash']
+      config.module.rules.push({
+        test: /\.mjs$/,
+        include: /node_modules/,
+        type: 'javascript/auto'
+      })
     },
     babel: {
       presets({envName}) {

@@ -26,8 +26,7 @@
             </el-card>
           </div>
           <div class="message-content">
-            
-            <div v-if="!message.editing" class="message-text">{{ message.content.text }}</div>
+            <div v-if="!message.editing" class="message-text" v-html="renderMarkdown(message.content.text,message.role)"></div>
             <el-input
               v-else
               type="textarea"
@@ -35,7 +34,6 @@
               v-model="message.editText"
               class="edit-input"
             ></el-input>
-           
           </div>
           <!-- 添加分支切换按钮 -->
           <div 
@@ -218,6 +216,7 @@
   <script>
   
   import qs from 'qs';
+  import MarkdownIt from 'markdown-it';
   export default {
     name: 'ChatArea',
     
@@ -258,6 +257,8 @@
         selectedFiles: [],  // 新增选择的文件列表
         uploadOnWhichMessage: -1,//使用哪个消息框上传文件，用于显示（-1表示在下方消息框，不是-1表示在上方消息栏的编辑页面的messageId）
         processedFiles: [],//用于保存和展示上传的文件
+
+        md: new MarkdownIt(), 
       }
     },
     watch: {
@@ -272,6 +273,15 @@
       
     },
     methods: {
+      //渲染markdown
+      renderMarkdown(text,role) {
+        if (role === 'assistant') {
+          const rendered = this.md.render(text || '');
+          // 添加样式类名
+          return `<div class="markdown-body">${rendered}</div>`;
+        }
+        return text;
+      },
       checkSiblings(message){
        
         const siblingNode = this.siblingNodes.find(b => b.branchId == message.branchId)
@@ -1040,7 +1050,7 @@
           inputType: "text",
           content: {
             text: text,
-          
+            
             files: [],
           },
           timestamp: new Date()
@@ -1322,6 +1332,76 @@
   .file-remove-btn {
     padding: 0;
     margin-left: 8px;
+  }
+
+  .message-content >>> pre {
+    background-color: #f6f8fa;
+    padding: 16px;
+    border-radius: 6px;
+    overflow: auto;
+  }
+  
+  .message-content >>> code {
+    background-color: rgba(175, 184, 193, 0.2);
+    padding: 0.2em 0.4em;
+    border-radius: 6px;
+    font-size: 85%;
+  }
+  
+  .message-content >>> blockquote {
+    border-left: 4px solid #dfe2e5;
+    color: #6a737d;
+    padding: 0 1em;
+    margin: 0 0 16px 0;
+  }
+  
+  .message-content >>> table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 16px;
+  }
+  
+  .message-content >>> table th,
+  .message-content >>> table td {
+    padding: 6px 13px;
+    border: 1px solid #dfe2e5;
+  }
+  
+  .message-content >>> table tr {
+    background-color: #fff;
+    border-top: 1px solid #c6cbd1;
+  }
+  
+  .message-content >>> table tr:nth-child(2n) {
+    background-color: #f6f8fa;
+  }
+  
+  /* 确保用户消息中的markdown不渲染 */
+  .user-message .message-content {
+    white-space: pre-wrap;
+  }
+  .markdown-body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    word-wrap: break-word;
+  }
+  
+  .markdown-body >>> p {
+    margin: 0 0 16px 0;
+  }
+  
+  .markdown-body >>> pre {
+    background-color: #f6f8fa;
+    border-radius: 3px;
+    padding: 16px;
+    overflow: auto;
+  }
+  
+  .markdown-body >>> code {
+    background-color: rgba(27,31,35,.05);
+    border-radius: 3px;
+    padding: 0.2em 0.4em;
   }
   
   </style>
