@@ -7,6 +7,7 @@ import com.sdumagicode.backend.core.result.GlobalResult;
 import com.sdumagicode.backend.core.service.Service;
 import com.sdumagicode.backend.dto.chat.ChatOutput;
 import com.sdumagicode.backend.dto.chat.MessageFileDto;
+import com.sdumagicode.backend.dto.chat.MessageLocalDto;
 import com.sdumagicode.backend.entity.chat.*;
 import com.sdumagicode.backend.util.chatUtil.ChatUtil;
 import io.reactivex.Flowable;
@@ -42,6 +43,8 @@ public interface ChatService {
     public MessageFileDto convertMessageFile(MultipartFile multipartFile) throws IOException;
 
     public boolean saveBranches(List<Branch> branchList);
+
+    public List<MessageLocal> convertMessageListDto(List<MessageLocalDto> messageLocalDtoList);
 
 
 }

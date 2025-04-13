@@ -11,8 +11,22 @@
           :key="index"
           :class="['message', message.role === 'user' ? 'user-message' : 'ai-message']"
         >
-          
+          <div v-if="message.content.files.length > 0" class="processed-files">
+            <el-card 
+              v-for="(file, index) in message.content.files" 
+              :key="index" 
+              class="file-card"
+              shadow="hover"
+            >
+              <div class="file-card-content">
+                <i class="el-icon-document" style="margin-right: 8px;"></i>
+                <span :title="file.fileName">{{ truncateFilename(file.fileName) }}</span>
+             
+              </div>
+            </el-card>
+          </div>
           <div class="message-content">
+            
             <div v-if="!message.editing" class="message-text">{{ message.content.text }}</div>
             <el-input
               v-else
@@ -113,6 +127,27 @@
       </div>
   
       <div class="chat-input">
+         <!-- 已处理文件显示区域 -->
+         <div v-if="processedFiles.length > 0 && uploadOnWhichMessage === -1" class="processed-files">
+          <el-card 
+            v-for="(file, index) in processedFiles" 
+            :key="index" 
+            class="file-card"
+            shadow="hover"
+          >
+            <div class="file-card-content">
+              <i class="el-icon-document" style="margin-right: 8px;"></i>
+              <span :title="file.name">{{ truncateFilename(file.name) }}</span>
+              <el-button 
+                type="text" 
+                icon="el-icon-close" 
+                @click="removeProcessedFile(index)"
+                class="file-remove-btn"
+              ></el-button>
+            </div>
+          </el-card>
+        </div>
+
         <el-input
           type="textarea"
           :rows="3"
@@ -120,21 +155,72 @@
           v-model="inputMessage"
           @keyup.enter.native="handleKeyEnter"
         ></el-input>
-        <el-button
-          type="primary"
-          @click="sendMessageWithPolling()"
-          :disabled="!inputMessage.trim() || isLoading"
-          class="send-button"
-        >{{ isLoading ? '发送中...' : '发送' }}</el-button>
+        <div class="input-actions">
+          <el-button
+            type="text"
+            icon="el-icon-upload"
+            @click="showUploadDialog"
+            title="上传文件"
+          ></el-button>
+          <el-button
+            type="text"
+            icon="el-icon-microphone"
+            @click="startVoiceInput"
+            title="语音输入"
+          ></el-button>
+          <el-button
+            type="primary"
+            @click="sendMessageWithPolling()"
+            :disabled="!inputMessage.trim() || isLoading"
+            class="send-button"
+          >{{ isLoading ? '发送中...' : '发送' }}</el-button>
+        </div>
       </div>
+
+      <el-dialog title="上传文件" :visible.sync="uploadDialogVisible" width="50%" @close="clearUploadFiles">
+        <el-upload
+          class="upload-area"
+          drag
+          action="#"
+          ref="fileUpload" 
+          multiple
+          :auto-upload="false"
+          :on-change="handleFileChange"
+          :show-file-list="false" 
+        >
+          <i class="el-icon-upload"></i>
+          <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
+          <div class="el-upload__tip" slot="tip">
+            支持上传pdf/docx/txt等格式文件，单个文件不超过50MB
+          </div>
+        </el-upload>
+        <div class="selected-files" v-if="this.selectedFiles.length > 0">
+          <h4>已选择文件：</h4>
+          <ul>
+            <li v-for="(file, index) in this.selectedFiles" :key="index">
+              {{ file.name }} ({{ formatFileSize(file.size) }})
+              <el-button 
+                type="text" 
+                icon="el-icon-close" 
+                @click="removeSelectedFile(index)"
+              ></el-button>
+            </li>
+          </ul>
+        </div>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="uploadDialogVisible = false">取 消</el-button>
+          <el-button type="primary" @click="uploadFiles">确 定</el-button>
+        </span>
+      </el-dialog>
     </div>
   </template>
   
   <script>
-
+  
   import qs from 'qs';
   export default {
     name: 'ChatArea',
+    
     props: {
       currentInterviewer: {
         type: Object,
@@ -167,6 +253,11 @@
         currentSwitchMessageId: null, // 当前显示切换面板的消息ID
         branchTagBackup: null,
         
+        //文件上传功能相关
+        uploadDialogVisible: false,  // 新增上传对话框状态
+        selectedFiles: [],  // 新增选择的文件列表
+        uploadOnWhichMessage: -1,//使用哪个消息框上传文件，用于显示（-1表示在下方消息框，不是-1表示在上方消息栏的编辑页面的messageId）
+        processedFiles: [],//用于保存和展示上传的文件
       }
     },
     watch: {
@@ -218,7 +309,10 @@
 
             // 找到根分支（parent_branchId的index为0）
             this.rootBranch = this.allBranches.find(b => b.index == 0);
-
+            //刷新currentBranch的数据
+            if(this.currentBranch){
+              this.currentBranch = this.allBranches.find(b => b.index == this.currentBranch.index)
+            }
           
           }
         } catch (error) {
@@ -431,6 +525,7 @@
         // this.branchPath = []; // 重置分支路径
         this.siblingNodes = [];
         this.messageListForShow = []; // 清空消息展示列表
+        this.processedFiles = [];
         let parentBranch = this.rootBranch;
         // 遍历父链中的每个分支
         for (const branch of parentChain) {
@@ -498,11 +593,7 @@
 
           // 更新当前分支
           this.currentBranch = newBranch;
-          // this.branchPath = [{
-          //   branchId: 0,
-          //   childIndex: -1,
-          // }];
-
+       
          
 
         } catch (error) {
@@ -686,13 +777,15 @@
            await this.createNewBranch();
            this.rootBranch.children.push({
              branchIndex: this.currentBranch.index,
-             tag: 'new_branch'
+             tag: '原分支'
            });
            this.currentBranch.parentBranchIndex = 0;
            this.modifiedBranch.push(this.rootBranch);
          }
          
          const userMessage = this.createMessage('user', messageText);
+         // 关键修改：处理文件上传逻辑
+        
          this.messageListForShow.push(userMessage);
          
          if (this.currentBranch) {
@@ -701,6 +794,10 @@
            }
            this.currentBranch.messageLocals.push(userMessage);
          }
+         //先保存一下，给后面上传文件时用
+         this.modifiedBranch.push(this.currentBranch);
+         await this.saveBranchList(this.modifiedBranch)
+         this.modifiedBranch = [];
          
          this.buildContextMessages();
          
@@ -708,6 +805,7 @@
          if (!messageContent) {
            this.inputMessage = '';
          }
+         
          
          this.isLoading = true;
          let messageId = null; // 用于存储消息ID
@@ -718,14 +816,37 @@
            
            this.scrollToBottom();
            // 发送消息到后端
-           const response = await this.$axios.post('/api/chat/sendMessageWithPoll', {
-             messageList: this.chatMessages,
-             interviewer: this.currentInterviewer
-           });
-         
-           messageId = response.data; // 获取后端返回的消息ID
-           
-           
+           // 关键修改：处理文件上传逻辑
+       
+            const formData = new FormData();
+    
+            // 1. 添加聊天请求元数据
+            formData.append('chatRequest', JSON.stringify({
+              messageList: this.chatMessages,
+              interviewer: this.currentInterviewer
+            }));
+
+            // 2. 添加文件数据（如果有）
+            this.processedFiles.forEach(file => {
+              formData.append('files', file.raw);
+            });
+
+            // 3. 添加消息ID
+            formData.append('fileMessageId', userMessage.messageId);
+
+            // 4. 发送请求
+            const response = await this.$axios.post('/api/chat/sendMessageWithPoll', formData, {
+              headers: {
+                'Content-Type': 'multipart/form-data'
+              }
+            });
+
+            // 5. 清空已处理文件
+            this.processedFiles = [];
+            messageId = response.data; // 获取后端返回的消息ID
+          
+            await this.fetchData(this.chatRecordId);
+            await this.buildPathForTargetBranch(this.currentBranch);
            // 创建AI消息占位对象
            const aiMessage = {
              id: messageId, // 添加前缀便于识别
@@ -741,6 +862,7 @@
          
            this.messageListForShow.push(aiMessage);
           this.currentAiMessageId = aiMessage.id;
+          
           this.scrollToBottom();
           // 开始轮询
           if (!this.isPolling) {
@@ -910,19 +1032,6 @@
           this.$message.error('保存分支列表失败: ' + error.message);
         }
       },
-  
-  
-  
-  
-  
-  
-  
-      
-  
-  
-    
-  
-      
       createMessage(role, text) {
         return {
           messageId: this.generateUuid(),
@@ -931,8 +1040,8 @@
           inputType: "text",
           content: {
             text: text,
-            voice: null,
-            files: []
+          
+            files: [],
           },
           timestamp: new Date()
         };
@@ -964,6 +1073,91 @@
                 v = c === 'x' ? r : (r & 0x3 | 0x8);
           return v.toString(16);
         });
+      },
+
+
+      
+       //文件上传相关
+       clearUploadFiles() {
+        
+        if (this.$refs.fileUpload) {
+          this.$refs.fileUpload.clearFiles(); // 清除上传组件的内部文件列表
+        }
+      },
+       formatFileSize(size) {
+        if (size < 1024) {
+          return size + 'B'
+        } else if (size < 1024 * 1024) {
+          return (size / 1024).toFixed(1) + 'KB'
+        } else {
+          return (size / (1024 * 1024)).toFixed(1) + 'MB'
+        }
+      },
+       showUploadDialog() {
+        this.selectedFiles = [];
+        this.uploadDialogVisible = true;
+        this.$nextTick(() => {
+          this.clearUploadFiles(); // 清空组件内部文件列表
+        });
+      },
+      clearUploadFiles() {
+        if (this.$refs.fileUpload) {
+          // 清除组件内部维护的文件列表
+          this.$refs.fileUpload.uploadFiles = [];
+        }
+      },
+      
+      handleFileChange(file, fileList) {
+        this.selectedFiles = fileList
+      },
+      
+      removeSelectedFile(index) {
+        this.selectedFiles.splice(index, 1)
+      },
+      
+      async uploadFiles() {
+        if (this.selectedFiles.length === 0) {
+          this.$message.warning('请选择要上传的文件')
+          return
+        }
+        this.processedFiles = [...this.processedFiles, ...this.selectedFiles.map(file => ({
+          name: file.name,
+          size: file.size,
+          type: file.raw.type,
+          raw: file.raw  // 保留原始File对象
+        }))]
+        console.log(this.processedFiles)
+        this.uploadDialogVisible = false;
+        this.selectedFiles = [];
+        
+      },
+      removeProcessedFile(index) {
+        this.processedFiles.splice(index, 1);
+      },
+      truncateFilename(filename) {
+        const maxLength = 15; // 最大显示长度
+        const extensionIndex = filename.lastIndexOf('.');
+        
+        if (extensionIndex === -1) {
+          // 没有后缀名的情况
+          return filename.length > maxLength 
+            ? `${filename.substring(0, maxLength)}...`
+            : filename;
+        }
+        
+        const name = filename.substring(0, extensionIndex);
+        const extension = filename.substring(extensionIndex);
+        
+        if (name.length > maxLength) {
+          return `${name.substring(0, maxLength)}...${extension}`;
+        }
+        
+        return filename;
+      },
+      
+      // 新增语音输入方法
+      startVoiceInput() {
+        this.$message.info('语音输入功能正在开发中')
       }
     }
   }
@@ -1094,6 +1288,40 @@
   
   .branch-tag-actions {
     display: flex;
+  }
+  .input-actions {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+  }
+  
+  .input-actions .el-button {
+    margin-right: 10px;
+  }
+  
+  .send-button {
+    margin-left: auto;
+  }
+  .processed-files {
+    margin-bottom: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  
+  .file-card {
+    width: 200px;
+  }
+  
+  .file-card-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .file-remove-btn {
+    padding: 0;
+    margin-left: 8px;
   }
   
   </style>

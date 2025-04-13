@@ -7,12 +7,14 @@ import com.alibaba.dashscope.exception.InputRequiredException;
 import com.alibaba.dashscope.exception.NoApiKeyException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.mongodb.client.result.UpdateResult;
 import com.sdumagicode.backend.core.exception.ServiceException;
 import com.sdumagicode.backend.core.result.GlobalResult;
 import com.sdumagicode.backend.core.result.GlobalResultGenerator;
 import com.sdumagicode.backend.core.service.AbstractService;
 import com.sdumagicode.backend.dto.chat.ChatOutput;
 import com.sdumagicode.backend.dto.chat.MessageFileDto;
+import com.sdumagicode.backend.dto.chat.MessageLocalDto;
 import com.sdumagicode.backend.entity.User;
 import com.sdumagicode.backend.entity.chat.*;
 import com.sdumagicode.backend.mapper.ChatMapper;
@@ -25,17 +27,21 @@ import com.sdumagicode.backend.util.chatUtil.InterviewerPromptGenerator;
 import com.sdumagicode.backend.util.embeddingUtil.MilvusClient;
 import io.reactivex.Flowable;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 @Service
 public class ChatServiceImpl  implements ChatService {
@@ -54,6 +60,9 @@ public class ChatServiceImpl  implements ChatService {
 
     @Autowired
     ChatUtil chatUtil;
+
+    @Autowired
+    MongoTemplate mongoTemplate;
 
     @Override
     public List<ChatRecords> getChatRecords(ChatRecords chatRecords) {
@@ -137,8 +146,10 @@ public class ChatServiceImpl  implements ChatService {
 
     @Override
     @Async
-    public void sendMessageToInterviewer(List<MessageLocal> messageList, Interviewer interviewer,Long userId,String messageId, Consumer<ChatOutput> outputConsumer) {
+    public void sendMessageToInterviewer(List<MessageLocal> messageList, Interviewer interviewer, Long userId, String messageId, Consumer<ChatOutput> outputConsumer) {
         try {
+
+
             // 1. RAG搜索
             MessageLocal lastMessage = messageList.get(messageList.size() - 1);
 
@@ -197,6 +208,69 @@ public class ChatServiceImpl  implements ChatService {
         branchRepository.saveAll(branchList);
         return true;
     }
+
+    public List<MessageLocal> convertMessageListDto(List<MessageLocalDto> messageLocalDtoList){
+
+        List<MessageLocal> messageLocalList = messageLocalDtoList.stream().map(item -> {
+            //对有上传文件的处理
+            //当uploadFiles有值时，说明这个信息是第一次发送，尚未执行转化，或者是重新上传文件，覆盖原来的文件
+            //提取文件中的内容分析，获取fileInfoList后保存这条信息
+            List<MultipartFile> uploadFiles = item.getUploadFiles();
+            MessageLocal messageLocal;
+            if (uploadFiles != null && !uploadFiles.isEmpty()) {
+                List<FileInfo> files = item.getContent().getFiles();
+                for (MultipartFile file : uploadFiles) {
+                    try {
+                        MessageFileDto messageFileDto = convertMessageFile(file);
+                        FileInfo fileInfo = messageFileDto.getFileInfo();
+                        fileInfo.setTextContent(messageFileDto.getText());
+                        files.add(fileInfo);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        throw new ServiceException("文件分析失败");
+                    }
+                }
+                //构建新的messageLocal并保存
+                Content content = item.getContent();
+                content.setFiles(files);
+                item.setContent(content);
+                messageLocal = item;
+                updateMessageLocalWithRepository(messageLocal);
+            }
+            messageLocal = item;
+            return messageLocal;
+
+        }).collect(Collectors.toList());
+
+        return messageLocalList;
+    }
+
+    @Transactional
+    public void updateMessageLocalWithRepository(MessageLocal updatedMessage) {
+        // 1. 先查询出整个Branch文档
+        Branch branch = branchRepository.findById(updatedMessage.getBranchId())
+                .orElseThrow(() -> new ServiceException("未找到对应的Branch记录"));
+
+        // 2. 找到要更新的MessageLocal
+        Optional<MessageLocal> messageLocalOpt = branch.getMessageLocals().stream()
+                .filter(msg -> msg.getMessageId().equals(updatedMessage.getMessageId()))
+                .findFirst();
+
+        if (messageLocalOpt.isPresent()) {
+            MessageLocal messageLocal = messageLocalOpt.get();
+            // 3. 更新字段
+            messageLocal.setRole(updatedMessage.getRole());
+            messageLocal.setInputType(updatedMessage.getInputType());
+            messageLocal.setContent(updatedMessage.getContent());
+            messageLocal.setTimestamp(updatedMessage.getTimestamp());
+
+            // 4. 保存整个文档
+            branchRepository.save(branch);
+        } else {
+            throw new ServiceException("未找到要更新的MessageLocal记录");
+        }
+    }
+
 
 
 }

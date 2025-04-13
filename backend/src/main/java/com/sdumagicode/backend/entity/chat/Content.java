@@ -13,6 +13,6 @@ import java.util.List;
 public class Content {
 
     private String text;
-    private Voice voice;
+
     private List<FileInfo> files;
 }

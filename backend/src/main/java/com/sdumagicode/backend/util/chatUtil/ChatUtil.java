@@ -8,13 +8,15 @@ import com.alibaba.dashscope.common.Message;
 import com.alibaba.dashscope.exception.ApiException;
 import com.alibaba.dashscope.exception.InputRequiredException;
 import com.alibaba.dashscope.exception.NoApiKeyException;
+import com.sdumagicode.backend.entity.chat.Content;
+import com.sdumagicode.backend.entity.chat.FileInfo;
 import com.sdumagicode.backend.entity.chat.MessageLocal;
 import io.reactivex.Flowable;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Component
@@ -88,10 +90,26 @@ public class ChatUtil {
         
         // 添加用户和助手消息
         messages.addAll(messageList.stream()
-                .map(msg -> Message.builder()
-                        .role(msg.getRole())
-                        .content(msg.getContent().getText())
-                        .build())
+                .map(msg -> {
+                    String fileContent = Optional.ofNullable(msg.getContent())
+                            .map(Content::getFiles)
+                            .orElse(Collections.emptyList())
+                            .stream()
+                            .filter(Objects::nonNull)  // 过滤掉null的FileInfo
+                            .map(FileInfo::getTextContent)
+                            .filter(StringUtils::isNotBlank)  // 过滤空内容
+                            .collect(Collectors.joining("\n"));  // 使用换行符连接
+                    // 处理文本内容
+                    String text = Optional.ofNullable(msg.getContent())
+                            .map(Content::getText)
+                            .orElse("");
+                    // 合并内容
+                    String combinedContent = fileContent + text;
+                    return Message.builder()
+                            .role(Optional.ofNullable(msg.getRole()).orElse(""))  // 处理可能为null的role
+                            .content(combinedContent)
+                            .build();
+                })
                 .collect(Collectors.toList()));
         
         return messages;

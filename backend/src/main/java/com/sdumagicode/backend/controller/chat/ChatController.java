@@ -2,12 +2,15 @@ package com.sdumagicode.backend.controller.chat;
 
 import com.alibaba.dashscope.app.ApplicationOutput;
 import com.alibaba.dashscope.app.ApplicationResult;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sdumagicode.backend.core.exception.ServiceException;
 import com.sdumagicode.backend.core.result.GlobalResult;
 import com.sdumagicode.backend.core.result.GlobalResultGenerator;
 import com.sdumagicode.backend.dto.chat.ChatOutput;
 import com.sdumagicode.backend.dto.chat.ChatRequest;
 import com.sdumagicode.backend.dto.chat.MessageFileDto;
+import com.sdumagicode.backend.dto.chat.MessageLocalDto;
 import com.sdumagicode.backend.entity.chat.*;
 import com.sdumagicode.backend.service.ChatService;
 import com.sdumagicode.backend.util.UserUtils;
@@ -23,15 +26,14 @@ import org.springframework.web.context.request.async.DeferredResult;
 import org.springframework.web.multipart.MultipartFile;
 import reactor.core.publisher.Flux;
 
+import javax.validation.Valid;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/chat")
@@ -63,7 +65,8 @@ public class ChatController {
         if(chatRecords.getChatId() == null){
             throw  new ServiceException("缺少关键信息");
         }
-        return GlobalResultGenerator.genSuccessResult(chatService.getAllBranches(chatRecords));
+        List<Branch> allBranches = chatService.getAllBranches(chatRecords);
+        return GlobalResultGenerator.genSuccessResult(allBranches);
     }
 
 
@@ -84,8 +87,27 @@ public class ChatController {
 
 
     @PostMapping("/sendMessageWithPoll")
-    public GlobalResult<String> sendMessage(@RequestBody ChatRequest chatRequest) {
+    public GlobalResult<String> sendMessage(
+            @RequestParam(value = "chatRequest") String chatRequestStr,
+            @RequestPart(value = "files", required = false) List<MultipartFile> files,
+            @RequestParam(value = "fileMessageId", required = false) String fileMessageId
+    ) throws JsonProcessingException {
+        // 手动解析JSON字符串
+        ObjectMapper objectMapper = new ObjectMapper();
+        ChatRequest chatRequest = objectMapper.readValue(chatRequestStr, ChatRequest.class);
         List<MessageLocal> messageList = chatRequest.getMessageList();
+        List<MessageLocalDto> collect = messageList.stream().map((item) -> {
+            MessageLocalDto messageLocalDto = new MessageLocalDto(item);
+            if(fileMessageId != null && !fileMessageId.isEmpty()){
+                if (Objects.equals(messageLocalDto.getMessageId(), fileMessageId)) {
+                    messageLocalDto.setUploadFiles(files);
+                }
+            }
+
+
+            return messageLocalDto;
+        }).collect(Collectors.toList());
+        List<MessageLocal> messageLocals = chatService.convertMessageListDto(collect);
         Interviewer interviewer = chatRequest.getInterviewer();
         // 参数验证
         if (messageList == null || messageList.isEmpty() || messageList.get(messageList.size() - 1).getContent().getText().isEmpty()) {
@@ -100,7 +122,7 @@ public class ChatController {
         String messageId = String.valueOf(UUID.randomUUID());
         try {
                     chatService.sendMessageToInterviewer(
-                    messageList,
+                            messageLocals,
                     interviewer,
                     idUser,
                     messageId,
