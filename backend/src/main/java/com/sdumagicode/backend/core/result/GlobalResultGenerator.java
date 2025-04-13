@@ -87,5 +87,4 @@ public class GlobalResultGenerator {
 
         return genResult(true, null, message);
     }
-
 }

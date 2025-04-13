@@ -70,6 +70,7 @@ public class UploadController {
         File saveFile = new File(savePath);
         try {
             FileCopyUtils.copy(Base64.decodeBase64(fileStr.substring(fileStr.indexOf(",") + 1)), saveFile);
+            System.out.println("文件已保存到: " + saveFile.getAbsolutePath());
             fileStr = localPath + fileName;
         } catch (IOException e) {
             fileStr = "上传失败!";

@@ -9,7 +9,7 @@
       <el-menu :default-active="activeMenu" @select="handleSelectMenu" mode="horizontal"
                style="margin-top: -2px;border: 0;">
         <!-- <el-menu-item index="index">论坛</el-menu-item> -->
-        <!-- <el-menu-item index="topic">专题</el-menu-item> -->
+        <!-- <el-menu-item index="topic">专栏</el-menu-item> -->
         <!-- <el-menu-item index="portfolios">作品集</el-menu-item> -->
         <!-- <el-menu-item index="products">产品</el-menu-item>
         <el-menu-item index="open-data">开放数据</el-menu-item> -->
@@ -75,7 +75,7 @@
           </el-popover>
 
           <el-link :underline="false" href="/portfolio/post" rel="nofollow"
-                   style="padding-left: 10px;padding-right: 10px;">创建专题
+                   style="padding-left: 10px;padding-right: 10px;">创建专栏
           </el-link>
           <el-link :underline="false" href="/article/post" rel="nofollow"
                    style="padding-left: 10px;padding-right: 10px;">发帖

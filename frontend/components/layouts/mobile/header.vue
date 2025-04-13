@@ -12,7 +12,7 @@
             <el-menu :default-active="activeMenu" style="margin-top: -2px;border: 0;" mode="horizontal"
                      @select="handleSelectMenu">
               <el-menu-item index="index">首页</el-menu-item>
-              <el-menu-item index="topic">专题</el-menu-item>
+              <el-menu-item index="topic">专栏</el-menu-item>
             </el-menu>
           </el-col>
         </el-row>

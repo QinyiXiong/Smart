@@ -95,7 +95,7 @@ export default {
           closable: true
         },
         {
-          title: '专题管理',
+          title: '专栏管理',
           name: 'admin-topics',
           path: '/admin/topics',
           icon: 'el-icon-postcard',

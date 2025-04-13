@@ -103,7 +103,7 @@ export default {
               // if (_ts.historyUrl) {
               //   window.location.href = _ts.historyUrl
               // }
-              await _ts.$router.push('/hot-posts');
+              await _ts.$router.push('/');
             }
             _ts.$set(_ts, 'loginLoading', false);
           } catch (err) {

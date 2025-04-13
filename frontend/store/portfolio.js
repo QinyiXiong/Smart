@@ -66,6 +66,10 @@ export const mutations = {
       'isRenderedFullContent',
       action == null ? true : action
     )
+  },
+  updateHeadImg(state, payload) {
+    const item = state.portfolioList.find(p => p.idPortfolio === payload.id);
+    if (item) Vue.set(item, 'headImgUrl', payload.imgUrl);
   }
 }
 

@@ -4,11 +4,11 @@
       <el-col style="margin-bottom: 1rem;">
         <el-breadcrumb separator-class="el-icon-arrow-right">
           <el-breadcrumb-item :to="{ path: '/admin/dashboard' }">首页</el-breadcrumb-item>
-          <el-breadcrumb-item>专题管理</el-breadcrumb-item>
+          <el-breadcrumb-item>专栏管理</el-breadcrumb-item>
         </el-breadcrumb>
       </el-col>
       <el-col style="margin: .5rem;">
-        <el-button size="small" @click="createTopic" plain>创建专题</el-button>
+        <el-button size="small" @click="createTopic" plain>创建专栏</el-button>
       </el-col>
     </el-row>
     <el-row :gutter="20">

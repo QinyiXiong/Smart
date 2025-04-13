@@ -1,4 +1,4 @@
-package com.sdumagicode.backend.util.chatUtil;
+package com.sdumagicode.backend.util;
 
 import com.sdumagicode.backend.entity.chat.FileInfo;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,10 +12,10 @@ import java.nio.file.Paths;
 import java.util.UUID;
 
 @Component
-public class FileUploadUtil {
+public class PhotoUploadUtil {
 
 
-    private static String uploadDir = new File("").getAbsolutePath() + "/src/main/resources/static/uploads/";
+    private static String uploadDir = new File("").getAbsolutePath() + "/src/main/resources/static/photos/";
 
     /**
      * 上传文件并返回文件信息
@@ -50,24 +50,13 @@ public class FileUploadUtil {
         return fileInfo;
     }
 
-    /**
-     * 根据文件扩展名获取文件类型
-     * @param fileExtension 文件扩展名
-     * @return 文件类型
-     */
     private static String getFileType(String fileExtension) {
         fileExtension = fileExtension.toLowerCase();
-        if (fileExtension.endsWith(".pdf")) {
-            return "pdf";
-        } else if (fileExtension.endsWith(".doc") || fileExtension.endsWith(".docx")) {
-            return "word";
-        } else if (fileExtension.endsWith(".mp3")) {
-            return "mp3";
-        } else if (fileExtension.endsWith(".wav")) {
-            return "wav";
-        } else if (fileExtension.endsWith(".mp4")) {
-            return "mp4";
-        }else {
+        if (fileExtension.endsWith(".png")) {
+            return "png";
+        } else if (fileExtension.endsWith(".jpg")){
+            return "jpg";
+        } else {
             return "other";
         }
     }

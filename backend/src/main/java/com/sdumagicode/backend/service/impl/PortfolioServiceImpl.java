@@ -188,4 +188,6 @@ public class PortfolioServiceImpl extends AbstractService<Portfolio> implements 
         portfolioDTO.setPortfolioAuthor(author);
         return portfolioDTO;
     }
+
+
 }

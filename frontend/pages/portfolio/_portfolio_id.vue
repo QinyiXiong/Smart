@@ -3,10 +3,10 @@
     <el-col style="padding: 20px;">
       <el-card :body-style="{ padding: '20px', borderRadius: '16px' }">
         <el-col style="padding-bottom: 20px;">
-          <el-col :span="8" v-if="portfolio.headImgUrl">
+          <el-col :span="8" v-if="imgUrl">
             <el-image
               style="width: 200px;height: 200px;border-radius: 16px;background: #f5f7fa;border: #f5f7fa solid 1px;"
-              :src="portfolio.headImgUrl" :preview-src-list="[portfolio.headImgUrl]"></el-image>
+              :src="imgUrl" :preview-src-list="[imgUrl]" lazy></el-image>
           </el-col>
           <el-col :span="8" v-else>
             <el-image
@@ -69,6 +69,11 @@ export default {
         .catch(err => error({statusCode: 404})),
       store.dispatch('portfolio/fetchArticleList', params)
     ])
+  },
+  data(){
+    return {
+      imgUrl: ''
+    }
   },
   watch: {
     '$route'(to, from) {
@@ -151,23 +156,43 @@ export default {
         )
       }
     },
-    managerPortfolio(id) {
-      this.$router.push(
-        {
-          path: `/portfolio/manager/${id}`
-        }
-      )
-    },
+    // async managerportfolio(id) {
+    //   this.$router.push(
+    //     {
+    //       path: `/portfolio/manager/${id}`
+    //     }
+    //   )
+    // },
     currentChangeArticle(page) {
       this.$router.push(
         {
           path: `/portfolio/${this.routePortfolioId}?page=${page}`
         }
       )
+    },
+    async fetchImageAsBase64() {
+      try {
+        // if (!this.portfolio?.headImgUrl) return;
+        // if (this.portfolio.headImgUrl.startsWith('data:image')) {
+        //   return this.portfolio.headImgUrl;
+        // }
+        
+        const response = await this.$axios.$get(
+          `/api/portfolio/image/${this.portfolio.idPortfolio}/base64`,
+          { responseType: 'text' }
+        );
+        this.imgUrl = response;
+        console.log(this.imgUrl)
+      } catch (error) {
+        console.error('获取Base64图片失败:', error);
+        return null; // 或返回占位图URL
+      }
     }
   },
   mounted() {
     this.$store.commit('setActiveMenu', 'portfolioDetail');
+    // 挂载时自动获取图片
+    this.fetchImageAsBase64();
   }
 }
 </script>
