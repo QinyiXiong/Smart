@@ -278,6 +278,16 @@ public class JudgeServiceImpl implements JudgeService {
                         .replace("{dir}", tempDir.toString());
             }
 
+            // 为Java运行设置UTF-8编码和显式类路径
+            if (language.equals("java")) {
+                command = new String[]{"java", "-Dfile.encoding=UTF-8", "-cp", tempDir.toString(), "Main"};
+            }
+
+            // 为Java编译设置UTF-8编码和显式类路径
+            if (language.equals("java")) {
+                command = new String[]{"javac", "-encoding", "UTF-8", "-cp", ".", codePath.toString()};
+            }
+
             ProcessBuilder pb = new ProcessBuilder(command);
             pb.directory(tempDir.toFile());
             pb.redirectErrorStream(true);
@@ -338,6 +348,11 @@ public class JudgeServiceImpl implements JudgeService {
                         .replace("{filename}", codePath.toString())
                         .replace("{output}", tempDir.resolve("program").toString())
                         .replace("{dir}", tempDir.toString());
+            }
+
+            // 为Java运行设置UTF-8编码和显式类路径
+            if (language.equals("java")) {
+                command = new String[]{"java", "-Dfile.encoding=UTF-8", "-cp", tempDir.toString(), "Main"};
             }
 
             ProcessBuilder pb = new ProcessBuilder(command);

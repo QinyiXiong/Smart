@@ -37,11 +37,15 @@ public class CodeTemplateServiceImpl implements CodeTemplateService {
                         "import java.util.*;\n" +
                         "import java.io.*;\n\n" +
                         "public class Main {\n" +
-                        "    public static void main(String[] args) {\n" +
-                        "        Scanner scanner = new Scanner(System.in);\n" +
+                        "    public static void main(String[] args) throws IOException {\n" +
+                        "        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));\n" +
+                        "        PrintWriter out = new PrintWriter(System.out);\n" +
                         "        \n" +
                         "        // 在这里编写你的代码\n" +
                         "        \n" +
+                        "        out.flush();\n" +
+                        "        out.close();\n" +
+                        "        br.close();\n" +
                         "    }\n" +
                         "}\n")
                 .build();
