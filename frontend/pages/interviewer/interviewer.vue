@@ -10,6 +10,7 @@
               type="primary" 
               icon="el-icon-plus" 
               size="mini"
+              style="border-radius: 30px;"
               @click="showAddDialog"
             ></el-button>
           </div>
@@ -19,19 +20,20 @@
                 :default-active="activeAi"
                 @select="handleSelect"
               >
-                <el-menu-item 
-                  v-for="item in aiList" 
-                  :key="item.interviewerId" 
-                  :index="item.interviewerId"
-                >
-                  <span>{{ item.name || '未命名AI' }}</span>
-                  <el-button 
-                    type="text" 
-                    icon="el-icon-delete" 
-                    class="delete-btn"
-                    @click.stop="deleteAi(item.interviewerId)"
-                  ></el-button>
-                </el-menu-item>
+              <el-menu-item 
+  v-for="item in aiList" 
+  :key="item.interviewerId" 
+  :index="item.interviewerId"
+  style="display: flex; justify-content: space-between; align-items: center"
+>
+  <span>{{ item.name || '未命名AI' }}</span>
+  <el-button 
+    type="text" 
+    icon="el-icon-delete" 
+    class="delete-btn"
+    @click.stop="deleteAi(item.interviewerId)"
+  ></el-button>
+</el-menu-item>
               </el-menu>
             </el-scrollbar>
           </div>
@@ -68,7 +70,7 @@
               <el-form-item label="提示词模板">
                 <el-input
                   type="textarea"
-                  :rows="5"
+                  :rows="10"
                   v-model="currentAi.customPrompt"
                   placeholder="请输入自定义提示词"
                 ></el-input>
@@ -85,7 +87,8 @@
                   <el-tooltip 
                     :content="setting.description"  
                     placement="top"
-                  >
+                    style="height: 40px;"
+                    >
                     <i class="el-icon-info"></i>
                   </el-tooltip>
 
@@ -104,6 +107,7 @@
                 <el-button 
                   type="primary" 
                   @click="saveAi"
+                  style="margin-left:200px ;"
                 >
                   保存设置
                 </el-button>
@@ -285,95 +289,201 @@
   </script>
   
   <style scoped>
-  .ai-container {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .main-content {
-    display: flex;
-    height: calc(100vh - 60px);
-  }
-  
-  .left-panel {
-    width: 250px;
-    height: 100%;
-    border-right: 1px solid #e6e6e6;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .panel-header {
-    padding: 15px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid #e6e6e6;
-  }
-  
-  .ai-list {
-    flex: 1;
-    overflow: hidden;
-  }
-  
-  .divider {
-    width: 1px;
-    background-color: #e6e6e6;
-  }
-  
-  .right-panel {
-    flex: 1;
-    padding: 20px;
-    overflow-y: auto;
-  }
-  
-  .detail-container {
-    max-width: 800px;
-    margin: 0 auto;
-  }
-  
-  .detail-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-  }
-  
-  .ai-form {
-    margin-top: 20px;
-  }
-  
-  .setting-item {
-    display: flex;
-    align-items: center;
-    width: 100%;
-  }
-  
-  .setting-item .el-icon-info {
-    margin-right: 10px;
-    color: #909399;
-    cursor: pointer;
-  }
-  
-  .setting-desc {
-    margin-right: 20px;
-    color: #909399;
-    font-size: 12px;
-    flex-shrink: 0;
-  }
-  
-  .delete-btn {
-    float: right;
-    padding: 0;
-    margin-left: 10px;
-  }
-  
-  .empty-state {
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  </style>
-  
+.ai-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #f5f7fa;
+}
+
+.main-content {
+  display: flex;
+  height: calc(100vh - 120px);
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  margin-left:40px;
+  margin-top: 30px;
+  margin-bottom: 30px;
+  margin-right: 40px;
+  overflow: hidden;
+}
+
+.left-panel {
+  width: 350px;
+  height: 100%;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #ebeef5;
+}
+
+.panel-header {
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #ebeef5;
+  background: #f5f7fa;
+}
+
+.panel-header span {
+  font-size: 16px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.ai-list {
+  flex: 1;
+  overflow: hidden;
+  background: #fff;
+}
+
+.el-menu {
+  border-right: none;
+}
+
+.el-menu-item {
+  height: 50px;
+  line-height: 50px;
+  font-size: 14px;
+  color: #606266;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.el-menu-item:hover {
+  background-color: #f5f7fa;
+  color: #409eff;
+}
+
+.el-menu-item.is-active {
+  color: #409eff;
+  background-color: #ecf5ff;
+}
+
+.delete-btn {
+  color: #f56c6c;
+  font-size: 14px;
+}
+
+.divider {
+  width: 1px;
+  background-color: #ebeef5;
+}
+
+.right-panel {
+  flex: 1;
+  padding: 24px;
+  padding-right: 200px;
+  overflow-y: auto;
+  background: #fff;
+}
+
+.detail-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.detail-header h2 {
+  color: #303133;
+  font-size: 20px;
+  font-weight: 500;
+  margin: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.ai-form {
+  margin-top: 24px;
+  padding: 20px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 0;
+}
+
+.setting-item .el-icon-info {
+  margin-right: 12px;
+  color: #909399;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.el-slider {
+  margin-left: 12px;
+}
+
+.el-form-item {
+  margin-bottom: 20px;
+}
+
+.el-form-item__label {
+  color: #606266;
+  font-weight: 500;
+}
+
+.el-button--primary {
+  background-color: #409eff;
+  border-color: #409eff;
+}
+
+.el-button--primary:hover {
+  background-color: #66b1ff;
+  border-color: #66b1ff;
+}
+
+.empty-state {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.el-empty__description p {
+  color: #909399;
+  font-size: 14px;
+}
+
+.el-dialog {
+  border-radius: 8px;
+}
+
+.el-dialog__header {
+  padding: 20px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.el-dialog__title {
+  font-size: 16px;
+  color: #303133;
+}
+
+.el-dialog__body {
+  padding: 20px;
+}
+
+.el-dialog__footer {
+  padding: 12px 20px;
+  border-top: 1px solid #ebeef5;
+}
+
+.el-input__inner, .el-textarea__inner {
+  border-radius: 4px;
+  border: 1px solid #dcdfe6;
+}
+
+.el-input__inner:focus, .el-textarea__inner:focus {
+  border-color: #409eff;
+}
+
+.el-select {
+  width: 100%;
+}
+</style>

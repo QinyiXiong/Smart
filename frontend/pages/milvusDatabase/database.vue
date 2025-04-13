@@ -13,6 +13,8 @@
               type="primary" 
               icon="el-icon-plus" 
               size="mini"
+              style="border-radius: 30px;"
+
               @click="showAddDialog"
             ></el-button>
           </div>
@@ -47,7 +49,7 @@
         <div class="right-panel">
           <div v-if="activeLibrary" class="detail-container">
             <div class="detail-header">
-              <h2>{{ currentLibrary.name }}</h2>
+              <h2>{{ currentLibrary.databaseName || '未命名知识库' }}</h2>
               <el-button 
                 type="primary" 
                 icon="el-icon-upload" 
@@ -59,7 +61,7 @@
             
             <div class="file-list">
               <el-table :data="files" style="width: 100%">
-                <el-table-column prop="name" label="文件名" width="180">
+                <el-table-column prop="name" label="文件名" width="380">
                   <template #default="{row}">
                     <div class="file-name">
                       <i :class="getFileIcon(row.type)"></i>
@@ -67,12 +69,12 @@
                     </div>
                   </template>
                 </el-table-column>
-                <el-table-column prop="size" label="大小" width="120">
+                <el-table-column prop="size" label="大小" width="220">
                   <template #default="{row}">
                     {{ formatFileSize(row.size) }}
                   </template>
                 </el-table-column>
-                <el-table-column prop="updateTime" label="更新时间" width="180"></el-table-column>
+                <el-table-column prop="updateTime" label="更新时间" width="280"></el-table-column>
                 <el-table-column label="操作" width="120">
                   <template #default="{row}">
                     <!-- <el-button 
@@ -118,40 +120,88 @@
       </el-dialog>
   
       <!-- 上传文件对话框 -->
-      <el-dialog title="上传文件" :visible.sync="uploadDialogVisible" width="50%">
-        <el-upload
-          class="upload-area"
-          drag
-          action="#"
-          multiple
-          :auto-upload="false"
-          :on-change="handleFileChange"
-          :show-file-list="false" 
-        >
-          <i class="el-icon-upload"></i>
-          <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
-          <div class="el-upload__tip" slot="tip">
-            支持上传pdf/docx/txt等格式文件，单个文件不超过50MB
-          </div>
-        </el-upload>
-        <div class="selected-files" v-if="selectedFiles.length > 0">
-          <h4>已选择文件：</h4>
-          <ul>
-            <li v-for="(file, index) in selectedFiles" :key="index">
-              {{ file.name }} ({{ formatFileSize(file.size) }})
-              <el-button 
-                type="text" 
-                icon="el-icon-close" 
-                @click="removeSelectedFile(index)"
-              ></el-button>
-            </li>
-          </ul>
+      <el-dialog 
+  title="上传文件" 
+  :visible.sync="uploadDialogVisible" 
+  width="600px"
+  :close-on-click-modal="false"
+  custom-class="upload-dialog"
+  style="border-radius: 30px;"
+
+>
+  <div class="upload-content">
+    <el-upload
+      class="upload-area"
+      drag
+      action="#"
+      multiple
+      :auto-upload="false"
+      :on-change="handleFileChange"
+      :show-file-list="false"
+      :accept="'.pdf,.docx,.txt,.pptx,.xlsx'"
+    >
+      <div class="upload-inner">
+        <i class="el-icon-upload"></i>
+        <div class="upload-text">
+          <p class="main-text">将文件拖到此处</p>
+          <p class="sub-text">或<em>点击选择文件</em></p>
         </div>
-        <span slot="footer" class="dialog-footer">
-          <el-button @click="uploadDialogVisible = false">取 消</el-button>
-          <el-button type="primary" @click="uploadFiles">开始上传</el-button>
-        </span>
-      </el-dialog>
+      </div>
+    </el-upload>
+    
+    <div class="upload-tip">
+      <i class="el-icon-info"></i>
+      支持上传 PDF、DOCX、PPTX、XLSX、TXT 等格式文件，单个文件不超过50MB
+    </div>
+    
+    <div class="selected-files" v-if="selectedFiles.length > 0">
+      <div class="files-header">
+        <span class="files-count">已选择 {{ selectedFiles.length }} 个文件</span>
+        <el-button 
+          type="text" 
+          size="mini" 
+          @click="selectedFiles = []"
+          class="clear-all"
+        >
+          清空全部
+        </el-button>
+      </div>
+      
+      <el-scrollbar class="files-list" style="max-height: 200px">
+        <div 
+          class="file-item" 
+          v-for="(file, index) in selectedFiles" 
+          :key="index"
+        >
+          <div class="file-info">
+            <i :class="getFileIcon(file.name.split('.').pop())" class="file-icon"></i>
+            <span class="file-name">{{ file.name }}</span>
+            <span class="file-size">{{ formatFileSize(file.size) }}</span>
+          </div>
+          <el-button 
+            type="text" 
+            icon="el-icon-close" 
+            class="file-remove"
+            @click.stop="removeSelectedFile(index)"
+          ></el-button>
+        </div>
+      </el-scrollbar>
+    </div>
+  </div>
+  
+  <div slot="footer" class="dialog-footer">
+    <el-button @click="uploadDialogVisible = false" size="medium">取 消</el-button>
+    <el-button 
+      type="primary" 
+      @click="uploadFiles" 
+      size="medium"
+      :disabled="selectedFiles.length === 0"
+      :loading="uploading"
+    >
+      {{ uploading ? '上传中...' : '开始上传' }}
+    </el-button>
+  </div>
+</el-dialog>
     </div>
   </template>
   
@@ -417,145 +467,379 @@ export default {
 </script>
 
   
-  <style scoped>
-  .knowledge-container {
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    background-color: #f5f7fa;
-  }
-  
-  .header {
-    padding: 15px 20px;
-    background-color: #409EFF;
-    color: white;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  }
-  
-  .user-info {
-    color: white;
-    font-size: 16px;
-  }
-  
-  .main-content {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-  }
-  
-  .left-panel {
-    width: 250px;
-    background-color: white;
-    display: flex;
-    flex-direction: column;
-    border-right: 1px solid #e6e6e6;
-  }
-  
-  .panel-header {
-    padding: 15px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom: 1px solid #e6e6e6;
-    font-weight: bold;
-  }
-  
-  .library-list {
-    flex: 1;
-    overflow: hidden;
-  }
-  
-  .el-menu {
-    border-right: none;
-  }
-  
-  .el-menu-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  
-  .delete-btn {
-    padding: 0;
-    color: #F56C6C;
-  }
-  
-  .divider {
-    width: 1px;
-    background-color: #e6e6e6;
-    margin: 0 5px;
-  }
-  
-  .right-panel {
-    flex: 1;
-    background-color: white;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .detail-container {
-    padding: 20px;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  
-  .detail-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-  }
-  
-  .file-list {
-    flex: 1;
-    overflow: auto;
-  }
-  
-  .file-name {
-    display: flex;
-    align-items: center;
-  }
-  
-  .file-name i {
-    margin-right: 8px;
-    font-size: 18px;
-  }
-  
-  .empty-state {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100%;
-  }
-  
-  .upload-area {
-    margin-bottom: 20px;
-  }
-  
-  .selected-files {
-    margin-top: 20px;
-    padding: 10px;
-    background-color: #f5f7fa;
-    border-radius: 4px;
-  }
-  
-  .selected-files ul {
-    list-style: none;
-    padding: 0;
-    margin: 10px 0 0;
-  }
-  
-  .selected-files li {
-    padding: 5px 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  </style>
-  
+<style scoped>
+.knowledge-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #f5f7fa;
+}
+
+.main-content {
+  display: flex;
+  height: calc(100vh - 120px);
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  margin-left: 40px;
+  margin-top: 30px;
+  margin-bottom: 30px;
+  margin-right: 40px;
+  overflow: hidden;
+}
+
+.left-panel {
+  width: 350px;
+  height: 100%;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #ebeef5;
+}
+
+.panel-header {
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #ebeef5;
+  background: #f5f7fa;
+}
+
+.panel-header span {
+  font-size: 16px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.library-list {
+  flex: 1;
+  overflow: hidden;
+  background: #fff;
+}
+
+.el-menu {
+  border-right: none;
+}
+
+.el-menu-item {
+  height: 50px;
+  line-height: 50px;
+  font-size: 14px;
+  color: #606266;
+  transition: all 0.3s;
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.el-menu-item:hover {
+  background-color: #f5f7fa;
+  color: #409eff;
+}
+
+.el-menu-item.is-active {
+  color: #409eff;
+  background-color: #ecf5ff;
+}
+
+.delete-btn {
+  color: #f56c6c;
+  font-size: 14px;
+}
+
+.divider {
+  width: 1px;
+  background-color: #ebeef5;
+}
+
+.right-panel {
+  padding-top: 24px;
+  padding-left: 100px;
+  width: 1040px;
+  background: #fff;
+}
+
+.detail-container {
+  margin: 0 auto;
+  width: 100%;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ebeef5;
+  margin-bottom: 20px;
+}
+
+.detail-header h2 {
+  color: #303133;
+  font-size: 20px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.file-list {
+  background: #f5f7fa;
+  width: 1000px;
+  height: 500px;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.file-name {
+  display: flex;
+  align-items: center;
+}
+
+.file-name i {
+  margin-right: 10px;
+  font-size: 18px;
+  color: #606266;
+}
+
+.empty-state {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.upload-area {
+  margin-bottom: 20px;
+}
+
+.selected-files {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.selected-files h4 {
+  margin: 0 0 10px 0;
+  color: #606266;
+  font-size: 14px;
+}
+
+.selected-files ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.selected-files li {
+  padding: 8px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.selected-files li:last-child {
+  border-bottom: none;
+}
+
+.el-button--primary {
+  background-color: #409eff;
+  border-color: #409eff;
+}
+
+.el-button--primary:hover {
+  background-color: #66b1ff;
+  border-color: #66b1ff;
+}
+
+.el-dialog {
+  border-radius: 8px;
+}
+
+.el-dialog__header {
+  padding: 20px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.el-dialog__title {
+  font-size: 16px;
+  color: #303133;
+}
+
+.el-dialog__body {
+  padding: 20px;
+}
+
+.el-dialog__footer {
+  padding: 12px 20px;
+  border-top: 1px solid #ebeef5;
+}
+
+.el-table {
+  background: transparent;
+}
+
+.el-table::before {
+  height: 0;
+}
+
+.el-table th {
+  background-color: #f5f7fa;
+}
+
+/* 上传对话框样式 */
+.upload-dialog {
+  border-radius: 8px;
+}
+
+.upload-dialog .el-dialog__header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.upload-dialog .el-dialog__body {
+  padding: 20px;
+}
+
+.upload-content {
+  text-align: center;
+}
+
+.upload-area {
+  margin: 0 auto;
+}
+
+.upload-inner {
+  padding: 40px 0;
+}
+
+.upload-inner .el-icon-upload {
+  font-size: 48px;
+  color: #c0c4cc;
+  margin-bottom: 16px;
+}
+
+.upload-text {
+  line-height: 1.5;
+}
+
+.upload-text .main-text {
+  font-size: 16px;
+  color: #606266;
+  margin: 0 0 8px 0;
+}
+
+.upload-text .sub-text {
+  font-size: 14px;
+  color: #909399;
+  margin: 0;
+}
+
+.upload-text em {
+  font-style: normal;
+  color: #409eff;
+  cursor: pointer;
+}
+
+.upload-tip {
+  margin-top: 16px;
+  font-size: 12px;
+  color: #909399;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-tip .el-icon-info {
+  margin-right: 6px;
+}
+
+/* 已选文件列表样式 */
+.selected-files {
+  margin-top: 24px;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+}
+
+.files-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background-color: #f5f7fa;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.files-count {
+  font-size: 14px;
+  color: #606266;
+}
+
+.clear-all {
+  padding: 0;
+  font-size: 12px;
+}
+
+.files-list {
+  padding: 0 15px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #f5f7fa;
+}
+
+.file-item:last-child {
+  border-bottom: none;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.file-icon {
+  margin-right: 10px;
+  font-size: 20px;
+  color: #606266;
+}
+
+.file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  color: #606266;
+}
+
+.file-size {
+  margin-left: 10px;
+  font-size: 12px;
+  color: #909399;
+  min-width: 60px;
+  text-align: right;
+}
+
+.file-remove {
+  padding: 0;
+  margin-left: 10px;
+  color: #f56c6c;
+}
+
+/* 对话框底部按钮 */
+.dialog-footer {
+  text-align: right;
+}
+
+.dialog-footer .el-button {
+  min-width: 100px;
+}
+</style>

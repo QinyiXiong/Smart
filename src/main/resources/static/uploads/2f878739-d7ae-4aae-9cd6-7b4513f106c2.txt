@@ -1,0 +1,605 @@
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <iostream>
+#include <vector>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
+unsigned int loadTexture(const char* path) {
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+
+    int width, height, nrComponents;
+    stbi_set_flip_vertically_on_load(true);
+    unsigned char* data = stbi_load(path, &width, &height, &nrComponents, 0);
+
+    if (data) {
+        GLenum format;
+        if (nrComponents == 1)
+            format = GL_RED;
+        else if (nrComponents == 3)
+            format = GL_RGB;
+        else if (nrComponents == 4)
+            format = GL_RGBA;
+
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        stbi_image_free(data);
+    }
+    else {
+        std::cout << "Texture failed to load at path: " << path << std::endl;
+        stbi_image_free(data);
+        return 0; // 返回0表示加载失败
+    }
+
+    return textureID;
+}
+
+// 窗口设置
+const unsigned int SCR_WIDTH = 800;
+const unsigned int SCR_HEIGHT = 600;
+
+// 摄像机设置
+glm::vec3 cameraPos = glm::vec3(1.0f, 0.5f, 5.0f); // 从迷宫内部开始
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+// 鼠标控制
+float yaw = -90.0f;
+float pitch = 0.0f;
+float lastX = SCR_WIDTH / 2.0f;
+float lastY = SCR_HEIGHT / 2.0f;
+bool firstMouse = true;
+
+// 时间控制
+float deltaTime = 0.0f;
+float lastFrame = 0.0f;
+
+// 迷宫定义
+const int MAZE_WIDTH = 11;
+const int MAZE_HEIGHT = 11;
+
+int maze[MAZE_HEIGHT][MAZE_WIDTH] = {
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ,1},
+    {1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1},
+    {1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1},
+    {1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1},
+    {1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1},
+    {1, 0, 0, 1, 2, 0, 1, 0, 1, 0, 1},
+    {1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1},
+    {1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1},
+    {1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1},
+    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+};
+
+// 顶点着色器
+const char* vertexShaderSource = R"(
+    #version 330 core
+    layout (location = 0) in vec3 aPos;
+    layout (location = 1) in vec2 aTexCoord;
+    
+    out vec2 TexCoord;
+    
+    uniform mat4 model;
+    uniform mat4 view;
+    uniform mat4 projection;
+    
+    void main()
+    {
+        gl_Position = projection * view * model * vec4(aPos, 1.0);
+        TexCoord = aTexCoord;
+    }
+)";
+
+// 片段着色器
+const char* fragmentShaderSource = R"(
+    #version 330 core
+    in vec2 TexCoord;
+    out vec4 FragColor;
+    
+    uniform sampler2D texture1;
+    uniform vec4 overrideColor;  // 用于覆盖颜色的uniform
+    
+    void main()
+    {
+        if (overrideColor.r >= 0.0) {
+            // 如果overrideColor.r >= 0，使用覆盖颜色
+            FragColor = overrideColor;
+        } else {
+            // 否则使用纹理颜色
+            FragColor = texture(texture1, TexCoord);
+        }
+    }
+)";
+
+// 立方体顶点数据
+// 更新立方体顶点数据（包含纹理坐标）
+float vertices[] = {
+    // 位置              // 纹理坐标
+    // 背面
+    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+     0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+
+    // 前面
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+
+    // 左面
+    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+    -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+    // 右面
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+     // 底面
+     -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+      0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+      0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+      0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+     -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+     -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+     // 顶面
+     -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+      0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+      0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+      0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+     -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+     -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+};
+
+// 更新地板顶点数据（包含纹理坐标）
+float floorVertices[] = {
+    // 位置              // 纹理坐标
+    -0.5f, 0.0f, -0.5f,  0.0f, 10.0f,
+     0.5f, 0.0f, -0.5f,  10.0f, 10.0f,
+     0.5f, 0.0f,  0.5f,  10.0f, 0.0f,
+     0.5f, 0.0f,  0.5f,  10.0f, 0.0f,
+    -0.5f, 0.0f,  0.5f,  0.0f, 0.0f,
+    -0.5f, 0.0f, -0.5f,  0.0f, 10.0f
+};
+unsigned int cubeVAO, cubeVBO;
+unsigned int floorVAO, floorVBO;
+unsigned int shaderProgram;
+unsigned int wallTexture;
+unsigned int floorTexture;
+
+bool gameOver = false;
+
+// 在全局变量部分添加
+const float GRAVITY = 7.8f;      // 重力加速度
+float verticalVelocity = 0.0f;   // 垂直速度
+bool isOnGround = true;          // 是否在地面上
+float jumpForce = 1.0f;          // 跳跃初速度
+
+
+const float PLAYER_HEIGHT = 0.5f; // 玩家高度（从地面到眼睛）
+const float CEILING_HEIGHT = 1.25f;     // 天花板高度
+const float WALL_COLLISION_DIST = 0.15f;// 墙壁碰撞检测半径
+const float HEAD_ROOM = 0.1f;          // 头顶预留空间
+
+
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
+    glViewport(0, 0, width, height);
+}
+
+void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
+    if (firstMouse) {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
+
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos;
+    lastX = xpos;
+    lastY = ypos;
+
+    float sensitivity = 0.1f;
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+
+    yaw += xoffset;
+    pitch += yoffset;
+
+    if (pitch > 89.0f) pitch = 89.0f;
+    if (pitch < -89.0f) pitch = -89.0f;
+
+    glm::vec3 front;
+    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    front.y = sin(glm::radians(pitch));
+    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    cameraFront = glm::normalize(front);
+}
+
+bool isPositionValid(glm::vec3 pos) {
+
+    if (gameOver) return false;
+
+    // 1. 检查是否在地面和天花板之间
+    if (pos.y < PLAYER_HEIGHT || pos.y > CEILING_HEIGHT - HEAD_ROOM) {
+        return false;
+    }
+
+    // 2. 检查是否踩到危险区域
+    int gridX = static_cast<int>(round(pos.x));
+    int gridZ = static_cast<int>(round(pos.z));
+    if (gridX >= 0 && gridX < MAZE_WIDTH && gridZ >= 0 && gridZ < MAZE_HEIGHT) {
+        if (maze[gridZ][gridX] == 2) {
+            // 检查是否真的碰到了小立方体（因为立方体缩小了）
+            glm::vec3 cubeCenter(gridX, 0.15f, gridZ);
+            glm::vec3 toCube = pos - cubeCenter;
+            toCube.y = 0; // 忽略垂直距离
+
+            // 小立方体的碰撞半径（0.3尺寸 * 0.5 = 0.15半径）
+            if (glm::length(toCube) < 0.15f && pos.y < 0.3f) {
+                gameOver = true;
+                std::cout << "GAME OVER! You stepped on a dangerous cube!" << std::endl;
+                return false;
+            }
+        }
+    }
+
+    // 边界检查
+    if (gridX < 0 || gridX >= MAZE_WIDTH || gridZ < 0 || gridZ >= MAZE_HEIGHT) {
+        return false;
+    }
+
+    // 危险区域检查
+    if (maze[gridZ][gridX] == 2) {
+        gameOver = true;
+        std::cout << "GAME OVER!" << std::endl;
+        return false;
+    }
+
+    // 3. 检查周围墙壁碰撞（3x3区域检测）
+    for (int x_offset = -1; x_offset <= 1; ++x_offset) {
+        for (int z_offset = -1; z_offset <= 1; ++z_offset) {
+            if (x_offset == 0 && z_offset == 0) continue;
+
+            glm::vec3 checkPos = pos + glm::vec3(x_offset * WALL_COLLISION_DIST,
+                0,
+                z_offset * WALL_COLLISION_DIST);
+
+            int gridX = static_cast<int>(round(checkPos.x));
+            int gridZ = static_cast<int>(round(checkPos.z));
+
+            // 边界检查
+            if (gridX < 0 || gridX >= MAZE_WIDTH || gridZ < 0 || gridZ >= MAZE_HEIGHT) {
+                return false;
+            }
+
+            // 墙壁检查
+            if (maze[gridZ][gridX] == 1) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+void processInput(GLFWwindow* window) {
+
+    if (gameOver) {
+        return;  // 游戏结束时禁用所有输入
+    }
+
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+
+    float cameraSpeed = 1.5f * deltaTime;
+    glm::vec3 moveDir = glm::vec3(0.0f);
+
+    // 计算移动方向（忽略垂直分量）
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+        moveDir += glm::normalize(glm::vec3(cameraFront.x, 0.0f, cameraFront.z));
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+        moveDir -= glm::normalize(glm::vec3(cameraFront.x, 0.0f, cameraFront.z));
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+        moveDir -= glm::normalize(glm::cross(cameraFront, cameraUp));
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+        moveDir += glm::normalize(glm::cross(cameraFront, cameraUp));
+
+    // 标准化移动向量并应用速度
+    if (glm::length(moveDir) > 0.1f) {
+        moveDir = glm::normalize(moveDir) * cameraSpeed;
+        glm::vec3 newPos = cameraPos + moveDir;
+
+        // 垂直位置保持（跳跃/重力独立处理）
+        newPos.y = cameraPos.y;
+
+        if (isPositionValid(newPos)) {
+            cameraPos = newPos;
+        }
+    }
+
+    // 跳跃处理（保留原有逻辑）
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && cameraPos.y <= PLAYER_HEIGHT + 0.1f) {
+        verticalVelocity = jumpForce;
+        if (verticalVelocity < 6.0f) verticalVelocity = 2.0f;
+    }
+
+    // 重力模拟
+    verticalVelocity -= GRAVITY * deltaTime;
+    cameraPos.y += verticalVelocity * deltaTime;
+
+    // 强制地面/天花板碰撞
+    if (cameraPos.y < PLAYER_HEIGHT) {
+        cameraPos.y = PLAYER_HEIGHT;
+        verticalVelocity = 0.0f;
+    }
+    else if (cameraPos.y > CEILING_HEIGHT - HEAD_ROOM) {
+        cameraPos.y = CEILING_HEIGHT - HEAD_ROOM;
+        verticalVelocity = 0.0f;
+    }
+}
+
+unsigned int compileShader(const char* source, unsigned int type) {
+    unsigned int shader = glCreateShader(type);
+    glShaderSource(shader, 1, &source, NULL);
+    glCompileShader(shader);
+
+    int success;
+    char infoLog[512];
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        glGetShaderInfoLog(shader, 512, NULL, infoLog);
+        std::cerr << "ERROR::SHADER::COMPILATION_FAILED\n" << infoLog << std::endl;
+    }
+
+    return shader;
+}
+
+void setupShaders() {
+    unsigned int vertexShader = compileShader(vertexShaderSource, GL_VERTEX_SHADER);
+    unsigned int fragmentShader = compileShader(fragmentShaderSource, GL_FRAGMENT_SHADER);
+
+    shaderProgram = glCreateProgram();
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
+    glLinkProgram(shaderProgram);
+
+    int success;
+    char infoLog[512];
+    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+    if (!success) {
+        glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+        std::cerr << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+    }
+
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
+}
+
+void setupCube() {
+    glGenVertexArrays(1, &cubeVAO);
+    glGenBuffers(1, &cubeVBO);
+
+    glBindVertexArray(cubeVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    // 位置属性
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    // 纹理坐标属性
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
+void setupFloor() {
+    glGenVertexArrays(1, &floorVAO);
+    glGenBuffers(1, &floorVBO);
+
+    glBindVertexArray(floorVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, floorVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(floorVertices), floorVertices, GL_STATIC_DRAW);
+
+    // 位置属性
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    // 纹理坐标属性
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+void renderCube(glm::mat4 view, glm::mat4 projection, glm::vec3 position) {
+    glUseProgram(shaderProgram);
+
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, position);
+
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+    // 绑定墙壁纹理
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, wallTexture);
+
+    glBindVertexArray(cubeVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
+}
+
+void renderFloor(glm::mat4 view, glm::mat4 projection) {
+    glUseProgram(shaderProgram);
+
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::scale(model, glm::vec3(MAZE_WIDTH, 1.0f, MAZE_HEIGHT));
+    model = glm::translate(model, glm::vec3(0.5f, 0.0f, 0.5f));
+
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+    // 绑定地板纹理
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, floorTexture);
+
+    glBindVertexArray(floorVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+    glBindVertexArray(0);
+}
+
+void renderMaze(glm::mat4 view, glm::mat4 projection) {
+    for (int z = 0; z < MAZE_HEIGHT; z++) {
+        for (int x = 0; x < MAZE_WIDTH; x++) {
+            if (maze[z][x] == 1) {
+                // 正常墙壁
+                renderCube(view, projection, glm::vec3(x, 0.5f, z));
+            }
+            else if (maze[z][x] == 2) {
+                // 危险区域 - 绘制一个小红色立方体
+                glUseProgram(shaderProgram);
+
+                // 设置红色材质
+                glUniform4f(glGetUniformLocation(shaderProgram, "overrideColor"),
+                    0.0f, 0.0f, 0.0f, 1.0f);
+
+                // 小立方体 - 尺寸为正常立方体的1/3
+                glm::mat4 model = glm::mat4(1.0f);
+                model = glm::translate(model, glm::vec3(x, 0.15f, z)); // 放在地面上
+                model = glm::scale(model, glm::vec3(0.3f, 0.3f, 0.3f)); // 缩小尺寸
+
+                glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"),
+                    1, GL_FALSE, glm::value_ptr(model));
+                glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"),
+                    1, GL_FALSE, glm::value_ptr(view));
+                glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"),
+                    1, GL_FALSE, glm::value_ptr(projection));
+
+                glBindVertexArray(cubeVAO);
+                glDrawArrays(GL_TRIANGLES, 0, 36);
+                glBindVertexArray(0);
+
+                // 重置颜色覆盖
+                glUniform4f(glGetUniformLocation(shaderProgram, "overrideColor"),
+                    -1.0f, 0.0f, 0.0f, 0.0f);
+            }
+        }
+    }
+}
+
+int main() {
+    // 初始化GLFW
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    // 创建窗口
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Maze Game", NULL, NULL);
+    if (window == NULL) {
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(window);
+
+    // 初始化GLAD - 必须放在创建窗口和设置上下文之后
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        std::cout << "Failed to initialize GLAD" << std::endl;
+        return -1;
+    }
+
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    // 构建和编译着色器程序
+    setupShaders();
+
+    // 加载纹理
+    wallTexture = loadTexture("C:/Users/mo yv/source/repos/ConsoleApplication2/ConsoleApplication2/wall.jpg");  // 替换为你的墙壁纹理路径
+    floorTexture = loadTexture("C:/Users/mo yv/source/repos/ConsoleApplication2/ConsoleApplication2/floor.jpg"); // 替换为你的地板纹理路径
+
+    // 在着色器中设置纹理单元
+    glUseProgram(shaderProgram);
+    glUniform1i(glGetUniformLocation(shaderProgram, "texture1"), 0);
+
+
+    // 配置全局OpenGL状态
+    glEnable(GL_DEPTH_TEST);
+
+
+
+    // 设置顶点数据和缓冲区
+    setupCube();
+    setupFloor();
+
+    // 渲染循环
+    while (!glfwWindowShouldClose(window)) {
+        // 计算帧时间
+        float currentFrame = glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
+        // 输入处理
+        processInput(window);
+
+        // 渲染
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // 创建视图和投影矩阵
+        glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+        glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
+
+        // 渲染地板（带深度偏移）
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(1.0f, 1.0f);  // 解决贴图闪烁
+        renderFloor(view, projection);
+        glDisable(GL_POLYGON_OFFSET_FILL);
+
+        // 渲染墙壁（正常渲染）
+        renderMaze(view, projection);
+
+        // 交换缓冲区和轮询IO事件
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+    // 清理资源
+    glDeleteVertexArrays(1, &cubeVAO);
+    glDeleteVertexArrays(1, &floorVAO);
+    glDeleteBuffers(1, &cubeVBO);
+    glDeleteBuffers(1, &floorVBO);
+    glDeleteProgram(shaderProgram);
+
+    glfwTerminate();
+    return 0;
+}
