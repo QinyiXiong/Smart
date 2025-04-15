@@ -27,7 +27,7 @@ public class Interviewer {
     private String knowledgeBaseId;
 
 
-    private String customPrompt;
+    private String customPrompt;//用户输入的提示词
 
-    private List<AiSettingContent> settingsList;
+    private List<AiSettingContent> settingsList;//面试官性格等设定
 }
