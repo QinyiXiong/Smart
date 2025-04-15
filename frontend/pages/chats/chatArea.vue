@@ -859,11 +859,11 @@
             await this.buildPathForTargetBranch(this.currentBranch);
            // 创建AI消息占位对象
            const aiMessage = {
-             id: messageId, // 添加前缀便于识别
+             messageId: messageId, // 添加前缀便于识别
              role: 'assistant',
              content: {
                text: '', // 初始为空
-               voice: null,
+             
                files: []
              },
              timestamp: new Date().toISOString()
@@ -871,7 +871,7 @@
          
          
            this.messageListForShow.push(aiMessage);
-          this.currentAiMessageId = aiMessage.id;
+          this.currentAiMessageId = aiMessage.messageId;
           
           this.scrollToBottom();
           // 开始轮询
@@ -926,7 +926,7 @@
                           }
 
                           // 更新AI消息内容
-                          const aiMsg = this.messageListForShow.find(m => m.id === messageId);
+                          const aiMsg = this.messageListForShow.find(m => m.messageId === messageId);
                           if (aiMsg) {
                               aiMsg.content = aiMsg.content || { text: '' };
                               const oldLength = aiMsg.content.text.length;
@@ -946,17 +946,17 @@
                       // 如果收到停止信号，则中止轮询
                       if (shouldStop) {
                           this.stopPolling();
-                          const aiMsg = this.messageListForShow.find(m => m.id === messageId);
+                          const aiMsg = this.messageListForShow.find(m => m.messageId === messageId);
                           if (aiMsg) {
                             
                               // 将AI消息加入currentBranch
                               this.currentBranch.messageLocals.push({
-                                  messageId:aiMsg.id,
+                                  messageId:aiMsg.messageId,
                                   role: 'assistant',
                                   branchId: this.currentBranch.branchId,
                                   content: {
                                       text: aiMsg.content.text,
-                                      voice: null,
+                                      
                                       files: []
                                   },
                                   timestamp: new Date()
