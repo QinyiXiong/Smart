@@ -82,15 +82,11 @@ server:
 version: 1.0
 resource:
   domain: https://test.rymcu.com
-<<<<<<< Updated upstream
-  file-path: https://test.rymcu.com
-  pic-path: /opt/nebula/static
-  answer-api-url: ht tps://test.rymcu.com/subject/question
-=======
+
   file-path: src/main/resources/static
   pic-path: src/main/resources/static
   answer-api-url: https://test.rymcu.com/subject/question
->>>>>>> Stashed changes
+
 mybatis-plus:
   mapper-locations: classpath:mybatis-mapper/*.xml
   configuration:
