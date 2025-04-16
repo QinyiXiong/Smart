@@ -346,8 +346,13 @@ public class MilvusClient {
  
  
     public List search(String keyword, Integer topK,Long userId, String knowledgeBaseId) {
-        String collectionName = generateCollectionName(userId, knowledgeBaseId);
         List<KnowledgeSearchVO> result = new ArrayList<>();
+
+        if(knowledgeBaseId == null || knowledgeBaseId.isEmpty()){
+            return result;
+        }
+        String collectionName = generateCollectionName(userId, knowledgeBaseId);
+
         List<List<Float>> targetVectors = embeddingClient.getEmbedding(keyword);
         SearchParam param = SearchParam.newBuilder()
                 .withCollectionName(collectionName)
@@ -363,7 +368,9 @@ public class MilvusClient {
         if (response.getStatus() != R.Status.Success.getCode()) {
             //System.out.println(response.getMessage());
         }
- 
+        if(response == null || response.getData() == null){
+            return result;
+        }
         SearchResultsWrapper wrapper = new SearchResultsWrapper(response.getData().getResults());
         //System.out.println("Search results:");
         for (int i = 0; i < targetVectors.size(); ++i) {

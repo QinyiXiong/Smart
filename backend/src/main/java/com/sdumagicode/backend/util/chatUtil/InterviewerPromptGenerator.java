@@ -116,6 +116,7 @@ public class InterviewerPromptGenerator {
         return PROMPT_TEMPLATE
                 +"\n用户提示词部分："+interviewer.getCustomPrompt()
                 +"\n面试官设定部分："+interviewer.getSettingsList();
+        //return "\n用户提示词部分："+interviewer.getCustomPrompt();
 
     }
 
