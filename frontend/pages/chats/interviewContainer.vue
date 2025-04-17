@@ -76,7 +76,7 @@
   
   <script>
   import ChatArea from './chatArea.vue'
-  
+  import axios from '../../store/utils/interceptor'
   export default {
     components: {
       ChatArea
@@ -98,11 +98,11 @@
     methods: {
       async fetchAiList() {
         try {
-          const res = await this.$axios.get('/api/Interviewer/list')
+          const res = await axios.get('/api/Interviewer/list')
      
           this.aiList = res.data || []
         } catch (error) {
-          this.$message.error('获取AI列表失败')
+          this.$message.error(error)
           console.error(error)
         }
       },

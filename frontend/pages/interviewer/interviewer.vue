@@ -140,6 +140,7 @@
   </template>
   
   <script>
+  import axios from "../../store/utils/interceptor"
   export default {
     data() {
       return {
@@ -174,11 +175,11 @@
     methods: {
       async fetchAiList() {
         try {
-          const res = await this.$axios.get('/api/Interviewer/list');
+          const res = await axios.get('/api/Interviewer/list');
           console.log(res.data)
           this.aiList = res.data || [];
         } catch (error) {
-          this.$message.error('获取AI列表失败');
+          this.$message.error(error);
           console.error(error);
         }
       },

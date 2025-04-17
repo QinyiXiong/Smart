@@ -13,6 +13,7 @@ instance.interceptors.request.use(
     // 检查token是否过期
     if (auth.isTokenExpired()) {
       auth.clearToken();
+      console.log("is here")
        // 如果是客户端环境，则跳转到登录页
     if (process.client) {
         // 使用 Nuxt 的 redirect 方法
