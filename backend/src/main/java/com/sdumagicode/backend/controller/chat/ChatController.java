@@ -11,6 +11,7 @@ import com.sdumagicode.backend.dto.chat.ChatOutput;
 import com.sdumagicode.backend.dto.chat.ChatRequest;
 import com.sdumagicode.backend.dto.chat.MessageFileDto;
 import com.sdumagicode.backend.dto.chat.MessageLocalDto;
+import com.sdumagicode.backend.entity.CodeSubmission;
 import com.sdumagicode.backend.entity.chat.*;
 import com.sdumagicode.backend.service.ChatService;
 import com.sdumagicode.backend.util.UserUtils;
@@ -140,6 +141,35 @@ public class ChatController {
         return GlobalResultGenerator.genSuccessStringDataResult(messageId);
     }
 
+    @PostMapping("/sendMessageToCoderWithPoll")
+    public GlobalResult<String> sendMessageToCoder(@RequestBody CodeSubmission codeSubmission)  {
+
+        // 参数验证
+        if (codeSubmission == null || codeSubmission.getId() == null ) {
+            throw new ServiceException("缺少关键信息");
+        }
+        Long idUser = UserUtils.getCurrentUserByToken().getIdUser();
+        // 异步处理消息
+
+        String messageId = String.valueOf(UUID.randomUUID());
+        try {
+            chatService.sendMessageToCoder(
+                    codeSubmission,
+                    idUser,
+                    output -> {
+                        // 将每个输出添加到队列
+
+                        MessageQueueUtil.addMessage(output);
+                        //System.out.println("add queue: "+ output.getText());
+                    }
+            );
+        } catch (Exception e) {
+            e.printStackTrace();
+            MessageQueueUtil.addMessage(new ChatOutput("系统错误: " + e.getMessage()));
+        }
+        return GlobalResultGenerator.genSuccessStringDataResult(messageId);
+    }
+
 
     @GetMapping("/pollMessages")
     public GlobalResult<List<ChatOutput>> pollMessages(
@@ -248,4 +278,14 @@ public class ChatController {
             return GlobalResultGenerator.genErrorResult("删除失败");
         }
     }
+
+    @PostMapping("/getValutionByChatId")
+    public GlobalResult<ValuationRecord> getValuationByChatId(@RequestBody ChatRecords chatRecords){
+        if(chatRecords.getChatId() == null) {
+            throw new ServiceException("缺少聊天记录ID");
+        }
+        return GlobalResultGenerator.genSuccessStringDataResult(chatService.getValuationRecord(chatRecords.getChatId()));
+    }
+
+
 }

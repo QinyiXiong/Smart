@@ -1,0 +1,35 @@
+{
+  "name": "mcp-for-smart-interview-mock",
+  "version": "1.1.2",
+  "description": "功能测试",
+  "type": "module",
+  "bin": {
+    "mcp-for-smart-interview-mock": "build/mcp-server.js"
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {},
+  "keywords": [
+    "mcp",
+    "weather",
+    "ai",
+    "claude",
+    "cline"
+  ],
+  "author": "TydKsx",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.7.0",
+    "dotenv": "^16.4.7",
+    "mongodb": "^6.15.0",
+    "mysql2": "^3.11.5",
+    "node-fetch": "^3.3.2",
+    "redis": "^4.7.0",
+    "string-similarity": "^4.0.4",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  }
+}

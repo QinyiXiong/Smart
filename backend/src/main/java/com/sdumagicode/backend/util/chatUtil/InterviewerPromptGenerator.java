@@ -116,20 +116,23 @@ public class InterviewerPromptGenerator {
         return PROMPT_TEMPLATE
                 +"\n用户提示词部分："+interviewer.getCustomPrompt()
                 +"\n面试官设定部分："+interviewer.getSettingsList();
-        //return "\n用户提示词部分："+interviewer.getCustomPrompt();
+
 
     }
 
-    public static String generateCoderPrompt(CodeSubmission codesubmissioner){
+    public static String generateCoderPrompt(){
 
-        return PROMPT_TEMPLATE_OJ
-                +"\n代码：\n"+codesubmissioner.getCode()
+        return PROMPT_TEMPLATE_OJ;
+
+    }
+
+    public static String generateCodeMessageContent(CodeSubmission codesubmissioner){
+        return "\n代码：\n"+codesubmissioner.getCode()
                 +"\n代码评价：\n编程语言："+codesubmissioner.getLanguage()
                 +"\n运行时间："+codesubmissioner.getExecutionTime()+"\n"
                 +"\n内存占用："+codesubmissioner.getMemoryUsage()+"\n"
                 +"\n错误信息："+codesubmissioner.getErrorMessage()+"\n"
                 +"\n测试点通过数："+codesubmissioner.getPassedTestCases();
-
     }
 }
 

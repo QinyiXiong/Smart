@@ -15,10 +15,13 @@ import com.sdumagicode.backend.core.service.AbstractService;
 import com.sdumagicode.backend.dto.chat.ChatOutput;
 import com.sdumagicode.backend.dto.chat.MessageFileDto;
 import com.sdumagicode.backend.dto.chat.MessageLocalDto;
+import com.sdumagicode.backend.entity.CodeSubmission;
 import com.sdumagicode.backend.entity.User;
 import com.sdumagicode.backend.entity.chat.*;
 import com.sdumagicode.backend.mapper.ChatMapper;
+import com.sdumagicode.backend.mapper.ValuationMapper;
 import com.sdumagicode.backend.mapper.mongoRepo.BranchRepository;
+import com.sdumagicode.backend.mapper.mongoRepo.ValuationRecordRepository;
 import com.sdumagicode.backend.service.ChatService;
 import com.sdumagicode.backend.util.UserUtils;
 import com.sdumagicode.backend.util.chatUtil.ChatUtil;
@@ -64,6 +67,12 @@ public class ChatServiceImpl  implements ChatService {
     @Autowired
     MongoTemplate mongoTemplate;
 
+    @Autowired
+    ValuationRecordRepository valuationRecordRepository;
+
+    @Autowired
+    ValuationMapper valuationMapper;
+
     @Override
     public List<ChatRecords> getChatRecords(ChatRecords chatRecords) {
         Long userId = UserUtils.getCurrentUserByToken().getIdUser();
@@ -77,8 +86,24 @@ public class ChatServiceImpl  implements ChatService {
         if(chatRecords.getChatId() == null){
             chatRecords.setCreatedAt(LocalDateTime.now());
             chatRecords.setUpdatedAt(LocalDateTime.now());
+
             // 使用 insert 方法，会自动填充主键
             chatMapper.insertChatRecord(chatRecords);
+
+            //创建对应的评价表
+            List<Valuation> valuations = valuationMapper.selectAll();
+            ValuationRank valuationRank = new ValuationRank();
+            valuationRank.setRank(0);
+            List<ValuationRank> collect = valuations.stream().map((item) -> {
+                valuationRank.setValuation(item);
+                return valuationRank;
+            }).collect(Collectors.toList());
+            ValuationRecord valuationRecord = new ValuationRecord();
+            valuationRecord.setChatId(chatRecords.getChatId());
+            valuationRecord.setValuationRanks(collect);
+            valuationRecordRepository.insert(valuationRecord);
+
+
         }else{
             chatRecords.setUpdatedAt(LocalDateTime.now());
             chatMapper.updateChatRecord(chatRecords);
@@ -91,6 +116,9 @@ public class ChatServiceImpl  implements ChatService {
 
         //先删除对应的branch
         branchRepository.deleteAll(branchRepository.findByChatId(chatRecords.getChatId()));
+
+        //再删除对应的valuationRecord
+        valuationRecordRepository.deleteByChatId(chatRecords.getChatId());
 
         chatMapper.deleteChatRecord(chatRecords.getChatId());
 
@@ -190,6 +218,51 @@ public class ChatServiceImpl  implements ChatService {
         }
     }
 
+    @Override
+    @Async
+    public void sendMessageToCoder(CodeSubmission codeSubmission, Long userId, Consumer<ChatOutput> outputConsumer) {
+        try {
+
+
+            // 1. 生成Prompt
+            String prompt = InterviewerPromptGenerator.generateCoderPrompt();
+
+            // 2.生成发送内容并组装成messageList
+            String text = InterviewerPromptGenerator.generateCodeMessageContent(codeSubmission);
+            MessageLocal messageLocal = new MessageLocal();
+            Content content = new Content();
+            content.setText(text);
+            messageLocal.setContent(content);
+            List<MessageLocal> messageList = new ArrayList<>();
+            messageList.add(messageLocal);
+
+            // 3. 调用AI接口
+            Flowable<ApplicationResult> aiStream = chatUtil.streamCall(
+                    messageList,
+                    prompt,
+                    ChatUtil.AppType.CODER
+            );
+
+            //使用submissionId作为messageId
+            // 4. 使用Consumer处理流式输出
+            aiStream.blockingSubscribe(data -> {
+                        ChatOutput chatOutput = new ChatOutput(data.getOutput());
+                        //System.out.println("content: " + chatOutput.getText());
+                        //添加验证信息和标识信息
+                        chatOutput.setUserId(userId);
+                        chatOutput.setMessageId(String.valueOf(codeSubmission.getId()));
+                        System.out.println(chatOutput);
+                        outputConsumer.accept(chatOutput);
+                    }
+
+            );
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new ServiceException("处理异常: " + e.getMessage());
+        }
+    }
+
     /**
      * 上传文件，并解析文件相关内容
      * @param multipartFile
@@ -243,6 +316,12 @@ public class ChatServiceImpl  implements ChatService {
         }).collect(Collectors.toList());
 
         return messageLocalList;
+    }
+
+    @Override
+    public ValuationRecord getValuationRecord(Long chatId) {
+        ValuationRecord byChatId = valuationRecordRepository.findByChatId(chatId);
+        return byChatId;
     }
 
     @Transactional
