@@ -60,20 +60,20 @@
               @click.stop="handleDeleteRecord(record.chatId)"
             ></el-button>
           </el-menu-item>
-        
+
           </el-menu>
         </div>
       </div>
-  
+
       <!-- 右侧聊天区域 -->
-      <chat-area 
-        :current-interviewer="currentInterviewer" 
+      <chat-area
+        :current-interviewer="currentInterviewer"
         :chat-record-id="activeChatRecord"
-       
+
       />
     </div>
   </template>
-  
+
   <script>
   import ChatArea from './chatArea.vue'
   import axios from '../../store/utils/interceptor'
@@ -99,7 +99,6 @@
       async fetchAiList() {
         try {
           const res = await axios.get('/api/Interviewer/list')
-     
           this.aiList = res.data || []
         } catch (error) {
           this.$message.error(error)
@@ -108,7 +107,7 @@
       },
       async loadChatRecords() {
         try {
-          const res = await this.$axios.post('/api/chat/getChatRecords', {
+          const res = await axios.post('/api/chat/getChatRecords', {
             interviewerId: this.activeInterviewer
           })
           this.chatRecords = res.data || []
@@ -119,12 +118,12 @@
       },
       async handleNewChat() {
         try {
-          const res = await this.$axios.post('/api/chat/saveChatRecords', {
+          const res = await axios.post('/api/chat/saveChatRecords', {
             interviewerId: this.activeInterviewer,
-    
+
             userId: this.$store.state.user.userId
           })
-          
+
           this.chatRecords.unshift(res.data)
           this.$message.success('新建对话成功')
           this.activeChatRecord = res.data.chatId.toString()
@@ -137,12 +136,11 @@
         this.activeInterviewer = interviewerId
         this.currentInterviewer = this.aiList.find(item => item.interviewerId === interviewerId)
         this.showChatRecords = true
-        
+
         if (this.activeTab === 'record') {
           await this.loadChatRecords()
         }
       },
-
       async handleDeleteRecord(chatId) {
         try {
           await this.$confirm('确认删除该对话记录吗?', '提示', {
@@ -151,11 +149,11 @@
             type: 'warning'
           })
 
-          const res = await this.$axios.post('/api/chat/deleteChatRecords', {
+          const res = await axios.post('/api/chat/deleteChatRecords', {
             chatId: chatId
           })
 
-          
+
             this.$message.success('删除成功')
             // 删除后重新加载记录
             await this.loadChatRecords()
@@ -163,7 +161,7 @@
             if (this.activeChatRecord === chatId.toString()) {
               this.activeChatRecord = null
             }
-         
+
         } catch (error) {
           if (error !== 'cancel') {
             this.$message.error('删除失败')
@@ -173,7 +171,7 @@
       },
       async loadChatRecords() {
         try {
-          const res = await this.$axios.post('/api/chat/getChatRecords', {
+          const res = await axios.post('/api/chat/getChatRecords', {
             interviewerId: this.activeInterviewer
           })
           // 添加排序逻辑，按创建时间倒序
@@ -204,7 +202,7 @@
     }
   }
   </script>
-  
+
   <style scoped>
   .tab-switcher {
     padding: 15px;
@@ -236,7 +234,7 @@
     height: 100vh;
     background-color: #f5f7fa;
   }
-  
+
   .left-sidebar {
     width: 300px;
     background-color: #fff;
@@ -244,29 +242,28 @@
     overflow-y: auto;
     padding: 20px 0;
   }
-  
+
   .section-title {
     padding: 0 20px;
     margin: 10px 0;
     font-size: 16px;
     color: #666;
   }
-  
+
   .interviewer-menu, .chat-records-menu {
     border-right: none;
   }
-  
+
   .el-menu-item {
     height: 60px;
     line-height: 60px;
     display: flex;
     align-items: center;
   }
-  
+
   .record-date {
     margin-left: auto;
     font-size: 12px;
     color: #999;
   }
   </style>
-  
