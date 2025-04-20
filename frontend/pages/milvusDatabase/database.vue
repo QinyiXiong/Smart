@@ -60,6 +60,7 @@
             </div>
             
             <div class="file-list">
+              <el-scrollbar style="height:100%">
               <el-table :data="files" style="width: 100%">
                 <el-table-column prop="name" label="文件名" width="380">
                   <template #default="{row}">
@@ -90,6 +91,7 @@
                   </template>
                 </el-table-column>
               </el-table>
+              </el-scrollbar>
             </div>
           </div>
           
@@ -126,8 +128,7 @@
   width="600px"
   :close-on-click-modal="false"
   custom-class="upload-dialog"
-  style="border-radius: 30px;"
-
+  
 >
   <div class="upload-content">
     <el-upload
@@ -585,9 +586,15 @@ export default {
 .file-list {
   background: #f5f7fa;
   width: 1000px;
-  height: 500px;
+  height: 600px;  /* 确保这个高度适合你的布局 */
   border-radius: 8px;
   padding: 20px;
+  overflow: hidden;  /* 添加这行来确保滚动条在容器内 */
+}
+
+/* 可以添加以下样式来优化 el-scrollbar 的显示效果 */
+.file-list .el-scrollbar__wrap {
+  overflow-x: hidden;
 }
 
 .file-name {
@@ -708,11 +715,11 @@ export default {
 }
 
 .upload-area {
-  margin: 0 auto;
+height: 20px;
 }
 
 .upload-inner {
-  padding: 40px 0;
+  padding: 8px ;
 }
 
 .upload-inner .el-icon-upload {

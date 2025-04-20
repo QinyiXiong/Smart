@@ -1,269 +1,542 @@
 <template>
-    <div class="interview-container">
-      <!-- 左侧导航栏 -->
-      <div class="left-sidebar">
-        <!-- 切换标签 -->
-        <div class="tab-switcher">
-          <el-radio-group v-model="activeTab" @change="handleTabChange">
-            <el-radio-button label="interviewer">面试官</el-radio-button>
-            <el-radio-button label="record">面试记录</el-radio-button>
-          </el-radio-group>
-        </div>
-        <!-- AI面试官列表 -->
-        <div class="ai-interviewer-section" v-show="activeTab === 'interviewer'">
-          <h3 class="section-title">AI面试官</h3>
-          <el-menu
-            :default-active="activeInterviewer"
-            class="interviewer-menu"
-            @select="handleInterviewerSelect"
+  <div class="interview-container">
+    <!-- 左侧导航栏 -->
+    <div class="left-sidebar">
+      <div class="panel-header">
+        <span>AI面试官</span>
+      </div>
+      
+      <!-- 切换标签 -->
+      <div class="tab-switcher">
+        <div class="custom-tabs">
+          <div 
+            class="tab-button" 
+            :class="{ active: activeTab === 'interviewer' }"
+            @click="handleTabSwitch('interviewer')"
           >
-            <el-menu-item
-              v-for="interviewer in aiList"
-              :key="interviewer.interviewerId"
-              :index="interviewer.interviewerId"
-            >
-              <i class="el-icon-user-solid"></i>
-              <span slot="title">{{ interviewer.name }}</span>
-            </el-menu-item>
-          </el-menu>
-        </div>
-        <!-- 聊天记录列表 -->
-        <div class="chat-records-section" v-show="activeTab === 'record' && showChatRecords">
-          <div class="section-header">
-            <h3 class="section-title">话题</h3>
-            <el-button
-              type="primary"
-              size="mini"
-              @click="handleNewChat"
-              v-if="currentInterviewer"
-            >新增对话</el-button>
+            <i class="el-icon-user-solid"></i>
+            <span>面试官</span>
           </div>
-          <el-menu
-            :default-active="activeChatRecord"
-            class="chat-records-menu"
-            @select="handleChatRecordSelect"
-          >
-          <el-menu-item
-          v-for="record in chatRecords"
-          :key="record.chatId"
-          :index="record.chatId.toString()"
+          <div 
+            class="tab-button" 
+            :class="{ active: activeTab === 'record' }"
+            @click="handleTabSwitch('record')"
           >
             <i class="el-icon-chat-dot-round"></i>
-            <span slot="title">{{ record.topic || '未命名对话' }}</span>
-            <span class="record-date">{{ formatDate(record.createdAt) }}</span>
-            <!-- 添加删除按钮 -->
-            <el-button
-              type="text"
-              size="mini"
-              icon="el-icon-delete"
-              class="delete-btn"
-              @click.stop="handleDeleteRecord(record.chatId)"
-            ></el-button>
-          </el-menu-item>
-
-          </el-menu>
+            <span>面试记录</span>
+          </div>
+          <div class="slider" :class="activeTab"></div>
         </div>
       </div>
-
-      <!-- 右侧聊天区域 -->
-      <chat-area
-        :current-interviewer="currentInterviewer"
-        :chat-record-id="activeChatRecord"
-
-      />
+      
+      <!-- AI面试官列表 -->
+      <div class="ai-interviewer-section" v-show="activeTab === 'interviewer'">
+        <el-scrollbar style="height:100%">
+          <div class="interviewer-list">
+            <div 
+              v-for="interviewer in aiList" 
+              :key="interviewer.interviewerId"
+              :class="['interviewer-item', {'active': activeInterviewer === interviewer.interviewerId}]"
+              @click="handleInterviewerSelect(interviewer.interviewerId)"
+            >
+              <div class="interviewer-avatar">
+                <i class="el-icon-user-solid"></i>
+              </div>
+              <div class="interviewer-name">{{ interviewer.name }}</div>
+            </div>
+          </div>
+        </el-scrollbar>
+      </div>
+      
+      <!-- 聊天记录列表 -->
+      <div class="chat-records-section" v-show="activeTab === 'record' && showChatRecords">
+        <div class="section-header">
+          <h3 class="section-title">话题</h3>
+          <el-button
+            type="primary"
+            size="mini"
+            @click="handleNewChat"
+            v-if="currentInterviewer"
+            icon="el-icon-plus"
+            circle
+          ></el-button>
+        </div>
+        <el-scrollbar style="height:calc(100% - 52px)">
+          <div class="chat-records-list">
+            <div 
+              v-for="record in chatRecords" 
+              :key="record.chatId"
+              :class="['chat-record-item', {'active': activeChatRecord === record.chatId.toString()}]"
+              @click="handleChatRecordSelect(record.chatId.toString())"
+            >
+              <div class="record-content">
+                <i class="el-icon-chat-dot-round"></i>
+                <span class="record-title">{{ record.topic || '未命名对话' }}</span>
+              </div>
+              
+              <div class="record-actions">
+                <el-popover
+                  placement="right"
+                  width="110"
+                  trigger="hover"
+                  :popper-class="'record-popover'"
+                >
+                  <div class="action-menu">
+                    <div class="action-item" @click.stop="handleRenameRecord(record)">
+                      <i class="el-icon-edit"></i>
+                      <span>重命名</span>
+                    </div>
+                    <div class="action-item delete" @click.stop="handleDeleteRecord(record.chatId)">
+                      <i class="el-icon-delete"></i>
+                      <span>删除</span>
+                    </div>
+                  </div>
+                  <i slot="reference" class="el-icon-more record-more"></i>
+                </el-popover>
+              </div>
+            </div>
+          </div>
+        </el-scrollbar>
+      </div>
     </div>
-  </template>
 
-  <script>
-  import ChatArea from './chatArea.vue'
-  import axios from '../../store/utils/interceptor'
-  export default {
-    components: {
-      ChatArea
-    },
-    data() {
-      return {
-        aiList: [],
-        chatRecords: [],
-        activeInterviewer: null,
-        activeTab: 'interviewer',
-        activeChatRecord: null,
-        currentInterviewer: null,
-        showChatRecords: false
+    <!-- 右侧聊天区域 -->
+    <chat-area
+      :current-interviewer="currentInterviewer"
+      :chat-record-id="activeChatRecord"
+    />
+    
+    <!-- 重命名对话框 -->
+    <el-dialog
+      title="重命名对话"
+      :visible.sync="renameDialogVisible"
+      width="30%"
+      :close-on-click-modal="false"
+    >
+      <el-input v-model="newTopicName" placeholder="请输入新的话题名称"></el-input>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="renameDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmRename">确定</el-button>
+      </span>
+    </el-dialog>
+  </div>
+</template>
+
+<script>
+import ChatArea from './chatArea.vue'
+import axios from '../../store/utils/interceptor'
+
+export default {
+  props: {
+    value: {
+      type: String,
+      default: 'interviewer'
+    }
+  },
+  components: {
+    ChatArea
+  },
+  data() {
+    return {
+      aiList: [],
+      chatRecords: [],
+      activeInterviewer: null,
+      activeChatRecord: null,
+      currentInterviewer: null,
+      showChatRecords: false,
+      activeTab: this.value,
+      renameDialogVisible: false,
+      newTopicName: '',
+      currentRecordToRename: null
+    }
+  },
+  watch: {
+    value(newVal) {
+      this.activeTab = newVal;
+    }
+  },
+  async mounted() {
+    await this.fetchAiList()
+  },
+  methods: {
+    async fetchAiList() {
+      try {
+        const res = await axios.get('/api/Interviewer/list')
+        this.aiList = res.data || []
+      } catch (error) {
+        this.$message.error('获取面试官列表失败')
+        console.error(error)
       }
     },
-    async mounted() {
-      await this.fetchAiList()
+    async loadChatRecords() {
+      try {
+        const res = await axios.post('/api/chat/getChatRecords', {
+          interviewerId: this.activeInterviewer
+        })
+        // 添加排序逻辑，按创建时间倒序
+        this.chatRecords = (res.data || []).sort((a, b) => {
+          return new Date(b.createdAt) - new Date(a.createdAt)
+        })
+      } catch (error) {
+        this.$message.error('获取聊天记录失败')
+        console.error(error)
+      }
     },
-    methods: {
-      async fetchAiList() {
-        try {
-          const res = await axios.get('/api/Interviewer/list')
-          this.aiList = res.data || []
-        } catch (error) {
-          this.$message.error(error)
+    async handleNewChat() {
+      try {
+        const res = await axios.post('/api/chat/saveChatRecords', {
+          interviewerId: this.activeInterviewer,
+          userId: this.$store.state.user.userId
+        })
+
+        this.chatRecords.unshift(res.data)
+        this.$message.success('新建对话成功')
+        this.activeChatRecord = res.data.chatId.toString()
+      } catch (error) {
+        this.$message.error('新建对话失败')
+        console.error(error)
+      }
+    },
+    async handleInterviewerSelect(interviewerId) {
+      this.activeInterviewer = interviewerId
+      this.currentInterviewer = this.aiList.find(item => item.interviewerId === interviewerId)
+      this.showChatRecords = true
+
+      if (this.activeTab === 'record') {
+        await this.loadChatRecords()
+      }
+    },
+    async handleDeleteRecord(chatId) {
+      try {
+        await this.$confirm('确认删除该对话记录吗?', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
+
+        const res = await axios.post('/api/chat/deleteChatRecords', {
+          chatId: chatId
+        })
+
+        this.$message.success('删除成功')
+        // 删除后重新加载记录
+        await this.loadChatRecords()
+        // 如果删除的是当前激活的记录，则清空activeChatRecord
+        if (this.activeChatRecord === chatId.toString()) {
+          this.activeChatRecord = null
+        }
+
+      } catch (error) {
+        if (error !== 'cancel') {
+          this.$message.error('删除失败')
           console.error(error)
         }
-      },
-      async loadChatRecords() {
-        try {
-          const res = await axios.post('/api/chat/getChatRecords', {
-            interviewerId: this.activeInterviewer
-          })
-          this.chatRecords = res.data || []
-        } catch (error) {
-          this.$message.error('获取聊天记录失败')
-          console.error(error)
-        }
-      },
-      async handleNewChat() {
-        try {
-          const res = await axios.post('/api/chat/saveChatRecords', {
-            interviewerId: this.activeInterviewer,
-
-            userId: this.$store.state.user.userId
-          })
-
-          this.chatRecords.unshift(res.data)
-          this.$message.success('新建对话成功')
-          this.activeChatRecord = res.data.chatId.toString()
-        } catch (error) {
-          this.$message.error('新建对话失败')
-          console.error(error)
-        }
-      },
-      async handleInterviewerSelect(interviewerId) {
-        this.activeInterviewer = interviewerId
-        this.currentInterviewer = this.aiList.find(item => item.interviewerId === interviewerId)
-        this.showChatRecords = true
-
-        if (this.activeTab === 'record') {
-          await this.loadChatRecords()
-        }
-      },
-      async handleDeleteRecord(chatId) {
-        try {
-          await this.$confirm('确认删除该对话记录吗?', '提示', {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning'
-          })
-
-          const res = await axios.post('/api/chat/deleteChatRecords', {
-            chatId: chatId
-          })
-
-
-            this.$message.success('删除成功')
-            // 删除后重新加载记录
-            await this.loadChatRecords()
-            // 如果删除的是当前激活的记录，则清空activeChatRecord
-            if (this.activeChatRecord === chatId.toString()) {
-              this.activeChatRecord = null
-            }
-
-        } catch (error) {
-          if (error !== 'cancel') {
-            this.$message.error('删除失败')
-            console.error(error)
-          }
-        }
-      },
-      async loadChatRecords() {
-        try {
-          const res = await axios.post('/api/chat/getChatRecords', {
-            interviewerId: this.activeInterviewer
-          })
-          // 添加排序逻辑，按创建时间倒序
-          this.chatRecords = (res.data || []).sort((a, b) => {
-            return new Date(b.createdAt) - new Date(a.createdAt)
-          })
-        } catch (error) {
-          this.$message.error('获取聊天记录失败')
-          console.error(error)
-        }
-      },
-
-
-      handleChatRecordSelect(chatId) {
-        this.activeChatRecord = chatId
-      },
-      formatDate(dateString) {
-        if (!dateString) return ''
-        const date = new Date(dateString)
-        return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`
-      },
-      handleTabChange(tab) {
-        this.activeTab = tab
-        if (tab === 'record' && this.currentInterviewer) {
-          this.loadChatRecords()
-        }
+      }
+    },
+    handleChatRecordSelect(chatId) {
+      this.activeChatRecord = chatId
+    },
+    formatDate(dateString) {
+      if (!dateString) return ''
+      const date = new Date(dateString)
+      return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`
+    },
+    handleTabSwitch(tab) {
+      this.activeTab = tab;
+      this.$emit('input', tab);
+      this.$emit('change', tab);
+      if (tab === 'record' && this.activeInterviewer) {
+        this.loadChatRecords()
+      }
+    },
+    handleRenameRecord(record) {
+      this.currentRecordToRename = record;
+      this.newTopicName = record.topic || '';
+      this.renameDialogVisible = true;
+    },
+    async confirmRename() {
+      if (!this.currentRecordToRename) return;
+      
+      try {
+        const res = await axios.post('/api/chat/updateChatTopic', {
+          chatId: this.currentRecordToRename.chatId,
+          topic: this.newTopicName
+        });
+        
+        this.$message.success('重命名成功');
+        await this.loadChatRecords();
+        this.renameDialogVisible = false;
+      } catch (error) {
+        this.$message.error('重命名失败');
+        console.error(error);
       }
     }
   }
-  </script>
+}
+</script>
 
-  <style scoped>
-  .tab-switcher {
-    padding: 15px;
-    border-bottom: 1px solid #e6e6e6;
-  }
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 20px;
-    margin: 10px 0;
-  }
-  .section-header .section-title {
-    margin: 0;
-  }
-  .delete-btn {
-  margin-left: 10px;
-  color: #f56c6c;
+<style scoped>
+.interview-container {
+  display: flex;
+  height: calc(100vh - 120px);
+  background: #f5f7fa;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  margin: 30px 40px;
+  overflow: hidden;
+}
+
+.left-sidebar {
+  width: 350px;
+  height: 100%;
+  background: #fff;
+  border-right: 1px solid #ebeef5;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-header {
+  padding: 21px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #ebeef5;
+  background: #f5f7fa;
+}
+
+.panel-header span {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.tab-switcher {
+  padding: 15px 20px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.custom-tabs {
+  position: relative;
+  display: flex;
+  background-color: #f5f7fa;
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 10px 0;
+  text-align: center;
   font-size: 14px;
+  font-weight: 500;
+  color: #606266;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.tab-button i {
+  font-size: 16px;
+}
+
+.tab-button.active {
+  color: #409eff;
+}
+
+.slider {
+  position: absolute;
+  height: calc(100% - 8px);
+  width: calc(50% - 8px);
+  background-color: white;
+  border-radius: 6px;
+  top: 4px;
+  left: 4px;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  z-index: 1;
+}
+
+.slider.record {
+  transform: translateX(calc(100% + 8px));
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.section-header .section-title {
+  margin: 0;
+  font-size: 14px;
+  color: #606266;
+  font-weight: 600;
+}
+
+.ai-interviewer-section,
+.chat-records-section {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* 面试官列表样式 */
+.interviewer-list {
+  padding: 10px;
+}
+
+.interviewer-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  margin-bottom: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.interviewer-item:hover {
+  background-color: #f5f7fa;
+}
+
+.interviewer-item.active {
+  background-color: #ecf5ff;
+}
+
+.interviewer-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #e6f1fc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+}
+
+.interviewer-avatar i {
+  font-size: 20px;
+  color: #409eff;
+}
+
+.interviewer-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+}
+
+/* 聊天记录列表样式 */
+.chat-records-list {
+  padding: 10px;
+}
+
+.chat-record-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  margin-bottom: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chat-record-item:hover {
+  background-color: #f5f7fa;
+}
+
+.chat-record-item.active {
+  background-color: #ecf5ff;
+}
+
+.record-content {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.record-content i {
+  font-size: 16px;
+  color: #909399;
+  margin-right: 10px;
+}
+
+.record-title {
+  font-size: 14px;
+  color: #303133;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.record-more {
+  font-size: 16px;
+  color: #909399;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.chat-record-item:hover .record-more {
+  opacity: 1;
+}
+
+/* 操作菜单样式 */
+.action-menu {
+  padding: 4px 0;
+
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #606266;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 8px;  /* 添加圆角 */
+  margin: 0 4px; 
+}
+
+.action-item:hover {
+  background-color: #f5f7fa;
+}
+
+.action-item.delete:hover {
+  color: #f56c6c;
+}
+
+.action-item i {
+  margin-right: 8px;
+  font-size: 14px;
+}
+
+/* 自定义弹窗样式 */
+.record-popover {
   padding: 0;
+  min-width: 110px;
 }
 
-.delete-btn:hover {
-  color: #ff0000;
+/* 对话框样式 */
+.el-dialog__body {
+  padding: 20px 20px 10px !important;
 }
 
-  .interview-container {
-    display: flex;
-    height: 100vh;
-    background-color: #f5f7fa;
-  }
-
-  .left-sidebar {
-    width: 300px;
-    background-color: #fff;
-    border-right: 1px solid #e6e6e6;
-    overflow-y: auto;
-    padding: 20px 0;
-  }
-
-  .section-title {
-    padding: 0 20px;
-    margin: 10px 0;
-    font-size: 16px;
-    color: #666;
-  }
-
-  .interviewer-menu, .chat-records-menu {
-    border-right: none;
-  }
-
-  .el-menu-item {
-    height: 60px;
-    line-height: 60px;
-    display: flex;
-    align-items: center;
-  }
-
-  .record-date {
-    margin-left: auto;
-    font-size: 12px;
-    color: #999;
-  }
-  </style>
+.record-popover {
+  padding: 0;
+  min-width: 110px;
+  border-radius: 22px !important;  /* 增加圆角半径 */
+  overflow: hidden;  /* 确保内容不会溢出圆角 */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;  /* 可选：添加更柔和的阴影 */
+}
+</style>

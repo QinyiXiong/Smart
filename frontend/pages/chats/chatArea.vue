@@ -1174,235 +1174,189 @@
   </script>
   
   <style scoped>
-  .right-chat-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    background-color: #fff;
-    height: 100%;
-  }
-  
-  .chat-header {
-    padding: 20px;
-    border-bottom: 1px solid #e6e6e6;
-  }
-  
-  .chat-messages {
-    flex: 1;
-    padding: 20px;
-    overflow-y: auto;
-  }
-  
-  .message {
-    margin-bottom: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  
-  .message-content {
-    max-width: 70%;
-    padding: 10px 15px;
-    border-radius: 5px;
-    position: relative;
-    margin-top: 5px;
-  }
-  
-  .user-message {
-    align-items: flex-end;
-  }
-  
-  .user-message .message-content {
-    background-color: #409eff;
-    color: white;
-  }
-  
-  .ai-message {
-    justify-content: flex-start;
-  }
-  
-  .ai-message .message-content {
-    background-color: #f2f6fc;
-    color: #333;
-  }
-  
-  .message-time {
-    font-size: 12px;
-    color: #999;
-    margin-bottom: 5px;
-  }
-  
-  .chat-input {
-    padding: 20px;
-    border-top: 1px solid #e6e6e6;
-  }
-  
-  .send-button {
-    margin-top: 10px;
-    float: right;
-  }
-  .message-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 5px;
-  }
+.right-chat-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  height: 100%;
+}
 
-  .edit-actions {
-    display: flex;
-    gap: 8px;
-  }
+.chat-header {
+  padding: 22px 20px;
+  border-bottom: 1px solid #ebeef5;
+  background: #f5f7fa;
+}
 
-  .branch-switch {
-    margin-top: 5px;
-    text-align: center;
-  }
-  
-  .branch-switch-panel {
-    margin-top: 10px;
-    padding: 10px;
-    background: #f5f7fa;
-    border-radius: 4px;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  }
-  
-  .branch-option {
-    padding: 8px;
-    cursor: pointer;
-    &:hover {
-      background: #e6e6e6;
-    }
-  }
-  .branch-tag-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 8px;
-  }
-  
-  .branch-tag-text {
-    padding: 4px 8px;
-    cursor: pointer;
-    border-radius: 4px;
-    background-color: #f5f7fa;
-    margin-right: 8px;
-    &:hover {
-      background-color: #e6e9ed;
-    }
-  }
-  
-  .branch-tag-input {
-    flex: 1;
-    margin-right: 8px;
-  }
-  
-  .branch-tag-actions {
-    display: flex;
-  }
-  .input-actions {
-    display: flex;
-    align-items: center;
-    margin-top: 10px;
-  }
-  
-  .input-actions .el-button {
-    margin-right: 10px;
-  }
-  
-  .send-button {
-    margin-left: auto;
-  }
-  .processed-files {
-    margin-bottom: 15px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  
-  .file-card {
-    width: 200px;
-  }
-  
-  .file-card-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  
-  .file-remove-btn {
-    padding: 0;
-    margin-left: 8px;
-  }
+.chat-header h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #303133;
+  font-weight: 500;
+}
 
-  .message-content >>> pre {
-    background-color: #f6f8fa;
-    padding: 16px;
-    border-radius: 6px;
-    overflow: auto;
-  }
-  
-  .message-content >>> code {
-    background-color: rgba(175, 184, 193, 0.2);
-    padding: 0.2em 0.4em;
-    border-radius: 6px;
-    font-size: 85%;
-  }
-  
-  .message-content >>> blockquote {
-    border-left: 4px solid #dfe2e5;
-    color: #6a737d;
-    padding: 0 1em;
-    margin: 0 0 16px 0;
-  }
-  
-  .message-content >>> table {
-    border-collapse: collapse;
-    width: 100%;
-    margin-bottom: 16px;
-  }
-  
-  .message-content >>> table th,
-  .message-content >>> table td {
-    padding: 6px 13px;
-    border: 1px solid #dfe2e5;
-  }
-  
-  .message-content >>> table tr {
-    background-color: #fff;
-    border-top: 1px solid #c6cbd1;
-  }
-  
-  .message-content >>> table tr:nth-child(2n) {
-    background-color: #f6f8fa;
-  }
-  
-  /* 确保用户消息中的markdown不渲染 */
-  .user-message .message-content {
-    white-space: pre-wrap;
-  }
-  .markdown-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    font-size: 16px;
-    line-height: 1.5;
-    word-wrap: break-word;
-  }
-  
-  .markdown-body >>> p {
-    margin: 0 0 16px 0;
-  }
-  
-  .markdown-body >>> pre {
-    background-color: #f6f8fa;
-    border-radius: 3px;
-    padding: 16px;
-    overflow: auto;
-  }
-  
-  .markdown-body >>> code {
-    background-color: rgba(27,31,35,.05);
-    border-radius: 3px;
-    padding: 0.2em 0.4em;
-  }
-  
-  </style>
-  
+.chat-messages {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  background-color: #f9fafc;
+}
+
+.message {
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.message-content {
+  max-width: 60%;
+  padding: 0px 16px;
+  border-radius: 8px;
+  position: relative;
+  margin-top: 5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.user-message {
+  align-items: flex-end;
+}
+
+.user-message .message-content {
+  background-color: #409eff;
+  border: 1px solid #ebeef5;
+  padding: 5px 13px;
+  color: white;
+  border-top-right-radius: 0;
+}
+
+.ai-message .message-content {
+  background-color: #fff;
+  color: #333;
+  border: 1px solid #ebeef5;
+  border-top-left-radius: 0;
+}
+
+.message-time {
+  font-size: 12px;
+  color: #909399;
+  margin: 5px 0;
+}
+
+.chat-input {
+  padding: 20px;
+  border-top: 1px solid #ebeef5;
+  background-color: #fff;
+}
+
+.input-actions {
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.send-button {
+  margin-left: auto;
+  border-radius: 20px;
+  padding: 10px 20px;
+}
+
+/* 文件卡片样式 */
+.file-card {
+  width: 220px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+}
+
+.file-card-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+}
+
+.file-remove-btn {
+  padding: 0;
+  margin-left: 8px;
+  color: #f56c6c;
+}
+
+/* 分支标签样式 */
+.branch-tag-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 8px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+}
+
+.branch-tag-text {
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  background-color: #fff;
+  margin-right: 8px;
+  border: 1px solid #ebeef5;
+}
+
+.branch-tag-text:hover {
+  background-color: #ecf5ff;
+  color: #409eff;
+}
+
+.branch-tag-input {
+  flex: 1;
+  margin-right: 8px;
+}
+
+.branch-tag-actions {
+  display: flex;
+}
+
+/* 消息操作按钮 */
+.message-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* 打字机效果 */
+.message-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+}
+
+/* 上传对话框样式 */
+.upload-dialog {
+  border-radius: 8px;
+}
+
+.upload-dialog .el-dialog__header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.upload-dialog .el-dialog__body {
+  padding: 20px;
+}
+
+.upload-area {
+  border: 1px dashed #dcdfe6;
+  border-radius: 6px;
+  padding: 20px;
+  text-align: center;
+  background-color: #f5f7fa;
+}
+
+.upload-area:hover {
+  border-color: #c0c4cc;
+}
+</style>
