@@ -35,6 +35,22 @@ import java.util.concurrent.TimeUnit;
 public class JudgeServiceImpl implements JudgeService {
 
     @Autowired
+    private com.sdumagicode.backend.service.DockerService dockerService;
+    
+    /**
+     * 初始化方法，在服务启动时输出编译器路径信息
+     */
+    @javax.annotation.PostConstruct
+    public void init() {
+        log.info("===== 代码评测服务初始化 =====");
+        log.info("Java编译器路径: {}", COMPILER_PATHS.get("java"));
+        log.info("C++编译器路径: {}", COMPILER_PATHS.get("cpp"));
+        log.info("Python解释器路径: {}", COMPILER_PATHS.get("python"));
+        log.info("如需自定义编译器路径，请在启动时添加JVM参数，例如: -Djudge.compiler.cpp=C:\\MinGW\\bin\\g++.exe");
+        log.info("================================");
+    }
+
+    @Autowired
     private ProblemMapper problemMapper;
 
     @Autowired
@@ -55,6 +71,67 @@ public class JudgeServiceImpl implements JudgeService {
     static {
         COMPILE_COMMANDS.put("java", new String[]{"javac", "{filename}"});
         COMPILE_COMMANDS.put("cpp", new String[]{"g++", "-o", "{output}", "{filename}", "-std=c++11"});
+    }
+    
+    // 编译器可执行文件路径映射
+    private static final Map<String, String> COMPILER_PATHS = new HashMap<>();
+    static {
+        // 默认使用系统PATH中的编译器
+        COMPILER_PATHS.put("java", "javac");
+        COMPILER_PATHS.put("cpp", "g++");
+        COMPILER_PATHS.put("python", "python");
+        
+        // 尝试查找常见的编译器安装路径
+        String[] commonCppPaths = {
+            "C:\\Program Files\\mingw-w64\\x86_64-8.1.0-posix-seh-rt_v6-rev0\\mingw64\\bin\\g++.exe",
+            "C:\\Program Files (x86)\\mingw-w64\\i686-8.1.0-posix-dwarf-rt_v6-rev0\\mingw32\\bin\\g++.exe",
+            "C:\\MinGW\\bin\\g++.exe",
+            "C:\\msys64\\mingw64\\bin\\g++.exe",
+            "C:\\TDM-GCC-64\\bin\\g++.exe"
+        };
+        
+        for (String path : commonCppPaths) {
+            File file = new File(path);
+            if (file.exists() && file.canExecute()) {
+                COMPILER_PATHS.put("cpp", path);
+                log.info("找到C++编译器路径: {}", path);
+                break;
+            }
+        }
+        
+        // 从系统环境变量中获取自定义编译器路径
+        String customCppPath = System.getProperty("judge.compiler.cpp");
+        if (customCppPath != null && !customCppPath.isEmpty()) {
+            File file = new File(customCppPath);
+            if (file.exists() && file.canExecute()) {
+                COMPILER_PATHS.put("cpp", customCppPath);
+                log.info("使用自定义C++编译器路径: {}", customCppPath);
+            } else {
+                log.warn("自定义C++编译器路径无效: {}", customCppPath);
+            }
+        }
+    }
+    
+    /**
+     * 设置编译器路径
+     * @param language 语言
+     * @param path 编译器路径
+     * @return 是否设置成功
+     */
+    public static boolean setCompilerPath(String language, String path) {
+        if (language == null || path == null || path.isEmpty()) {
+            return false;
+        }
+        
+        File file = new File(path);
+        if (file.exists() && file.canExecute()) {
+            COMPILER_PATHS.put(language, path);
+            log.info("设置{}编译器路径: {}", language, path);
+            return true;
+        } else {
+            log.warn("无效的{}编译器路径: {}", language, path);
+            return false;
+        }
     }
 
     // 运行命令映射
@@ -270,61 +347,147 @@ public class JudgeServiceImpl implements JudgeService {
                 return JudgeResultDTO.builder().status("ACCEPTED").build();
             }
 
-            String[] command = new String[commandTemplate.length];
-            for (int i = 0; i < commandTemplate.length; i++) {
-                command[i] = commandTemplate[i]
-                        .replace("{filename}", codePath.toString())
-                        .replace("{output}", tempDir.resolve("program").toString())
-                        .replace("{dir}", tempDir.toString());
+            // 检查Docker是否可用
+            boolean useDocker = dockerService.isDockerAvailable();
+            String containerId = null;
+            
+            if (useDocker) {
+                // 创建Docker容器
+                containerId = dockerService.createContainer(language, tempDir);
+                if (containerId == null) {
+                    log.warn("创建Docker容器失败，将使用本地环境编译");
+                    useDocker = false;
+                } else {
+                    log.info("使用Docker容器编译代码: {}", containerId);
+                }
             }
-
-            // 为Java运行设置UTF-8编码和显式类路径
-            if (language.equals("java")) {
-                command = new String[]{"java", "-Dfile.encoding=UTF-8", "-cp", tempDir.toString(), "Main"};
-            }
-
-            // 为Java编译设置UTF-8编码和显式类路径
-            if (language.equals("java")) {
-                command = new String[]{"javac", "-encoding", "UTF-8", "-cp", ".", codePath.toString()};
-            }
-
-            ProcessBuilder pb = new ProcessBuilder(command);
-            pb.directory(tempDir.toFile());
-            pb.redirectErrorStream(true);
-
-            Process process = pb.start();
-            boolean completed = process.waitFor(10, TimeUnit.SECONDS);
-
-            if (!completed) {
-                process.destroyForcibly();
-                return JudgeResultDTO.builder()
-                        .status("COMPILATION_ERROR")
-                        .errorMessage("编译超时")
-                        .build();
-            }
-
-            int exitCode = process.exitValue();
-            if (exitCode != 0) {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                StringBuilder output = new StringBuilder();
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
+            
+            if (!useDocker) {
+                // 使用本地环境编译（原有逻辑）
+                // 获取编译器路径
+                String compilerPath = COMPILER_PATHS.get(language);
+                if (compilerPath == null) {
+                    log.error("找不到{}编译器路径", language);
+                    return JudgeResultDTO.builder()
+                            .status("COMPILATION_ERROR")
+                            .errorMessage("系统错误: 找不到" + language + "编译器，请确保已安装相应编译器并配置环境变量，或使用-Djudge.compiler." + language + "参数指定编译器路径")
+                            .build();
+                }
+                
+                // 检查编译器文件是否存在
+                File compilerFile = new File(compilerPath);
+                if (!compilerFile.exists()) {
+                    log.error("编译器文件不存在: {}", compilerPath);
+                    return JudgeResultDTO.builder()
+                            .status("COMPILATION_ERROR")
+                            .errorMessage("编译错误: 找不到编译器文件 " + compilerPath + "，请检查编译器安装路径")
+                            .build();
                 }
 
-                return JudgeResultDTO.builder()
-                        .status("COMPILATION_ERROR")
-                        .errorMessage(output.toString())
-                        .build();
+                String[] command = new String[commandTemplate.length];
+                // 替换第一个元素为实际编译器路径
+                command[0] = compilerPath;
+                for (int i = 1; i < commandTemplate.length; i++) {
+                    command[i] = commandTemplate[i]
+                            .replace("{filename}", codePath.toString())
+                            .replace("{output}", tempDir.resolve("program").toString())
+                            .replace("{dir}", tempDir.toString());
+                }
+
+                // 为Java运行设置UTF-8编码和显式类路径
+                if (language.equals("java")) {
+                    command = new String[]{COMPILER_PATHS.get("java"), "-encoding", "UTF-8", "-cp", ".", codePath.toString()};
+                }
+
+                ProcessBuilder pb = new ProcessBuilder(command);
+                pb.directory(tempDir.toFile());
+                pb.redirectErrorStream(true);
+
+                Process process = pb.start();
+                boolean completed = process.waitFor(10, TimeUnit.SECONDS);
+
+                if (!completed) {
+                    process.destroyForcibly();
+                    return JudgeResultDTO.builder()
+                            .status("COMPILATION_ERROR")
+                            .errorMessage("编译超时")
+                            .build();
+                }
+
+                int exitCode = process.exitValue();
+                if (exitCode != 0) {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                    StringBuilder output = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        output.append(line).append("\n");
+                    }
+
+                    return JudgeResultDTO.builder()
+                            .status("COMPILATION_ERROR")
+                            .errorMessage(output.toString())
+                            .build();
+                }
+            } else {
+                // 使用Docker容器编译
+                String[] command;
+                String workDir = "/judge";
+                
+                // 根据语言构建编译命令
+                if (language.equals("java")) {
+                    command = new String[]{"javac", "-encoding", "UTF-8", codePath.getFileName().toString()};
+                } else if (language.equals("cpp")) {
+                    command = new String[]{"g++", "-o", "program", codePath.getFileName().toString(), "-std=c++11"};
+                } else {
+                    // Python不需要编译
+                    return JudgeResultDTO.builder().status("ACCEPTED").build();
+                }
+                
+                // 在Docker容器中执行编译命令
+                Map<String, Object> result = dockerService.executeCompileCommand(containerId, command, workDir);
+                
+                // 如果执行失败或返回值不为0，则编译失败
+                if (result == null) {
+                    log.error("Docker容器执行编译命令失败");
+                    return JudgeResultDTO.builder()
+                            .status("COMPILATION_ERROR")
+                            .errorMessage("Docker容器执行编译命令失败")
+                            .build();
+                }
+                
+                boolean completed = (boolean) result.get("completed");
+                int exitCode = (int) result.get("exitCode");
+                String output = (String) result.get("output");
+                
+                if (!completed || exitCode != 0) {
+                    return JudgeResultDTO.builder()
+                            .status("COMPILATION_ERROR")
+                            .errorMessage(output)
+                            .build();
+                }
             }
 
-            return JudgeResultDTO.builder().status("ACCEPTED").build();
+            return JudgeResultDTO.builder()
+                    .status("ACCEPTED")
+                    .build();
 
         } catch (Exception e) {
             log.error("编译代码失败", e);
+            String errorMsg = e.getMessage();
+            
+            // 检测是否为CreateProcess错误（找不到编译器的常见错误）
+            if (errorMsg != null && errorMsg.contains("CreateProcess")) {
+                return JudgeResultDTO.builder()
+                    .status("COMPILATION_ERROR")
+                    .errorMessage("编译错误: 无法启动编译器进程，请确保已正确安装C++编译器(g++)并添加到系统PATH环境变量中，" +
+                                "或使用-Djudge.compiler.cpp=<编译器完整路径> 参数指定编译器路径。\n" +
+                                "原始错误: " + errorMsg)
+                    .build();
+            }
+            
             return JudgeResultDTO.builder()
                     .status("COMPILATION_ERROR")
-                    .errorMessage("编译错误: " + e.getMessage())
+                    .errorMessage("编译错误: " + errorMsg)
                     .build();
         }
     }
@@ -342,72 +505,182 @@ public class JudgeServiceImpl implements JudgeService {
                         .build();
             }
 
-            String[] command = new String[commandTemplate.length];
-            for (int i = 0; i < commandTemplate.length; i++) {
-                command[i] = commandTemplate[i]
-                        .replace("{filename}", codePath.toString())
-                        .replace("{output}", tempDir.resolve("program").toString())
-                        .replace("{dir}", tempDir.toString());
-            }
-
-            // 为Java运行设置UTF-8编码和显式类路径
-            if (language.equals("java")) {
-                command = new String[]{"java", "-Dfile.encoding=UTF-8", "-cp", tempDir.toString(), "Main"};
-            }
-
-            ProcessBuilder pb = new ProcessBuilder(command);
-            pb.directory(tempDir.toFile());
-            pb.redirectInput(inputPath.toFile());
-            pb.redirectErrorStream(true);
-
             // 设置时间限制
             int timeLimit = problem != null ? problem.getTimeLimit() : 5000; // 默认5秒
-
-            // 开始计时
-            long startTime = System.currentTimeMillis();
-            Process process = pb.start();
             
-            // 等待进程完成或超时
-            boolean completed = process.waitFor(timeLimit, TimeUnit.MILLISECONDS);
-            long endTime = System.currentTimeMillis();
-            int executionTime = (int) (endTime - startTime);
+            // 检查Docker是否可用
+            boolean useDocker = dockerService.isDockerAvailable();
+            String containerId = null;
+            
+            if (useDocker) {
+                // 创建Docker容器
+                containerId = dockerService.createContainer(language, tempDir);
+                if (containerId == null) {
+                    log.warn("创建Docker容器失败，将使用本地环境执行代码");
+                    useDocker = false;
+                } else {
+                    log.info("使用Docker容器执行代码: {}", containerId);
+                }
+            }
+            
+            Map<String, Object> result = null;
+            int executionTime = 0;
+            int memoryUsage = 50; // 默认值
+            String outputStr = "";
+            boolean completed = false;
+            int exitCode = -1;
+            
+            try {
+                if (!useDocker) {
+                    // 使用本地环境执行（原有逻辑）
+                    // 获取运行程序路径
+                    String runnerPath = COMPILER_PATHS.get(language);
+                    if (runnerPath == null) {
+                        log.error("找不到{}运行环境", language);
+                        return JudgeResultDTO.builder()
+                                .status("SYSTEM_ERROR")
+                                .errorMessage("系统错误: 找不到" + language + "运行环境，请确保已安装相应运行环境并配置环境变量，或使用-Djudge.compiler." + language + "参数指定路径")
+                                .build();
+                    }
+                    
+                    // 检查运行程序文件是否存在
+                    File runnerFile = new File(runnerPath);
+                    if (!runnerFile.exists()) {
+                        log.error("运行程序文件不存在: {}", runnerPath);
+                        return JudgeResultDTO.builder()
+                                .status("SYSTEM_ERROR")
+                                .errorMessage("系统错误: 找不到运行程序文件 " + runnerPath + "，请检查安装路径")
+                                .build();
+                    }
+                    
+                    // 记录运行命令信息，便于调试
+                    log.info("执行{}代码，使用运行环境: {}", language, runnerPath);
 
-            if (!completed) {
-                process.destroyForcibly();
+                    String[] command = new String[commandTemplate.length];
+                    // 对于需要解释器的语言（如Python），替换第一个元素为实际路径
+                    if (language.equals("python")) {
+                        command[0] = runnerPath;
+                        for (int i = 1; i < commandTemplate.length; i++) {
+                            command[i] = commandTemplate[i]
+                                    .replace("{filename}", codePath.toString())
+                                    .replace("{output}", tempDir.resolve("program").toString())
+                                    .replace("{dir}", tempDir.toString());
+                        }
+                    } else {
+                        // 对于编译型语言，保持原有命令结构
+                        for (int i = 0; i < commandTemplate.length; i++) {
+                            command[i] = commandTemplate[i]
+                                    .replace("{filename}", codePath.toString())
+                                    .replace("{output}", tempDir.resolve("program").toString())
+                                    .replace("{dir}", tempDir.toString());
+                        }
+                    }
+
+                    // 为Java运行设置UTF-8编码和显式类路径
+                    if (language.equals("java")) {
+                        command = new String[]{runnerPath, "-Dfile.encoding=UTF-8", "-cp", tempDir.toString(), "Main"};
+                    }
+
+                    ProcessBuilder pb = new ProcessBuilder(command);
+                    pb.directory(tempDir.toFile());
+                    pb.redirectInput(inputPath.toFile());
+                    pb.redirectErrorStream(true);
+
+                    // 开始计时
+                    long startTime = System.currentTimeMillis();
+                    Process process = pb.start();
+                    
+                    // 等待进程完成或超时
+                    completed = process.waitFor(timeLimit, TimeUnit.MILLISECONDS);
+                    long endTime = System.currentTimeMillis();
+                    executionTime = (int) (endTime - startTime);
+
+                    if (!completed) {
+                        process.destroyForcibly();
+                        return JudgeResultDTO.builder()
+                                .status("TIME_LIMIT_EXCEEDED")
+                                .time(executionTime)
+                                .errorMessage("执行超时")
+                                .build();
+                    }
+
+                    // 读取输出
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                    StringBuilder output = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        output.append(line).append("\n");
+                    }
+                    outputStr = output.toString();
+                    exitCode = process.exitValue();
+                } else {
+                    // 使用Docker容器执行
+                    String[] command;
+                    String workDir = "/judge";
+                    
+                    // 根据语言构建运行命令
+                    if (language.equals("java")) {
+                        command = new String[]{"java", "-Dfile.encoding=UTF-8", "-cp", ".", "Main"};
+                    } else if (language.equals("cpp")) {
+                        command = new String[]{"./program"};
+                    } else if (language.equals("python")) {
+                        command = new String[]{"python", codePath.getFileName().toString()};
+                    } else {
+                        return JudgeResultDTO.builder()
+                                .status("SYSTEM_ERROR")
+                                .errorMessage("不支持的语言: " + language)
+                                .build();
+                    }
+                    
+                    // 在Docker容器中执行运行命令
+                    String inputFilePath = inputPath.toAbsolutePath().toString();
+                    result = dockerService.executeRunCommand(containerId, command, workDir, inputFilePath, timeLimit);
+                    
+                    if (result == null) {
+                        log.error("Docker容器执行运行命令失败");
+                        return JudgeResultDTO.builder()
+                                .status("SYSTEM_ERROR")
+                                .errorMessage("Docker容器执行运行命令失败")
+                                .build();
+                    }
+                    
+                    completed = (boolean) result.get("completed");
+                    exitCode = (int) result.get("exitCode");
+                    outputStr = (String) result.get("output");
+                    executionTime = (int) result.get("time");
+                    memoryUsage = (int) result.get("memory");
+                    
+                    if (!completed) {
+                        return JudgeResultDTO.builder()
+                                .status("TIME_LIMIT_EXCEEDED")
+                                .time(executionTime)
+                                .memory(memoryUsage)
+                                .errorMessage("执行超时")
+                                .build();
+                    }
+                }
+                
+                if (exitCode != 0) {
+                    return JudgeResultDTO.builder()
+                            .status("RUNTIME_ERROR")
+                            .time(executionTime)
+                            .memory(memoryUsage)
+                            .errorMessage("运行时错误: " + outputStr)
+                            .build();
+                }
+
                 return JudgeResultDTO.builder()
-                        .status("TIME_LIMIT_EXCEEDED")
+                        .status("ACCEPTED")
                         .time(executionTime)
-                        .errorMessage("执行超时")
+                        .memory(memoryUsage)
+                        .output(outputStr)
                         .build();
+            } finally {
+                // 如果使用了Docker容器，在执行完成后删除容器
+                if (useDocker && containerId != null) {
+                    dockerService.removeContainer(containerId);
+                }
             }
-
-            // 读取输出
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-            StringBuilder output = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                output.append(line).append("\n");
-            }
-
-            int exitCode = process.exitValue();
-            if (exitCode != 0) {
-                return JudgeResultDTO.builder()
-                        .status("RUNTIME_ERROR")
-                        .time(executionTime)
-                        .errorMessage("运行时错误: " + output.toString())
-                        .build();
-            }
-
-            // 估算内存使用（实际应该使用更精确的方法）
-            int memoryUsage = 50; // 默认值，实际应该监控进程内存
-
-            return JudgeResultDTO.builder()
-                    .status("ACCEPTED")
-                    .time(executionTime)
-                    .memory(memoryUsage)
-                    .output(output.toString())
-                    .build();
-
         } catch (Exception e) {
             log.error("执行代码失败", e);
             return JudgeResultDTO.builder()
