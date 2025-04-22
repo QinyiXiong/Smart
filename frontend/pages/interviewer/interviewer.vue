@@ -1,7 +1,7 @@
 <template>
     <div class="ai-container">
       <!-- 主体内容 -->
-      <div class="main-content">
+      <div class="main-content" >
         <!-- 左侧AI列表 -->
         <div class="left-panel">
           <div class="panel-header">
@@ -144,6 +144,7 @@
   export default {
     data() {
       return {
+        loading:true,
         activeAi: null,
         aiList: [],
         currentAi: {
@@ -167,11 +168,25 @@
         addDialogVisible: false
       }
     },
+    //async mounted() {
+    //  await this.fetchAiList();
+    //  await this.fetchDatabases();
+    //  await this.fetchAiSettings();
+    //},
     async mounted() {
-      await this.fetchAiList();
-      await this.fetchDatabases();
-      await this.fetchAiSettings();
-    },
+  try {
+    await this.fetchAiSettings();
+    await Promise.all([
+      this.fetchDatabases(),
+      this.fetchAiList(),
+    ]);
+        if (this.aiList.length > 0) {
+      this.handleSelect(this.aiList[0].interviewerId);
+    }
+  } catch (error) {
+    this.$message.error("初始化失败：" + error.message);
+  }
+},
     methods: {
       async fetchAiList() {
         try {
@@ -203,43 +218,86 @@
           console.error(error);
         }
       },
-      handleSelect(index) {
+//       handleSelect(index) {
+//   this.activeAi = index;
+//   const selectedAi = this.aiList.find(ai => ai.interviewerId === index);
+//   if (selectedAi) {
+//     this.currentAi = JSON.parse(JSON.stringify(selectedAi));
+    
+//     // 创建现有设置的映射表（以id为key）
+//     const existingSettingsMap = new Map();
+//     if (this.currentAi.settingsList) {
+//       this.currentAi.settingsList.forEach(item => {
+//         existingSettingsMap.set(item.id, item.extent); // 只保存extent值
+//       });
+//     }
+    
+//     // 重新构建settingsList：合并allSettings的属性和保存的extent值
+//     this.currentAi.settingsList = this.allSettings.map(template => {
+//       return {
+//         ...template,                // 展开模板属性（id, settingName, description）
+//         extent: existingSettingsMap.has(template.id) 
+//                ? existingSettingsMap.get(template.id) 
+//                : 5                  // 默认值
+//       };
+//     });
+//   }
+// },
+handleSelect(index) {
   this.activeAi = index;
   const selectedAi = this.aiList.find(ai => ai.interviewerId === index);
+  
   if (selectedAi) {
+    // 1. 深拷贝选中的AI数据
     this.currentAi = JSON.parse(JSON.stringify(selectedAi));
     
-    // 创建现有设置的映射表（以id为key）
-    const existingSettingsMap = new Map();
-    if (this.currentAi.settingsList) {
-      this.currentAi.settingsList.forEach(item => {
-        existingSettingsMap.set(item.id, item.extent); // 只保存extent值
-      });
+    // 2. 如果 settingsList 不存在，初始化为空数组
+    if (!this.currentAi.settingsList) {
+      this.currentAi.settingsList = [];
     }
     
-    // 重新构建settingsList：合并allSettings的属性和保存的extent值
-    this.currentAi.settingsList = this.allSettings.map(template => {
-      return {
-        ...template,                // 展开模板属性（id, settingName, description）
-        extent: existingSettingsMap.has(template.id) 
-               ? existingSettingsMap.get(template.id) 
-               : 5                  // 默认值
-      };
+    // 3. 构建一个 Map，存储已有的 extent 值（如果有）
+    const existingSettingsMap = new Map();
+    this.currentAi.settingsList.forEach(item => {
+      existingSettingsMap.set(item.id, item.extent);
     });
+    
+    // 4. 重新构建 settingsList，确保所有设置项都有默认值
+    this.currentAi.settingsList = this.allSettings.map(template => ({
+      ...template,  // 继承模板属性（id, settingName, description）
+      extent: existingSettingsMap.has(template.id) 
+             ? existingSettingsMap.get(template.id) 
+             : 5,   // 默认值
+    }));
+    
+    // 5. 强制更新视图（确保UI刷新）
+    this.$nextTick(() => this.$forceUpdate());
   }
 },
+      // showAddDialog() {
+      //   this.newAi = {
+      //     name: '',
+      //     knowledgeBaseId: this.databases[0]?.knowledgeBaseId || '',
+      //     customPrompt: '',
+      //     settingsList: this.allSettings.map(template => ({
+      //       ...template,    // 继承模板属性
+      //       extent: 5       // 设置默认值
+      //     }))
+      //   };
+      //   this.addDialogVisible = true;
+      // },
       showAddDialog() {
-        this.newAi = {
-          name: '',
-          knowledgeBaseId: this.databases[0]?.knowledgeBaseId || '',
-          customPrompt: '',
-          settingsList: this.allSettings.map(template => ({
-            ...template,    // 继承模板属性
-            extent: 5       // 设置默认值
-          }))
-        };
-        this.addDialogVisible = true;
-      },
+  this.newAi = {
+    name: '',
+    knowledgeBaseId: this.databases[0]?.knowledgeBaseId || '',
+    customPrompt: '',
+    settingsList: this.allSettings.map(template => ({
+      ...template,    // 继承模板属性
+      extent: 5,      // 默认值
+    })),
+  };
+  this.addDialogVisible = true;
+},
       async addAi() {
         if (!this.newAi.name) {
           this.$message.warning('请输入AI名称');
