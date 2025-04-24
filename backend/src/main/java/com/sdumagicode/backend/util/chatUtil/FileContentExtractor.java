@@ -59,9 +59,14 @@ public class FileContentExtractor {
      * @return PDF文本内容
      */
     private static String extractPdfContent(InputStream inputStream) {
+        // 禁用字体缓存
+        System.setProperty("org.apache.pdfbox.rendering.UsePureJavaCMYKConversion", "true");
+        // 重要：禁用字体加载
+        System.setProperty("org.apache.pdfbox.font.load", "false");
+
         PDDocument document = null;
         StringBuilder content = new StringBuilder();
-        
+
         try {
             document = PDDocument.load(inputStream);
             int pageSize = document.getNumberOfPages();
@@ -78,6 +83,8 @@ public class FileContentExtractor {
             // 处理加密PDF情况
             return null;
         } catch (IOException e) {
+            // 记录具体异常信息
+            e.printStackTrace();
             return null;
         } finally {
             if (document != null) {
@@ -89,6 +96,7 @@ public class FileContentExtractor {
             }
         }
     }
+
 
     /**
      * 提取DOC文件内容

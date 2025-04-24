@@ -157,7 +157,10 @@ public class MilvusServiceImpl implements MilvusService {
         milvusDatabaseRepository.save(milvusDatabaseByKnowledgeBaseIdAAndUserId);
 
         //最后删除本地的数据
-        FileUploadUtil.deleteFileByUrl(milvusFile.getFileInfo().getUrl());
+        if(milvusFile != null){
+            FileUploadUtil.deleteFileByUrl(milvusFile.getFileInfo().getUrl());
+        }
+
         return true;
     }
 }
