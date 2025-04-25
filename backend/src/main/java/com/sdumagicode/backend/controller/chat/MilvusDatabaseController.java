@@ -86,6 +86,7 @@ public class MilvusDatabaseController {
                     GlobalResultGenerator.genSuccessResult("文件上传成功") :
                     GlobalResultGenerator.genErrorResult("文件上传失败");
         } catch (Exception e) {
+            e.printStackTrace();
             return GlobalResultGenerator.genErrorResult("文件上传异常: " + e.getMessage());
         }
     }

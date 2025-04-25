@@ -37,6 +37,7 @@ public class MilvusServiceImpl implements MilvusService {
     MilvusClient milvusClient;
 
 
+
     @Override
     public boolean createMilvusDatabase(MilvusDatabase milvusDatabase) {
         Long userId = UserUtils.getCurrentUserByToken().getIdUser();
@@ -109,10 +110,12 @@ public class MilvusServiceImpl implements MilvusService {
                         knowledgeRecord.setChunkIndex(chunkIndex);
                         knowledgeRecord.setFileName(fileInfo.getFileName());
 
-                        milvusClient.insertMilvus(knowledgeRecord, userId, knowledgeBaseId);
+//                        milvusClient.insertMilvus(knowledgeRecord, userId, knowledgeBaseId);
                         return knowledgeRecord;
                     })
                     .collect(Collectors.toList());
+            milvusClient.batchInsertMilvus(knowledgeRecords,userId,knowledgeBaseId);
+
             milvusFile.setKnowledgeRecords(knowledgeRecords);
             return milvusFile;
         }).collect(Collectors.toList());

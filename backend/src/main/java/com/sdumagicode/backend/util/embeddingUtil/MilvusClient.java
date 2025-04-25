@@ -33,6 +33,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
  
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
+
 @Component
 public class MilvusClient {
 
@@ -50,13 +55,18 @@ public class MilvusClient {
  
     private final EmbeddingClient embeddingClient;
 
+    private final ExecutorService embeddingExecutor;
+
     private static final Logger logger = LoggerFactory.getLogger(MilvusClient.class);
- 
- 
+
+
     public MilvusClient(MilvusServiceClient client, EmbeddingClient embeddingClient) {
         this.client = client;
         this.embeddingClient = embeddingClient;
 
+        // 初始化线程池
+        int threadCount = Runtime.getRuntime().availableProcessors();
+        this.embeddingExecutor = Executors.newFixedThreadPool(threadCount);
     }
 
     /**
@@ -169,7 +179,12 @@ public class MilvusClient {
                 .withDataType(DataType.Int64)
                 .withDescription("type_id")
                 .build();
-
+        FieldType chunk_index  = FieldType.newBuilder()
+                .withName("chunk_index")
+                .withDataType(DataType.Int64)
+                .withMaxLength(10000)
+                .withDescription("chunk_index")
+                .build();
         FieldType content  = FieldType.newBuilder()
                 .withName("content")
                 .withDataType(DataType.VarChar)
@@ -187,7 +202,7 @@ public class MilvusClient {
                 .withCollectionName(collectionName)
                 .addFieldType(id)
                 .addFieldType(type_id)
-
+                .addFieldType(chunk_index)
                 .addFieldType(content)
                 .addFieldType(title_vector)
                 .build();
@@ -266,7 +281,172 @@ public class MilvusClient {
             System.out.println(response.getMessage());
         }
     }
- 
+
+//无多线程版本
+//    public void batchInsertMilvus(List<KnowledgeRecord> records, Long userId, String knowledgeBaseId) {
+//        if (records == null || records.isEmpty()) {
+//            throw new IllegalArgumentException("Records list cannot be null or empty");
+//        }
+//
+//        String collectionName = generateCollectionName(userId, knowledgeBaseId);
+//
+//        List<InsertParam.Field> fields = new ArrayList<>();
+//        for (KnowledgeRecord record : records) {
+//            fields.add(new InsertParam.Field("id", Collections.singletonList(record.getRecordId())));
+//            fields.add(new InsertParam.Field("file_id", Collections.singletonList(record.getFileId())));
+//            fields.add(new InsertParam.Field("type_id", Collections.singletonList(1L)));
+//            fields.add(new InsertParam.Field("content", Collections.singletonList(record.getChunkText())));
+//            fields.add(new InsertParam.Field("chunk_index", Collections.singletonList(record.getChunkIndex())));
+//            fields.add(new InsertParam.Field(VECTOR_FIELD, embeddingClient.getEmbedding(record.getChunkText())));
+//        }
+//
+//        // 构建批量插入参数
+//        InsertParam insertParam = InsertParam.newBuilder()
+//                .withCollectionName(collectionName)
+//                .withFields(fields)
+//                .build();
+//
+//        R<MutationResult> response = new R<>();
+//        try {
+//            response = client.insert(insertParam);
+//        } catch (StatusRuntimeException e) {
+//            logger.error("gRPC error: ", e);
+//            logger.error("Status: {}, Description: {}", e.getStatus(), e.getTrailers());
+//        }
+//        if (response.getStatus() != R.Status.Success.getCode()) {
+//            System.out.println(response.getMessage());
+//        }
+//    }
+
+
+public void batchInsertMilvus(List<KnowledgeRecord> records, Long userId, String knowledgeBaseId) {
+    if (records == null || records.isEmpty()) {
+        throw new IllegalArgumentException("Records list cannot be null or empty");
+    }
+    String collectionName = generateCollectionName(userId, knowledgeBaseId);
+
+    // 使用并行流处理embedding获取
+    List<CompletableFuture<Void>> futures = records.stream()
+            .map(record -> CompletableFuture.runAsync(() -> {
+                List<List<Float>> embeddings = embeddingClient.getEmbedding(record.getChunkText());
+                // 将多个embedding拼接成一个长向量
+                List<Float> concatenated = embeddings.stream()
+                        .flatMap(List::stream)
+                        .collect(Collectors.toList());
+                record.setEmbedding(concatenated);
+            }, embeddingExecutor))
+            .collect(Collectors.toList());
+
+    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+    // 准备各字段的数据集合
+    List<Long> idList = new ArrayList<>();
+    List<String> fileIdList = new ArrayList<>();
+    List<Long> typeIdList = new ArrayList<>();
+    List<String> contentList = new ArrayList<>();
+    List<Long> chunkIndexList = new ArrayList<>();
+    List<List<Float>> vectorList = new ArrayList<>();
+
+    // 只保留一个循环来收集数据
+    for (KnowledgeRecord record : records) {
+        idList.add(record.getRecordId());
+        fileIdList.add(record.getFileId());
+        typeIdList.add(1L); // 固定值
+        contentList.add(record.getChunkText());
+        chunkIndexList.add(Long.valueOf(record.getChunkIndex()));
+
+        if (record.getEmbedding() != null && !record.getEmbedding().isEmpty()) {
+            vectorList.add(record.getEmbedding());
+        } else {
+            logger.warn("Empty embedding for record: {}", record.getRecordId());
+            vectorList.add(new ArrayList<>());
+        }
+    }
+
+    // 构建插入参数
+    List<InsertParam.Field> fields = new ArrayList<>();
+    fields.add(new InsertParam.Field("id", idList));
+    fields.add(new InsertParam.Field("file_id", fileIdList));
+    fields.add(new InsertParam.Field("type_id", typeIdList));
+    fields.add(new InsertParam.Field("content", contentList));
+    fields.add(new InsertParam.Field("chunk_index", chunkIndexList));
+    fields.add(new InsertParam.Field(VECTOR_FIELD, vectorList));
+
+    // 构建批量插入参数
+    InsertParam insertParam = InsertParam.newBuilder()
+            .withCollectionName(collectionName)
+            .withFields(fields)
+            .build();
+
+    R<MutationResult> response = new R<>();
+    try {
+        response = client.insert(insertParam);
+    } catch (StatusRuntimeException e) {
+        logger.error("gRPC error: ", e);
+        logger.error("Status: {}, Description: {}", e.getStatus(), e.getTrailers());
+        e.printStackTrace();
+        throw new RuntimeException("Failed to insert data into Milvus", e);
+    }
+
+    if (response.getStatus() != R.Status.Success.getCode()) {
+        logger.error("Milvus insert failed: {}", response.getMessage());
+        throw new RuntimeException("Failed to insert data into Milvus: " + response.getMessage());
+    }
+}
+
+
+
+//    public void batchInsertMilvus(List<KnowledgeRecord> records, Long userId, String knowledgeBaseId) {
+//        if (records == null || records.isEmpty()) {
+//            throw new IllegalArgumentException("Records list cannot be null or empty");
+//        }
+//
+//        String collectionName = generateCollectionName(userId, knowledgeBaseId);
+//
+//        // 使用并行流处理embedding获取
+//        List<CompletableFuture<Void>> futures = records.stream()
+//                .map(record -> CompletableFuture.runAsync(() -> {
+//                    List<List<Float>> embedding = embeddingClient.getEmbedding(record.getChunkText());
+//                    record.setEmbedding(embedding);
+//                }, embeddingExecutor)) // 使用自定义线程池
+//                .collect(Collectors.toList());
+//
+//        // 等待所有异步任务完成
+//        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+//
+//        // 构建插入参数
+//        List<InsertParam.Field> fields = new ArrayList<>();
+//        for (KnowledgeRecord record : records) {
+//            fields.add(new InsertParam.Field("id", Collections.singletonList(record.getRecordId())));
+//            fields.add(new InsertParam.Field("file_id", Collections.singletonList(record.getFileId())));
+//            fields.add(new InsertParam.Field("type_id", Collections.singletonList(1L)));
+//            fields.add(new InsertParam.Field("content", Collections.singletonList(record.getChunkText())));
+//            fields.add(new InsertParam.Field("chunk_index", Collections.singletonList(record.getChunkIndex())));
+//            fields.add(new InsertParam.Field(VECTOR_FIELD, record.getEmbedding())); // 使用预先计算好的embedding
+//            InsertParam insertParam = InsertParam.newBuilder()
+//                    .withCollectionName(collectionName)
+//                    .withFields(fields)
+//                    .build();
+//            R<MutationResult> response = new R<>();
+//            try {
+//                response = client.insert(insertParam);
+//            } catch (StatusRuntimeException e) {
+//                logger.error("gRPC error: ", e);
+//                logger.error("Status: {}, Description: {}", e.getStatus(), e.getTrailers());
+//            }
+//            if (response.getStatus() != R.Status.Success.getCode()) {
+//                System.out.println(response.getMessage());
+//            }
+//        }
+//
+//        // 构建批量插入参数
+//
+//
+//
+//    }
+
+
+
     public void updateMilvus(KnowledgeRecord record,Long userId, String knowledgeBaseId) {
         String collectionName = generateCollectionName(userId, knowledgeBaseId);
         List<InsertParam.Field> fields = new ArrayList<>();
