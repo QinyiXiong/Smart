@@ -5,20 +5,20 @@
       <div class="panel-header">
         <span>AI面试官</span>
       </div>
-      
+
       <!-- 切换标签 -->
       <div class="tab-switcher">
         <div class="custom-tabs">
-          <div 
-            class="tab-button" 
+          <div
+            class="tab-button"
             :class="{ active: activeTab === 'interviewer' }"
             @click="handleTabSwitch('interviewer')"
           >
             <i class="el-icon-user-solid"></i>
             <span>面试官</span>
           </div>
-          <div 
-            class="tab-button" 
+          <div
+            class="tab-button"
             :class="{ active: activeTab === 'record' }"
             @click="handleTabSwitch('record')"
           >
@@ -28,15 +28,16 @@
           <div class="slider" :class="activeTab"></div>
         </div>
       </div>
-      
+
       <!-- AI面试官列表 -->
       <div class="ai-interviewer-section" v-show="activeTab === 'interviewer'">
-        <el-scrollbar style="height:100%">
+        <el-scrollbar class="no-horizontal-scroll" style="height:100%">
           <div class="interviewer-list">
-            <div 
-              v-for="interviewer in aiList" 
+            <div
+              class="interviewer-list"
+              v-for="interviewer in aiList"
               :key="interviewer.interviewerId"
-              :class="['interviewer-item', {'active': activeInterviewer === interviewer.interviewerId}]"
+              :class="['interviewer-item', { 'active': activeInterviewer === interviewer.interviewerId }]"
               @click="handleInterviewerSelect(interviewer.interviewerId)"
             >
               <div class="interviewer-avatar">
@@ -47,7 +48,7 @@
           </div>
         </el-scrollbar>
       </div>
-      
+
       <!-- 聊天记录列表 -->
       <div class="chat-records-section" v-show="activeTab === 'record' && showChatRecords">
         <div class="section-header">
@@ -60,21 +61,21 @@
             icon="el-icon-plus"
             circle
           ></el-button> -->
-          
+
         </div>
         <el-scrollbar style="height:calc(100% - 110px)">
           <div class="chat-records-list">
-            <div 
-              v-for="record in chatRecords" 
+            <div
+              v-for="record in chatRecords"
               :key="record.chatId"
-              :class="['chat-record-item', {'active': activeChatRecord === record.chatId.toString()}]"
+              :class="['chat-record-item', { 'active': activeChatRecord === record.chatId.toString() }]"
               @click="handleChatRecordSelect(record.chatId.toString())"
             >
               <div class="record-content">
                 <i class="el-icon-chat-dot-round"></i>
                 <span class="record-title">{{ record.topic || '未命名对话' }}</span>
               </div>
-              
+
               <div class="record-actions">
                 <el-popover
                   placement="right"
@@ -112,7 +113,7 @@
       :current-interviewer="currentInterviewer"
       :chat-record-id="activeChatRecord"
     />
-    
+
     <!-- 重命名对话框 -->
     <el-dialog
       title="重命名对话"
@@ -263,13 +264,13 @@ export default {
     },
     async confirmRename() {
       if (!this.currentRecordToRename) return;
-      
+
       try {
         const res = await axios.post('/api/chat/updateChatTopic', {
           chatId: this.currentRecordToRename.chatId,
           topic: this.newTopicName
         });
-        
+
         this.$message.success('重命名成功');
         await this.loadChatRecords();
         this.renameDialogVisible = false;
@@ -517,8 +518,9 @@ export default {
   color: #606266;
   cursor: pointer;
   transition: all 0.2s ease;
-  border-radius: 8px;  /* 添加圆角 */
-  margin: 0 4px; 
+  border-radius: 8px;
+  /* 添加圆角 */
+  margin: 0 4px;
 }
 
 .action-item:hover {
@@ -548,10 +550,14 @@ export default {
 .record-popover {
   padding: 0;
   min-width: 110px;
-  border-radius: 22px !important;  /* 增加圆角半径 */
-  overflow: hidden;  /* 确保内容不会溢出圆角 */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;  /* 可选：添加更柔和的阴影 */
+  border-radius: 22px !important;
+  /* 增加圆角半径 */
+  overflow: hidden;
+  /* 确保内容不会溢出圆角 */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  /* 可选：添加更柔和的阴影 */
 }
+
 .new-chat-button-container {
   padding: 16px;
   margin-top: auto;
@@ -563,11 +569,13 @@ export default {
 .new-chat-button {
   width: auto;
   min-width: 180px;
-  height: 40px; /* 固定高度代替min-height */
+  height: 40px;
+  /* 固定高度代替min-height */
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 24px; /* 移除顶部padding，保持左右padding */
+  padding: 0 24px;
+  /* 移除顶部padding，保持左右padding */
   font-size: 14px;
   font-weight: 500;
   color: #fff;
@@ -577,7 +585,8 @@ export default {
   cursor: pointer;
   transition: all 0.3s ease;
   box-shadow: 0 4px 10px rgba(64, 158, 255, 0.3);
-  line-height: 1; /* 确保文字行高正常 */
+  line-height: 1;
+  /* 确保文字行高正常 */
 }
 
 .new-chat-button:hover {
@@ -595,4 +604,19 @@ export default {
   margin-right: 8px;
   font-size: 16px;
 }
+
+/* 隐藏水平滚动条 */
+.no-horizontal-scroll ::v-deep .el-scrollbar__wrap {
+  overflow-x: hidden !important;
+}
+
+/* 确保内容不会溢出触发水平滚动 */
+.interviewer-list {
+  white-space: nowrap;
+  /* 如果不需要横向排列则移除 */
+  width: 100%;
+  box-sizing: border-box;
+}
 </style>
+
+
