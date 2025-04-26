@@ -53,26 +53,26 @@
 </template>
 
 <script>
-import {mapState} from 'vuex';
+import { mapState } from 'vuex';
 import ArticleList from "../../components/archive/list";
 
 export default {
   name: "PortfolioDetail",
-  components: {ArticleList},
-  validate({params, store}) {
+  components: { ArticleList },
+  validate({ params, store }) {
     return params.portfolio_id && !isNaN(Number(params.portfolio_id))
   },
   async fetch() {
-    let {store, params, query, error} = this.$nuxt.context
+    let { store, params, query, error } = this.$nuxt.context
     params.page = query.page || 1
     return Promise.all([
       store
         .dispatch('portfolio/fetchDetail', params)
-        .catch(err => error({statusCode: 404})),
+        .catch(err => error({ statusCode: 404 })),
       store.dispatch('portfolio/fetchArticleList', params)
     ])
   },
-  data(){
+  data() {
     return {
       imgUrl: '',
       _fetchingImage: false
@@ -80,14 +80,13 @@ export default {
   },
   watch: {
     portfolio: {
-    handler(newVal) {
-      if (newVal.idPortfolio) {
+      handler(newVal) {
+        if (newVal.idPortfolio) {
           this.fetchImageAsBase64();
-      }
-      console.log("2" + this.imgUrl)
+        }
+      },
+      immediate: true, // 立即执行一次
     },
-    immediate: true, // 立即执行一次
-  },
     '$route'(to, from) {
       if (from.query.page && to.query.page) {
         this.$router.go()
@@ -183,20 +182,20 @@ export default {
       )
     },
     async fetchImageAsBase64() {
-    if (this._fetchingImage) return; // 防止重复调用
-    this._fetchingImage = true;
-    try {
-      const response = await this.$axios.$get(
-        `/api/portfolio/image/${this.portfolio.idPortfolio}/base64`,
-        { responseType: 'text' }
-      );
-      this.imgUrl = response;
-    } catch (error) {
-      console.error('获取Base64图片失败:', error);
-    } finally {
-      this._fetchingImage = false;
-    }
-  },
+      if (this._fetchingImage) return; // 防止重复调用
+      this._fetchingImage = true;
+      try {
+        const response = await this.$axios.$get(
+          `/api/portfolio/image/${this.portfolio.idPortfolio}/base64`,
+          { responseType: 'text' }
+        );
+        this.imgUrl = response;
+      } catch (error) {
+        console.error('获取Base64图片失败:', error);
+      } finally {
+        this._fetchingImage = false;
+      }
+    },
   },
   mounted() {
     this.$store.commit('setActiveMenu', 'portfolioDetail');
@@ -206,7 +205,5 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>
 
