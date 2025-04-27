@@ -5,11 +5,11 @@
         <el-col style="margin-bottom: 20px;">
           <el-card>
             <el-col :span="12">
-              <el-image :src="portfolio.headImgUrl"
+              <el-image :src="getImageUrl(portfolio.idPortfolio)"
                         style="width:96px;height: 96px;border-radius: 10px;background: #f5f7fa;border: #f5f7fa solid 1px;"
                         fit="cover"
-                        :preview-src-list="[portfolio.headImgUrl]">
-                <div v-if="portfolio.headImgUrl" slot="error"
+                        :preview-src-list="previewImageList">
+                <div slot="error"
                      style="display: flex;justify-content: center;align-items: center;width: 100%;height: 100%;background: #f5f7fa;color: #909399;">
                   无图片
                 </div>
@@ -54,6 +54,13 @@ export default {
       type: Object
     }
   },
+  data() {
+    return {
+      imgUrl: '',
+      imgList: [],
+      _fetchingImage: false
+    }
+  },
   methods: {
     onRouter(name, data) {
       this.$router.push(
@@ -64,7 +71,48 @@ export default {
     },
     currentChange(page) {
       this.$emit('currentChange', page);
+    },
+    async fetchImageAsBase64(id) {
+      try {
+        const response = await this.$axios.$get(
+          `/api/portfolio/image/${id}/base64`,
+          { responseType: 'text' }
+        );
+        // 如果是多个图片，应该更新数组
+        this.imgList.push({
+          id: id,
+          url: response
+        });
+        console.log(this.imgList)
+        // 如果只需要显示一个图片，则用这个
+        // this.imgUrl = response;
+      } catch (error) {
+        console.error('获取Base64图片失败:', error);
+      } finally {
+        this._fetchingImage = false;
+      }
+    },
+    // 根据 portfolio.idPortfolio 获取对应的图片URL
+    getImageUrl(portfolioId) {
+      const found = this.imgList.find(item => item.id === portfolioId);
+      return found ? found.url : '';
     }
+  },
+  mounted() {
+    console.log(this.portfolios.list);
+    // 使用 for...of 遍历数组
+    if (this.portfolios.list && Array.isArray(this.portfolios.list)) {
+      for (const portfolio of this.portfolios.list) {
+        this.fetchImageAsBase64(portfolio.idPortfolio);
+      }
+    }
+    console.log(this.imgList.length); // 查看图片数量
+  },
+  computed: {
+    // 提取imgList中的所有URL用于预览
+    previewImageList() {
+      return this.imgList.map(item => item.url);
+    },
   }
 }
 </script>
@@ -150,15 +198,18 @@ body {
   border-top-right-radius: calc(3px - 1px);
 }
 
-.mb-3, .my-3 {
+.mb-3,
+.my-3 {
   margin-bottom: 0.75rem !important;
 }
 
-h3, .h3 {
+h3,
+.h3 {
   font-size: 1.5rem;
 }
 
-.mb-4, .my-4 {
+.mb-4,
+.my-4 {
   margin-bottom: 1rem !important;
 }
 
@@ -195,3 +246,9 @@ h3, .h3 {
   white-space: nowrap;
 }
 </style>
+
+
+
+
+
+

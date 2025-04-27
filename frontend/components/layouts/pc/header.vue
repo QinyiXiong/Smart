@@ -119,7 +119,7 @@
                 <el-dropdown-item command="answer" v-else :disabled="true">每日一题<small>(开通钱包账号激活)</small></el-dropdown-item> -->
                 <el-dropdown-item command="drafts" divided>我的草稿</el-dropdown-item>
                 <!-- <el-dropdown-item command="wallet">我的钱包</el-dropdown-item> -->
-                <el-dropdown-item command="yuumi">Yuumi(ChatGPT)</el-dropdown-item>
+                <!-- <el-dropdown-item command="yuumi">Yuumi(ChatGPT)</el-dropdown-item> -->
                 <el-dropdown-item command="user-info" divided>设置</el-dropdown-item>
                 <el-dropdown-item command="admin-dashboard" v-if="hasPermissions">系统管理</el-dropdown-item>
                 <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
@@ -165,7 +165,7 @@
 </template>
 
 <script>
-import {mapState} from 'vuex';
+import { mapState } from 'vuex';
 // import sockClient from '~/plugins/sockjs';
 
 export default {
@@ -227,7 +227,7 @@ export default {
           _ts.$router.push({
             path: '/chats/interviewContainer'
           })
-          break;  
+          break;
         case 'milvus-database':
           _ts.$router.push({
             path: '/milvusDatabase/database'
@@ -414,5 +414,4 @@ export default {
   cursor: pointer;
   margin: 0 5px;
 }
-
 </style>

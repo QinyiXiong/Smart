@@ -85,7 +85,6 @@ public class PortfolioController {
         } catch (IOException e) {
             throw new RuntimeException("加载图片失败: " + path, e);
         }
-
     }
 
 

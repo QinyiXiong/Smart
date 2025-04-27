@@ -1,69 +1,45 @@
 <template>
-    <div class="knowledge-container">
-  
-      
-  
-      <!-- 主体内容 -->
-      <div class="main-content">
-        <!-- 左侧知识库列表 -->
-        <div class="left-panel">
-          <div class="panel-header">
-            <span>我的知识库</span>
-            <el-button 
-              type="primary" 
-              icon="el-icon-plus" 
-              size="mini"
-              style="border-radius: 30px;"
-
-              @click="showAddDialog"
-            ></el-button>
-          </div>
-          <div class="library-list">
-            <el-scrollbar style="height:100%">
-              <el-menu
-                :default-active="activeLibrary"
-                @select="handleSelect"
-              >
-                <el-menu-item 
-                  v-for="item in libraries" 
-                  :key="item.knowledgeBaseId" 
-                  :index="item.knowledgeBaseId"
-                >
-                  <span>{{ item.databaseName }}</span>
-                  <el-button 
-                    type="text" 
-                    icon="el-icon-delete" 
-                    class="delete-btn"
-                    @click.stop="deleteLibrary(item.knowledgeBaseId)"
-                  ></el-button>
-                </el-menu-item>
-              </el-menu>
-            </el-scrollbar>
-          </div>
+  <div class="knowledge-container">
+    <!-- 主体内容 -->
+    <div class="main-content">
+      <!-- 左侧知识库列表 -->
+      <div class="left-panel no-horizontal-scroll">
+        <div class="panel-header">
+          <span>我的知识库</span>
+          <el-button type="primary" icon="el-icon-plus" size="mini" style="border-radius: 30px;"
+            @click="showAddDialog"></el-button>
         </div>
-  
-        <!-- 分割线 -->
-        <div class="divider"></div>
-  
-        <!-- 右侧知识库详情 -->
-        <div class="right-panel">
-          <div v-if="activeLibrary" class="detail-container">
-            <div class="detail-header">
-              <h2>{{ currentLibrary.databaseName || '未命名知识库' }}</h2>
-              <el-button 
-                type="primary" 
-                icon="el-icon-upload" 
-                @click="showUploadDialog"
-              >
-                上传文件
-              </el-button>
-            </div>
-            
-            <div class="file-list">
-              <el-scrollbar style="height:100%">
+        <div class="library-list">
+          <el-scrollbar style="height:100%">
+            <el-menu :default-active="activeLibrary" @select="handleSelect">
+              <el-menu-item v-for="item in libraries" :key="item.knowledgeBaseId" :index="item.knowledgeBaseId">
+                <span>{{ item.databaseName }}</span>
+                <el-button type="text" icon="el-icon-delete" class="delete-btn"
+                  @click.stop="deleteLibrary(item.knowledgeBaseId)"></el-button>
+              </el-menu-item>
+            </el-menu>
+          </el-scrollbar>
+        </div>
+      </div>
+
+      <!-- 分割线 -->
+      <div class="divider"></div>
+
+      <!-- 右侧知识库详情 -->
+      <div class="right-panel">
+        <div v-if="activeLibrary" class="detail-container">
+          <div class="detail-header">
+            <h2>{{ currentLibrary.databaseName || '未命名知识库' }}</h2>
+            <el-button type="primary" icon="el-icon-upload" @click="showUploadDialog">
+              上传文件
+            </el-button>
+          </div>
+
+          <div class="file-list">
+            <el-scrollbar style="height:100%" class="vertical-only-scrollbar">
               <el-table :data="files" style="width: 100%">
                 <el-table-column prop="name" label="文件名" width="380">
-                  <template #default="{row}">
+                  <template #default="{ row }">
                     <div class="file-name">
                       <i :class="getFileIcon(row.type)"></i>
                       <span>{{ row.name }}</span>
@@ -71,148 +47,80 @@
                   </template>
                 </el-table-column>
                 <el-table-column prop="size" label="大小" width="220">
-                  <template #default="{row}">
+                  <template #default="{ row }">
                     {{ formatFileSize(row.size) }}
                   </template>
                 </el-table-column>
                 <el-table-column prop="updateTime" label="更新时间" width="280"></el-table-column>
                 <el-table-column label="操作" width="120">
-                  <template #default="{row}">
-                    <!-- <el-button 
-                      type="text" 
-                      icon="el-icon-download"
-                      @click="downloadFile(row.id)"
-                    ></el-button> -->
-                    <el-button 
-                      type="text" 
-                      icon="el-icon-delete"
-                      @click="deleteFile(row.id)"
-                    ></el-button>
+                  <template #default="{ row }">
+                    <el-button type="text" icon="el-icon-delete" @click="deleteFile(row.id)"></el-button>
                   </template>
                 </el-table-column>
               </el-table>
-              </el-scrollbar>
-            </div>
-          </div>
-          
-          <div v-else class="empty-state">
-            <el-empty description="请从左侧选择一个知识库或创建新的知识库"></el-empty>
+            </el-scrollbar>
           </div>
         </div>
+
+        <div v-else class="empty-state">
+          <el-empty description="请从左侧选择一个知识库或创建新的知识库"></el-empty>
+        </div>
       </div>
-  
-      <!-- 添加知识库对话框 -->
-      <el-dialog title="新建知识库" :visible.sync="addDialogVisible" width="30%">
-        <el-form :model="newLibrary" label-width="80px">
-          <el-form-item label="名称" required>
-            <el-input v-model="newLibrary.name" placeholder="请输入知识库名称"></el-input>
-          </el-form-item>
-          <el-form-item label="描述">
-            <el-input 
-              type="textarea" 
-              v-model="newLibrary.description" 
-              placeholder="请输入知识库描述"
-            ></el-input>
-          </el-form-item>
-        </el-form>
-        <span slot="footer" class="dialog-footer">
-          <el-button @click="addDialogVisible = false">取 消</el-button>
-          <el-button type="primary" @click="addLibrary">确 定</el-button>
-        </span>
-      </el-dialog>
-  
-      <!-- 上传文件对话框 -->
-      <el-dialog 
-  title="上传文件" 
-  :visible.sync="uploadDialogVisible" 
-  width="600px"
-  :close-on-click-modal="false"
-  custom-class="upload-dialog"
-  
->
-  <div class="upload-content">
-    <el-upload
-      class="upload-area"
-      drag
-      action="#"
-      multiple
-      :auto-upload="false"
-      :on-change="handleFileChange"
-      :show-file-list="false"
-      :accept="'.pdf,.docx,.txt,.pptx,.xlsx'"
-    >
-      <div class="upload-inner">
+    </div>
+
+    <!-- 添加知识库对话框 -->
+    <el-dialog title="新建知识库" :visible.sync="addDialogVisible" width="30%">
+      <el-form :model="newLibrary" label-width="80px">
+        <el-form-item label="名称" required>
+          <el-input v-model="newLibrary.name" placeholder="请输入知识库名称"></el-input>
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input type="textarea" v-model="newLibrary.description" placeholder="请输入知识库描述"></el-input>
+        </el-form-item>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="addDialogVisible = false">取 消</el-button>
+        <el-button type="primary" @click="addLibrary">确 定</el-button>
+      </span>
+    </el-dialog>
+
+    <!-- 上传文件对话框 - 已修改为与a.txt中一致 -->
+    <el-dialog title="上传文件" :visible.sync="uploadDialogVisible" width="600px" @close="clearUploadFiles"
+      class="upload-dialog">
+      <el-upload class="upload-area" drag action="#" ref="fileUpload" multiple :auto-upload="false"
+        :on-change="handleFileChange" :show-file-list="false">
         <i class="el-icon-upload"></i>
-        <div class="upload-text">
-          <p class="main-text">将文件拖到此处</p>
-          <p class="sub-text">或<em>点击选择文件</em></p>
+        <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
+        <div class="el-upload__tip" slot="tip">
+          支持上传pdf/docx/txt等格式文件，单个文件不超过50MB
         </div>
+      </el-upload>
+
+      <div class="selected-files" v-if="selectedFiles.length > 0">
+        <h4>已选择文件：</h4>
+        <ul>
+          <li v-for="(file, index) in selectedFiles" :key="index">
+            {{ file.name }} ({{ formatFileSize(file.size) }})
+            <el-button type="text" icon="el-icon-close" @click="removeSelectedFile(index)"
+              class="file-remove-btn"></el-button>
+          </li>
+        </ul>
       </div>
-    </el-upload>
-    
-    <div class="upload-tip">
-      <i class="el-icon-info"></i>
-      支持上传 PDF、DOCX、PPTX、XLSX、TXT 等格式文件，单个文件不超过50MB
-    </div>
-    
-    <div class="selected-files" v-if="selectedFiles.length > 0">
-      <div class="files-header">
-        <span class="files-count">已选择 {{ selectedFiles.length }} 个文件</span>
-        <el-button 
-          type="text" 
-          size="mini" 
-          @click="selectedFiles = []"
-          class="clear-all"
-        >
-          清空全部
-        </el-button>
-      </div>
-      
-      <el-scrollbar class="files-list" style="max-height: 200px">
-        <div 
-          class="file-item" 
-          v-for="(file, index) in selectedFiles" 
-          :key="index"
-        >
-          <div class="file-info">
-            <i :class="getFileIcon(file.name.split('.').pop())" class="file-icon"></i>
-            <span class="file-name">{{ file.name }}</span>
-            <span class="file-size">{{ formatFileSize(file.size) }}</span>
-          </div>
-          <el-button 
-            type="text" 
-            icon="el-icon-close" 
-            class="file-remove"
-            @click.stop="removeSelectedFile(index)"
-          ></el-button>
-        </div>
-      </el-scrollbar>
-    </div>
+
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="uploadDialogVisible = false">取 消</el-button>
+        <el-button type="primary" @click="uploadFiles">确 定</el-button>
+      </span>
+    </el-dialog>
   </div>
-  
-  <div slot="footer" class="dialog-footer">
-    <el-button @click="uploadDialogVisible = false" size="medium">取 消</el-button>
-    <el-button 
-      type="primary" 
-      @click="uploadFiles" 
-      size="medium"
-      :disabled="selectedFiles.length === 0"
-      :loading="uploading"
-    >
-      {{ uploading ? '上传中...' : '开始上传' }}
-    </el-button>
-  </div>
-</el-dialog>
-    </div>
-  </template>
-  
-  <script>
+</template>
+
+<script>
 import axios from 'axios'
 
 export default {
   data() {
     return {
-      
       activeLibrary: null,
       libraries: [],
       files: [],
@@ -240,12 +148,6 @@ export default {
         const res = await this.$axios.get('/api/MilvusDatabase')
         if (res.code === 0) {
           this.libraries = res.data
-        //   console.log(this.libraries)
-        //   if (this.libraries.length > 0 && !this.activeLibrary) {
-        //     this.activeLibrary = this.libraries[0].knowledgeBaseId
-        //     console.log(this.activeLibrary)
-        //     this.fetchFiles()
-        //   }
         } else {
           this.$message.error('获取知识库列表失败: ' + (res.message || '未知错误'))
         }
@@ -254,11 +156,11 @@ export default {
         this.$message.error('获取知识库列表异常: ' + error.message)
       }
     },
-    
+
     // 获取指定知识库的文件列表
     async fetchFiles() {
       if (!this.activeLibrary) return
-      
+
       try {
         const res = await this.$axios.get(`/api/MilvusDatabase/${this.activeLibrary}/files`)
         if (res.code === 0) {
@@ -278,30 +180,29 @@ export default {
         this.$message.error('获取文件列表异常: ' + error.message)
       }
     },
-    
+
     handleSelect(index) {
       this.activeLibrary = index
-    //   console.log(index)
       this.fetchFiles()
     },
-    
+
     showAddDialog() {
       this.addDialogVisible = true
     },
-    
+
     // 创建知识库
     async addLibrary() {
       if (!this.newLibrary.name) {
         this.$message.error('请输入知识库名称')
         return
       }
-      
+
       try {
         const res = await this.$axios.post('/api/MilvusDatabase', {
           databaseName: this.newLibrary.name,
           description: this.newLibrary.description
         })
-        
+
         if (res.code === 0) {
           this.$message.success('知识库创建成功')
           this.addDialogVisible = false
@@ -315,7 +216,7 @@ export default {
         this.$message.error('创建知识库异常: ' + error.message)
       }
     },
-    
+
     // 删除知识库
     async deleteLibrary(id) {
       this.$confirm('确定要删除该知识库吗?', '提示', {
@@ -339,80 +240,69 @@ export default {
           console.error('删除知识库异常:', error)
           this.$message.error('删除知识库异常: ' + error.message)
         }
-      }).catch(() => {})
+      }).catch(() => { })
     },
-    
+
+    // 显示上传对话框
     showUploadDialog() {
       this.selectedFiles = []
       this.uploadDialogVisible = true
     },
-    
+
+    // 清空上传文件列表
+    clearUploadFiles() {
+      if (this.$refs.fileUpload) {
+        this.$refs.fileUpload.clearFiles();
+      }
+    },
+
+    // 文件选择变化处理
     handleFileChange(file, fileList) {
-      this.selectedFiles = fileList
+      this.selectedFiles = fileList;
     },
-    
+
+    // 移除选择的文件
     removeSelectedFile(index) {
-      this.selectedFiles.splice(index, 1)
+      this.selectedFiles.splice(index, 1);
     },
-    
+
     // 上传文件
     async uploadFiles() {
-  if (this.selectedFiles.length === 0) {
-    this.$message.warning('请选择要上传的文件')
-    return
-  }
-  
-  const formData = new FormData()
-  this.selectedFiles.forEach(file => {
-    formData.append('files', file.raw)  // 注意这里参数名要与后端@RequestParam("files")一致
-  })
-  
-  try {
-    const res = await this.$axios.post(
-      `/api/MilvusDatabase/${this.activeLibrary}/files`,  // 路径变量knowledgeBaseId对应activeLibrary
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
+      if (this.selectedFiles.length === 0) {
+        this.$message.warning('请选择要上传的文件')
+        return
       }
-    )
-    
-    // 根据后端GlobalResult结构调整判断逻辑
-    if (res.success) {  // 假设GlobalResult中有success字段表示成功
-      this.$message.success(res.message || '文件上传成功')
-      this.uploadDialogVisible = false
-      this.fetchFiles()
-    } else {
-      this.$message.error(res.message || '文件上传失败')
-    }
-  } catch (error) {
-    console.error('文件上传异常:', error)
-    // 适配后端返回的错误信息结构
-    const errorMsg = error.response?.data?.message || error.message
-    this.$message.error('文件上传异常: ' + errorMsg)
-  }
-},
-    
-    // 下载文件
-    // downloadFile(id) {
-    //   const file = this.files.find(item => item.id === id)
-    //   if (!file || !file.url) {
-    //     this.$message.warning('文件下载链接无效')
-    //     return
-    //   }
-      
-    //   // 创建隐藏的下载链接
-    //   const link = document.createElement('a')
-    //   link.href = file.url
-    //   link.download = file.name
-    //   document.body.appendChild(link)
-    //   link.click()
-    //   document.body.removeChild(link)
-      
-    //   this.$message.success(`开始下载: ${file.name}`)
-    // },
-    
+
+      const formData = new FormData()
+      this.selectedFiles.forEach(file => {
+        formData.append('files', file.raw)  // 注意这里参数名要与后端@RequestParam("files")一致
+      })
+
+      try {
+        const res = await this.$axios.post(
+          `/api/MilvusDatabase/${this.activeLibrary}/files`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          }
+        )
+
+        if (res.code === 0) {  // 修改为与其他API调用一致的判断方式
+          this.$message.success('文件上传成功')
+          this.uploadDialogVisible = false
+          this.fetchFiles()
+        } else {
+          this.$message.error(res.message || '文件上传失败')
+        }
+      } catch (error) {
+        console.error('文件上传异常:', error)
+        const errorMsg = error.response?.data?.message || error.message
+        this.$message.error('文件上传异常: ' + errorMsg)
+      }
+    },
+
     // 删除文件
     async deleteFile(id) {
       this.$confirm('确定要删除该文件吗?', '提示', {
@@ -424,7 +314,7 @@ export default {
           const res = await this.$axios.delete(
             `/api/MilvusDatabase/${this.activeLibrary}/files/${id}`
           )
-          
+
           if (res.code === 0) {
             this.$message.success('文件删除成功')
             this.fetchFiles()
@@ -435,9 +325,9 @@ export default {
           console.error('删除文件异常:', error)
           this.$message.error('删除文件异常: ' + error.message)
         }
-      }).catch(() => {})
+      }).catch(() => { })
     },
-    
+
     getFileIcon(type) {
       const iconMap = {
         pdf: 'el-icon-document',
@@ -453,7 +343,7 @@ export default {
       }
       return iconMap[type.toLowerCase()] || iconMap.default
     },
-    
+
     formatFileSize(size) {
       if (size < 1024) {
         return size + 'B'
@@ -467,7 +357,6 @@ export default {
 }
 </script>
 
-  
 <style scoped>
 .knowledge-container {
   height: 100%;
@@ -586,13 +475,12 @@ export default {
 .file-list {
   background: #f5f7fa;
   width: 1000px;
-  height: 600px;  /* 确保这个高度适合你的布局 */
+  height: 600px;
   border-radius: 8px;
   padding: 20px;
-  overflow: hidden;  /* 添加这行来确保滚动条在容器内 */
+  overflow: hidden;
 }
 
-/* 可以添加以下样式来优化 el-scrollbar 的显示效果 */
 .file-list .el-scrollbar__wrap {
   overflow-x: hidden;
 }
@@ -614,41 +502,6 @@ export default {
   align-items: center;
   justify-content: center;
   flex-direction: column;
-}
-
-.upload-area {
-  margin-bottom: 20px;
-}
-
-.selected-files {
-  margin-top: 20px;
-  padding: 15px;
-  background: #f5f7fa;
-  border-radius: 8px;
-}
-
-.selected-files h4 {
-  margin: 0 0 10px 0;
-  color: #606266;
-  font-size: 14px;
-}
-
-.selected-files ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.selected-files li {
-  padding: 8px 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #e6e6e6;
-}
-
-.selected-files li:last-child {
-  border-bottom: none;
 }
 
 .el-button--primary {
@@ -696,7 +549,18 @@ export default {
   background-color: #f5f7fa;
 }
 
-/* 上传对话框样式 */
+/* 隐藏水平滚动条 */
+.no-horizontal-scroll ::v-deep .el-scrollbar__wrap {
+  overflow-x: hidden !important;
+}
+
+/* 使用深度选择器隐藏水平滚动条 */
+:deep(.vertical-only-scrollbar .el-scrollbar__wrap) {
+  overflow-x: hidden !important;
+  padding-bottom: 0 !important;
+}
+
+/* 上传对话框样式 - 已修改为与a.txt中一致 */
 .upload-dialog {
   border-radius: 8px;
 }
@@ -710,143 +574,72 @@ export default {
   padding: 20px;
 }
 
-.upload-content {
-  text-align: center;
-}
-
+/* 上传区域样式 */
 .upload-area {
-height: 20px;
+  border: 1px dashed #dcdfe6;
+  border-radius: 6px;
+  padding: 20px;
+  text-align: center;
+  background-color: #f5f7fa;
+  margin-bottom: 20px;
 }
 
-.upload-inner {
-  padding: 8px ;
+.upload-area:hover {
+  border-color: #c0c4cc;
 }
 
-.upload-inner .el-icon-upload {
-  font-size: 48px;
-  color: #c0c4cc;
-  margin-bottom: 16px;
-}
-
-.upload-text {
-  line-height: 1.5;
-}
-
-.upload-text .main-text {
-  font-size: 16px;
-  color: #606266;
-  margin: 0 0 8px 0;
-}
-
-.upload-text .sub-text {
+.el-upload__text {
   font-size: 14px;
-  color: #909399;
-  margin: 0;
+  color: #606266;
+  margin: 10px 0;
 }
 
-.upload-text em {
-  font-style: normal;
+.el-upload__text em {
   color: #409eff;
-  cursor: pointer;
+  font-style: normal;
 }
 
-.upload-tip {
-  margin-top: 16px;
+.el-upload__tip {
   font-size: 12px;
   color: #909399;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin-top: 10px;
 }
 
-.upload-tip .el-icon-info {
-  margin-right: 6px;
-}
-
-/* 已选文件列表样式 */
+/* 已选择文件列表样式 */
 .selected-files {
-  margin-top: 24px;
-  border: 1px solid #ebeef5;
-  border-radius: 4px;
+  margin-top: 20px;
 }
 
-.files-header {
+.selected-files h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: #606266;
+}
+
+.selected-files ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.selected-files li {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 10px 15px;
-  background-color: #f5f7fa;
+  justify-content: space-between;
+  padding: 8px 0;
   border-bottom: 1px solid #ebeef5;
 }
 
-.files-count {
-  font-size: 14px;
-  color: #606266;
-}
-
-.clear-all {
+.file-remove-btn {
   padding: 0;
-  font-size: 12px;
-}
-
-.files-list {
-  padding: 0 15px;
-}
-
-.file-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid #f5f7fa;
-}
-
-.file-item:last-child {
-  border-bottom: none;
-}
-
-.file-info {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  min-width: 0;
-}
-
-.file-icon {
-  margin-right: 10px;
-  font-size: 20px;
-  color: #606266;
-}
-
-.file-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 14px;
-  color: #606266;
-}
-
-.file-size {
-  margin-left: 10px;
-  font-size: 12px;
-  color: #909399;
-  min-width: 60px;
-  text-align: right;
-}
-
-.file-remove {
-  padding: 0;
-  margin-left: 10px;
   color: #f56c6c;
 }
 
-/* 对话框底部按钮 */
+/* 对话框底部按钮样式 */
 .dialog-footer {
-  text-align: right;
-}
-
-.dialog-footer .el-button {
-  min-width: 100px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>
