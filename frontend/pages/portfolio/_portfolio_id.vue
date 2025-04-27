@@ -3,7 +3,7 @@
     <el-col style="padding: 20px;">
       <el-card :body-style="{ padding: '20px', borderRadius: '16px' }">
         <el-col style="padding-bottom: 20px;">
-          <el-col :span="8" v-if="imgUrl != null">
+          <el-col :span="8" v-if="imgUrl">
             <el-image
               style="width: 200px;height: 200px;border-radius: 16px;background: #f5f7fa;border: #f5f7fa solid 1px;"
               :src="imgUrl" :preview-src-list="[imgUrl]" lazy></el-image>
@@ -19,9 +19,7 @@
           </el-col>
           <el-col :span="12">
             <el-col style="font-size: 24px;line-height: 34px;font-weight: 500;margin-bottom: 12px;">
-              <!-- <span>{{ portfolio.portfolioTitle }}</span>
-              <span>{{ portfolio.idPortfolio }}</span> -->
-              <!-- <span>{{ imgUrl }}</span> -->
+              <span>{{ portfolio.portfolioTitle }}</span>
             </el-col>
             <el-col style="font-size: 14px;">
               <span style="padding-right: 1rem;">作者</span>
@@ -74,20 +72,10 @@ export default {
   },
   data(){
     return {
-      imgUrl: '',
-      _fetchingImage: false
+      imgUrl: ''
     }
   },
   watch: {
-    portfolio: {
-    handler(newVal) {
-      if (newVal.idPortfolio) {
-          this.fetchImageAsBase64();
-      }
-      console.log("2" + this.imgUrl)
-    },
-    immediate: true, // 立即执行一次
-  },
     '$route'(to, from) {
       if (from.query.page && to.query.page) {
         this.$router.go()
@@ -183,20 +171,23 @@ export default {
       )
     },
     async fetchImageAsBase64() {
-    if (this._fetchingImage) return; // 防止重复调用
-    this._fetchingImage = true;
-    try {
-      const response = await this.$axios.$get(
-        `/api/portfolio/image/${this.portfolio.idPortfolio}/base64`,
-        { responseType: 'text' }
-      );
-      this.imgUrl = response;
-    } catch (error) {
-      console.error('获取Base64图片失败:', error);
-    } finally {
-      this._fetchingImage = false;
+      try {
+        // if (!this.portfolio?.headImgUrl) return;
+        // if (this.portfolio.headImgUrl.startsWith('data:image')) {
+        //   return this.portfolio.headImgUrl;
+        // }
+        
+        const response = await this.$axios.$get(
+          `/api/portfolio/image/${this.portfolio.idPortfolio}/base64`,
+          { responseType: 'text' }
+        );
+        this.imgUrl = response;
+        console.log(this.imgUrl)
+      } catch (error) {
+        console.error('获取Base64图片失败:', error);
+        return null; // 或返回占位图URL
+      }
     }
-  },
   },
   mounted() {
     this.$store.commit('setActiveMenu', 'portfolioDetail');
@@ -209,4 +200,3 @@ export default {
 <style scoped>
 
 </style>
-

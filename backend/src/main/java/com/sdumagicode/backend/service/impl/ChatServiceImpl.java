@@ -168,7 +168,7 @@ public class ChatServiceImpl  implements ChatService {
         Long idUser = UserUtils.getCurrentUserByToken().getIdUser();
         milvusClient.buildRAGContent(idUser,interviewer.getKnowledgeBaseId(),messageLocal.getContent().getText(),5);
 
-
+//        System.out.println(InterviewerPromptGenerator.generatePrompt(interviewer));
         return sendMessageAndGetFlux(messageList,InterviewerPromptGenerator.generatePrompt(interviewer), ChatUtil.AppType.INTERVIEWER);
     }
 
@@ -190,6 +190,7 @@ public class ChatServiceImpl  implements ChatService {
             );
             // 2. 生成Prompt
             String prompt = InterviewerPromptGenerator.generatePrompt(interviewer);
+            System.out.println(prompt);
 
             // 3. 调用AI接口
             Flowable<ApplicationResult> aiStream = chatUtil.streamCall(
@@ -225,7 +226,7 @@ public class ChatServiceImpl  implements ChatService {
 
 
             // 1. 生成Prompt
-            String prompt = InterviewerPromptGenerator.generateCoderPrompt();
+            String prompt = InterviewerPromptGenerator.generateCoderPrompt(codeSubmission);
 
             // 2.生成发送内容并组装成messageList
             String text = InterviewerPromptGenerator.generateCodeMessageContent(codeSubmission);

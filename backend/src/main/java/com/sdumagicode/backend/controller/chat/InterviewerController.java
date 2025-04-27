@@ -23,6 +23,7 @@ public class InterviewerController {
 
     /**
      * 新增或更新面试官信息
+     * 
      * @param interviewer 面试官实体
      * @return 操作结果
      */
@@ -32,12 +33,12 @@ public class InterviewerController {
             throw new ServiceException("参数不能为空");
         }
         interviewerService.saveOrUpdateInterviewer(interviewer);
-        return GlobalResultGenerator.genSuccessResult(
-                );
+        return GlobalResultGenerator.genSuccessResult();
     }
 
     /**
      * 删除面试官
+     * 
      * @param interviewerId 面试官ID
      * @return 操作结果
      */
@@ -52,6 +53,7 @@ public class InterviewerController {
 
     /**
      * 获取所有面试官列表
+     * 
      * @return 面试官列表
      */
     @GetMapping("/list")
@@ -61,7 +63,7 @@ public class InterviewerController {
     }
 
     @GetMapping("/getAiSettings")
-    public GlobalResult<List<AiSettings>> getAiSettings(){
+    public GlobalResult<List<AiSettings>> getAiSettings() {
         return GlobalResultGenerator.genSuccessResult(interviewerService.getAllAiSettings());
     }
 }

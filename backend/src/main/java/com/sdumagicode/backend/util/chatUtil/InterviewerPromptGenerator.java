@@ -1,10 +1,16 @@
 package com.sdumagicode.backend.util.chatUtil;
 
 import com.sdumagicode.backend.entity.chat.Interviewer;
+import com.sdumagicode.backend.entity.chat.ValuationStandard;
 import com.sdumagicode.backend.entity.CodeSubmission;
+import com.sdumagicode.backend.util.ValuationStandardHolder;
+import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
+import java.util.List;
+
+@Component
 public class InterviewerPromptGenerator {
-
     private static final String PROMPT_TEMPLATE = "提示词来源包括：1、当前基础版本。（本篇文章给出）2、用户使用时说的提示词。（使用时给出）3、用户在使用前可能在基础版本上新增的提示词。（后续给出）4、语音输入模块的提示词。（后续给出）5、用户上传的文件等（后续给出）。本篇内容只是提供了提示词的基础版本，后续开发中会给出新的提示词，尤其是3、4、5部分。\n" +
             "\n" +
             "流程设定：候选者问好，面试官开始面试-问题阶段-结束阶段（含反问阶段）-完成面试\n" +
@@ -111,18 +117,38 @@ public class InterviewerPromptGenerator {
             "\n" +
             "后续：（这里后面可能为空，如果为空则代表没有输入代码或其他异常，不用考虑；如果有则代表已经输入了代码，编译器给出了初步的评价，要综合上述信息和以下代码和评价对代码进行评价）";
 
-    public static String generatePrompt(Interviewer interviewer){
-
-        return PROMPT_TEMPLATE
-                +"\n用户提示词部分："+interviewer.getCustomPrompt()
-                +"\n面试官设定部分："+interviewer.getSettingsList();
-
-
+    @PostConstruct
+    public void init() {
     }
 
-    public static String generateCoderPrompt(){
+    public static String generateValuationStandardsPrompt() {
+        String valuationPrompt = "\n面试评估标准：\n";
+        List<ValuationStandard> standards = ValuationStandardHolder.getStandards();
+        if (standards != null) {
+            for (ValuationStandard standard : standards) {
+                valuationPrompt += (standard.getValuationName()) + ':'
+                        + (standard.getValuationDescription()) + "\n";
+            }
+        }
+        return valuationPrompt;
+    }
 
-        return PROMPT_TEMPLATE_OJ;
+    public static String generatePrompt(Interviewer interviewer){
+        return PROMPT_TEMPLATE
+                + generateValuationStandardsPrompt()
+                + "\n用户提示词部分：" + interviewer.getCustomPrompt()
+                + "\n面试官设定部分：" + interviewer.getSettingsList();
+    }
+
+
+    public static String generateCoderPrompt(CodeSubmission codesubmissioner) {
+        return PROMPT_TEMPLATE_OJ
+                + "\n代码：\n" + codesubmissioner.getCode()
+                + "\n代码评价：\n编程语言：" + codesubmissioner.getLanguage()
+                + "\n运行时间：" + codesubmissioner.getExecutionTime() + "\n"
+                + "\n内存占用：" + codesubmissioner.getMemoryUsage() + "\n"
+                + "\n错误信息：" + codesubmissioner.getErrorMessage() + "\n"
+                + "\n测试点通过数：" + codesubmissioner.getPassedTestCases();
 
     }
 
@@ -133,9 +159,9 @@ public class InterviewerPromptGenerator {
                 +"\n内存占用："+codesubmissioner.getMemoryUsage()+"\n"
                 +"\n错误信息："+codesubmissioner.getErrorMessage()+"\n"
                 +"\n测试点通过数："+codesubmissioner.getPassedTestCases();
+
     }
 }
-
 //                            _ooOoo_
 //                           o8888888o
 //                           88" . "88
@@ -154,15 +180,17 @@ public class InterviewerPromptGenerator {
 //                 \ \ `-. \_ __\ /__ _/ .-` / /
 //         ======`-.____`-.___\_____/___.-`____.-'======
 //                            `=---='
-//
-//         .............................................
-//                  佛祖镇楼                  BUG辟易
-//          佛曰:
-//                  写字楼里写字间，写字间里程序员；
-//                  程序人员写程序，又拿程序换酒钱。
-//                  酒醒只在网上坐，酒醉还来网下眠；
-//                  酒醉酒醒日复日，网上网下年复年。
-//                  但愿老死电脑间，不愿鞠躬老板前；
-//                  奔驰宝马贵者趣，公交自行程序员。
-//                  别人笑我忒疯癫，我笑自己命太贱；
-//                  不见满街漂亮妹，哪个归得程序员？
+
+// .............................................
+// 佛祖镇楼 BUG辟易
+// 佛曰:
+// 写字楼里写字间，写字间里程序员；
+// 程序人员写程序，又拿程序换酒钱。
+// 酒醒只在网上坐，酒醉还来网下眠；
+// 酒醉酒醒日复日，网上网下年复年。
+// 但愿老死电脑间，不愿鞠躬老板前；
+// 奔驰宝马贵者趣，公交自行程序员。
+// 别人笑我忒疯癫，我笑自己命太贱；
+// 不见满街漂亮妹，哪个归得程序员？
+
+

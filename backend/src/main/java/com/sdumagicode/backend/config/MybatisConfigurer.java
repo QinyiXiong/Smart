@@ -13,7 +13,6 @@ import tk.mybatis.spring.mapper.MapperScannerConfigurer;
 import javax.sql.DataSource;
 import java.util.Properties;
 
-
 /**
  * Mybatis & Mapper & PageHelper 配置
  *
@@ -28,7 +27,7 @@ public class MybatisConfigurer {
         factory.setDataSource(dataSource);
         factory.setTypeAliasesPackage(ProjectConstant.MODEL_PACKAGE);
 
-        //配置分页插件，详情请查阅官方文档
+        // 配置分页插件，详情请查阅官方文档
         PageInterceptor pageHelper = new PageInterceptor();
         Properties properties = new Properties();
         properties.setProperty("helperDialect", "mysql");
@@ -38,13 +37,13 @@ public class MybatisConfigurer {
         properties.setProperty("rowBoundsWithCount", "true");
         pageHelper.setProperties(properties);
 
-        //添加插件
+        // 添加插件
         factory.setPlugins(pageHelper);
 
-        //添加自定义 TypeHandler
+        // 添加自定义 TypeHandler
         factory.setTypeHandlers(new JsonListTypeHandler());
 
-        //添加XML目录
+        // 添加XML目录
         ResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
         factory.setMapperLocations(resolver.getResources("classpath:mapper/**/*.xml"));
         return factory.getObject();
@@ -56,16 +55,14 @@ public class MybatisConfigurer {
         mapperScannerConfigurer.setSqlSessionFactoryBeanName("sqlSessionFactoryBean");
         mapperScannerConfigurer.setBasePackage(ProjectConstant.MAPPER_PACKAGE);
 
-        //配置通用Mapper，详情请查阅官方文档
+        // 配置通用Mapper，详情请查阅官方文档
         Properties properties = new Properties();
         properties.setProperty("mappers", ProjectConstant.MAPPER_INTERFACE_REFERENCE);
         properties.setProperty("notEmpty", "false");
         properties.setProperty("IDENTITY", "JDBC");
         mapperScannerConfigurer.setProperties(properties);
 
-
         return mapperScannerConfigurer;
     }
 
 }
-

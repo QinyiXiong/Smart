@@ -117,7 +117,6 @@ export const actions = {
     //   })
     // }
     commit('updateDetailFetching', true)
-
     // commit('updateDetailData', {})
     return this.$axios
       .$get(`${BASE_API_PATH}/portfolio/${params.portfolio_id}`)

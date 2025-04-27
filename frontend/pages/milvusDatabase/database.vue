@@ -708,18 +708,14 @@ export default {
 
 .upload-dialog .el-dialog__body {
   padding: 20px;
-  min-height: 300px;
 }
 
 .upload-content {
   text-align: center;
-  height: 100%;
 }
 
 .upload-area {
 height: 20px;
-min-height: 200px;
-
 }
 
 .upload-inner {
