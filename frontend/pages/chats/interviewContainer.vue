@@ -63,7 +63,7 @@
           ></el-button> -->
 
         </div>
-        <el-scrollbar style="height:calc(100% - 110px)">
+        <el-scrollbar style="height:calc(100% - 110px)" class="no-horizontal-scroll-1">
           <div class="chat-records-list">
             <div
               v-for="record in chatRecords"
@@ -607,6 +607,10 @@ export default {
 
 /* 隐藏水平滚动条 */
 .no-horizontal-scroll ::v-deep .el-scrollbar__wrap {
+  overflow-x: hidden !important;
+}
+
+.no-horizontal-scroll-1 ::v-deep .el-scrollbar__wrap {
   overflow-x: hidden !important;
 }
 
