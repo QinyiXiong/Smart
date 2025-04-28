@@ -3,6 +3,7 @@ package com.sdumagicode.backend.util.chatUtil;
 import com.sdumagicode.backend.entity.chat.Interviewer;
 import com.sdumagicode.backend.entity.chat.ValuationStandard;
 import com.sdumagicode.backend.entity.CodeSubmission;
+import com.sdumagicode.backend.util.UserUtils;
 import com.sdumagicode.backend.util.ValuationStandardHolder;
 import org.springframework.stereotype.Component;
 
@@ -140,6 +141,7 @@ public class InterviewerPromptGenerator {
     }
 
     public static String generatePrompt(Interviewer interviewer){
+        System.out.println(UserUtils.getCurrentChatId());
         return PROMPT_TEMPLATE
                 + generateValuationStandardsPrompt()
                 + "\n用户提示词部分：" + interviewer.getCustomPrompt()

@@ -97,6 +97,7 @@ public class ChatController {
         ObjectMapper objectMapper = new ObjectMapper();
         ChatRequest chatRequest = objectMapper.readValue(chatRequestStr, ChatRequest.class);
         List<MessageLocal> messageList = chatRequest.getMessageList();
+
         List<MessageLocalDto> collect = messageList.stream().map((item) -> {
             MessageLocalDto messageLocalDto = new MessageLocalDto(item);
             if(fileMessageId != null && !fileMessageId.isEmpty()){

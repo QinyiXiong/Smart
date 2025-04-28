@@ -26,6 +26,8 @@ public class UserUtils {
     private static final UserMapper userMapper = SpringContextHolder.getBean(UserMapper.class);
     private static final TokenManager tokenManager = SpringContextHolder.getBean(TokenManager.class);
 
+    private static final ThreadLocal<Long> currentChatId = new ThreadLocal<>();
+
     private static final SecretKey key = Keys.hmacShaKeyFor(JwtConstants.JWT_SECRET.getBytes(StandardCharsets.UTF_8));
     /**
      * 通过token获取当前用户的信息
@@ -94,7 +96,27 @@ public class UserUtils {
         throw new UnauthenticatedException();
     }
 
+
     public static boolean isAdmin(String email) {
         return userMapper.hasAdminPermission(email);
+    }
+
+    /**
+     * 设置当前请求的 chatId
+     */
+    public static void setCurrentChatId(Long chatId) {
+        currentChatId.set(chatId);
+    }
+    /**
+     * 获取当前请求的 chatId
+     */
+    public static Long getCurrentChatId() {
+        return currentChatId.get();
+    }
+    /**
+     * 清除当前请求的 chatId（防止内存泄漏）
+     */
+    public static void clearCurrentChatId() {
+        currentChatId.remove();
     }
 }

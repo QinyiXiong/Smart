@@ -177,6 +177,11 @@ public class ChatServiceImpl  implements ChatService {
     public void sendMessageToInterviewer(List<MessageLocal> messageList, Interviewer interviewer, Long userId, String messageId, Consumer<ChatOutput> outputConsumer) {
         try {
 
+            Optional<Branch> byId = branchRepository.findById(messageList.get(0).getBranchId());
+            if(UserUtils.getCurrentChatId() != null){
+                UserUtils.clearCurrentChatId();
+            }
+            UserUtils.setCurrentChatId(byId.get().getChatId());
 
             // 1. RAG搜索
             MessageLocal lastMessage = messageList.get(messageList.size() - 1);
