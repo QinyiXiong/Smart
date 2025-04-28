@@ -190,7 +190,7 @@ public class ChatServiceImpl  implements ChatService {
             );
             // 2. 生成Prompt
             String prompt = InterviewerPromptGenerator.generatePrompt(interviewer);
-            System.out.println(prompt);
+//            System.out.println(prompt);
 
             // 3. 调用AI接口
             Flowable<ApplicationResult> aiStream = chatUtil.streamCall(
