@@ -7,40 +7,61 @@
 
     <div class="chat-messages" ref="chatMessages">
       <div v-for="(message, index) in messageListForShow" :key="index"
-        :class="['message', message.role === 'user' ? 'user-message' : 'ai-message']">
+        :class="['message', message.role === 'user' ? 'user-message' : 'ai-message']"
+        @mouseenter="message.showActions = true" @mouseleave="message.showActions = false">
+        <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+
         <div v-if="message.content.files.length > 0" class="processed-files">
           <el-card v-for="(file, index) in message.content.files" :key="index" class="file-card" shadow="hover">
             <div class="file-card-content">
               <i class="el-icon-document" style="margin-right: 8px;"></i>
               <span :title="file.fileName">{{ truncateFilename(file.fileName) }}</span>
-
             </div>
           </el-card>
         </div>
-        <div class="message-content">
-          <div v-if="!message.editing" class="message-text" v-html="renderMarkdown(message.content.text, message.role)">
+        <div class="message-content-wrapper">
+          <div class="message-content">
+            <div v-if="!message.editing" class="message-text"
+              v-html="renderMarkdown(message.content.text, message.role)">
+            </div>
+            <el-input v-else type="textarea" :rows="3" v-model="message.editText" class="edit-input"></el-input>
           </div>
-          <el-input v-else type="textarea" :rows="3" v-model="message.editText" class="edit-input"></el-input>
-        </div>
-        <!-- 添加分支切换按钮 -->
-        <div v-if="isFirstMessageInBranch(message) &&
-          checkSiblings(message) &&
-          !isLoading""
-            class=" branch-switch">
-          <el-button type="text" @click="toggleShowBranch(message)">{{ message.showBranchTag ? '关闭' : '显示分支'
-            }}</el-button>
+          <div v-if="message.role === 'user'" class="message-actions" v-show="message.showActions || message.editing">
+            <el-button v-if="!message.editing" type="text" icon="el-icon-edit"
+              @click="startEditMessage(message)"></el-button>
+            <el-button v-if="!message.editing" type="text" icon="el-icon-refresh"
+              @click="regenerateMessage(message)"></el-button>
+            <div v-else class="edit-actions">
+              <el-button size="mini" type="primary" @click="sendModifiedMessage(message)">发送</el-button>
+              <el-button size="mini" @click="cancelEdit(message)">取消</el-button>
+            </div>
+          </div>
         </div>
 
+        <!-- 添加分支切换按钮，放置在容器右侧 -->
+        <div class="branch-switch-container">
+          <div v-if="isFirstMessageInBranch(message) && checkSiblings(message) && !isLoading" class="branch-switch"
+            :class="{ 'user-branch': message.role === 'user' }">
+            <el-button type="text" @click="toggleShowBranch(message)">
+              <i :class="message.showBranchTag ? 'el-icon-caret-top' : 'el-icon-caret-bottom'"></i>
+              {{ message.showBranchTag ? '收起分支' : '显示分支' }}
+            </el-button>
+          </div>
+        </div>
 
         <!-- 分支编辑面板 -->
-        <div v-if="message.showBranchTag && !isLoading" class="branch-edit-panel">
+        <div v-if="message.showBranchTag && !isLoading" class="branch-edit-panel"
+          :class="{ 'user-branch-panel': message.role === 'user' }">
           <div class="branch-tag-list">
             <div v-for="(sibling, idx) in siblingNodes.find(node => node.branchId === message.branchId)?.siblings || []"
-              :key="sibling.index" class="branch-tag-item">
+              :key="sibling.index" class="branch-tag-item"
+              :class="{ 'active-branch': sibling.index === currentBranchIndex }">
               <!-- 显示模式 -->
               <template v-if="!sibling.editing">
                 <span class="branch-tag-text" @click="switchBranch(sibling.index)">{{ sibling.tag }}</span>
-                <el-button type="text" size="mini" @click="startEditBranchTag(sibling)">修改</el-button>
+                <el-button type="text" size="mini" @click="startEditBranchTag(sibling)" class="edit-branch-btn">
+                  <i class="el-icon-edit"></i>
+                </el-button>
               </template>
 
               <!-- 编辑模式 -->
@@ -53,18 +74,6 @@
                 </div>
               </template>
             </div>
-          </div>
-
-        </div>
-        <div class="message-time">{{ formatTime(message.timestamp) }}</div>
-        <div v-if="message.role === 'user'" class="message-actions">
-          <el-button v-if="!message.editing" type="text" icon="el-icon-edit"
-            @click="startEditMessage(message)"></el-button>
-          <el-button v-if="!message.editing" type="text" icon="el-icon-refresh"
-            @click="regenerateMessage(message)"></el-button>
-          <div v-else class="edit-actions">
-            <el-button size="mini" @click="cancelEdit(message)">取消</el-button>
-            <el-button size="mini" type="primary" @click="sendModifiedMessage(message)">发送</el-button>
           </div>
         </div>
       </div>
@@ -83,40 +92,55 @@
         </el-card>
       </div>
 
-      <el-input type="textarea" :rows="3" placeholder="请输入您的问题..." v-model="inputMessage"
-        @keyup.enter.native="handleKeyEnter"></el-input>
-      <div class="input-actions">
-        <el-button type="text" icon="el-icon-upload" @click="showUploadDialog" title="上传文件"></el-button>
-        <el-button type="text" icon="el-icon-microphone" @click="startVoiceInput" title="语音输入"></el-button>
+
+      <div class="input-tools">
+        <el-button type="text" icon="el-icon-upload" @click="showUploadDialog" title="上传文件">
+          <span class="button-text">上传文件</span>
+        </el-button>
+        <el-button type="text" icon="el-icon-microphone" @click="startVoiceInput" title="语音输入">
+          <span class="button-text">语音输入</span>
+        </el-button>
+      </div>
+
+
+      <div class="input-container">
+        <el-input type="textarea" :rows="3" placeholder="请输入您的问题..." v-model="inputMessage"
+          @keyup.enter.native="handleKeyEnter" class="message-input"></el-input>
         <el-button type="primary" @click="sendMessageWithPolling()" :disabled="!inputMessage.trim() || isLoading"
-          class="send-button">{{ isLoading ? '发送中...' : '发送' }}</el-button>
+          class="send-button">
+          <i class="el-icon-s-promotion"></i>
+          <span v-if="!isLoading">发送</span>
+          <span v-else>发送中...</span>
+        </el-button>
       </div>
     </div>
 
-    <el-dialog title="上传文件" :visible.sync="uploadDialogVisible" width="600px" @close="clearUploadFiles">
-      <el-upload class="upload-area" drag action="#" ref="fileUpload" multiple :auto-upload="false"
-        :on-change="handleFileChange" :show-file-list="false">
-        <i class="el-icon-upload"></i>
-        <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
-        <div class="el-upload__tip" slot="tip">
-          支持上传pdf/docx/txt等格式文件，单个文件不超过50MB
-        </div>
-      </el-upload>
-      <div class="selected-files" v-if="this.selectedFiles.length > 0">
-        <h4>已选择文件：</h4>
-        <ul>
-          <li v-for="(file, index) in this.selectedFiles" :key="index">
-            {{ file.name }} ({{ formatFileSize(file.size) }})
-            <el-button type="text" icon="el-icon-close" @click="removeSelectedFile(index)"
-            class="file-remove-btn"></el-button>
-          </li>
-        </ul>
+  <el-dialog title="上传文件" :visible.sync="uploadDialogVisible" width="600px" @close="clearUploadFiles">
+    <el-upload class="upload-area" drag action="#" ref="fileUpload" multiple :auto-upload="false"
+      :on-change="handleFileChange" :show-file-list="false">
+      <i class="el-icon-upload"></i>
+      <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
+      <div class="el-upload__tip" slot="tip">
+        支持上传pdf/docx/txt等格式文件，单个文件不超过50MB
       </div>
-      <span slot="footer" class="dialog-footer">
-        <el-button @click="uploadDialogVisible = false">取 消</el-button>
-        <el-button type="primary" @click="uploadFiles">确 定</el-button>
-      </span>
-    </el-dialog>
+    </el-upload>
+
+    <div class="selected-files" v-if="this.selectedFiles.length > 0">
+      <h4>已选择文件：</h4>
+      <ul>
+        <li v-for="(file, index) in this.selectedFiles" :key="index">
+          {{ file.name }} ({{ formatFileSize(file.size) }})
+          <el-button type="text" icon="el-icon-close" @click="removeSelectedFile(index)"
+            class="file-remove-btn"></el-button>
+        </li>
+      </ul>
+    </div>
+
+    <span slot="footer" class="dialog-footer">
+      <el-button @click="uploadDialogVisible = false">取 消</el-button>
+      <el-button type="primary" @click="uploadFiles">确 定</el-button>
+    </span>
+  </el-dialog>
   </div>
 </template>
 
@@ -1112,27 +1136,38 @@ export default {
 .message {
   margin-bottom: 10px;
   display: flex;
+  padding-left: 40px;
+  padding-right: 40px;
   flex-direction: column;
   align-items: flex-start;
+  position: relative;
+}
+
+.message-content-wrapper {
+  display: flex;
+  align-items: flex-start;
+  max-width: 60%;
 }
 
 .message-content {
-  max-width: 60%;
-  padding: 0px 16px;
+  padding: 10px 16px;
   border-radius: 8px;
   position: relative;
-  margin-top: 5px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  flex: 1;
 }
 
 .user-message {
   align-items: flex-end;
 }
 
+.user-message .message-content-wrapper {
+  flex-direction: row-reverse;
+}
+
 .user-message .message-content {
   background-color: #409eff;
   border: 1px solid #ebeef5;
-  padding: 5px 13px;
   color: white;
   border-top-right-radius: 0;
 }
@@ -1150,66 +1185,96 @@ export default {
   margin: 5px 0;
 }
 
-.chat-input {
-  padding: 20px;
-  border-top: 1px solid #ebeef5;
-  background-color: #fff;
+/* 分支切换容器 - 添加这个新的容器 */
+.branch-switch-container {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 5px;
 }
 
-.input-actions {
-  display: flex;
-  align-items: center;
+/* 分支切换按钮 */
+.branch-switch {
+  transition: all 0.3s ease;
+}
+
+.branch-switch .el-button {
+  font-size: 12px;
+  color: #909399;
+  padding: 5px 10px;
+}
+
+.branch-switch .el-button:hover {
+  color: #409eff;
+}
+
+/* 分支编辑面板 */
+.branch-edit-panel {
   margin-top: 10px;
-}
-
-.send-button {
-  margin-left: auto;
-  border-radius: 20px;
-  padding: 10px 20px;
-}
-
-/* 文件卡片样式 */
-.file-card {
-  width: 220px;
-  margin-bottom: 10px;
+  background-color: #f9fafc;
   border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 80%;
+  transition: all 0.3s ease;
+  align-self: flex-start;
 }
 
-.file-card-content {
+.user-branch-panel {
+  align-self: flex-end;
+}
+
+/* 分支标签列表 - 水平布局 */
+.branch-tag-list {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.file-remove-btn {
-  padding: 0;
-  margin-left: 8px;
-  color: #f56c6c;
-}
-
-/* 分支标签样式 */
+/* 分支标签项 */
 .branch-tag-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  margin-bottom: 8px;
-  padding: 8px;
   background-color: #f5f7fa;
-  border-radius: 4px;
+  border-radius: 20px;
+  padding: 4px 12px 4px 4px;
+  border: 1px solid #ebeef5;
+  transition: all 0.2s ease;
+}
+
+.branch-tag-item:hover {
+  border-color: #c0c4cc;
+}
+
+.branch-tag-item.active-branch {
+  background-color: #ecf5ff;
+  border-color: #b3d8ff;
 }
 
 .branch-tag-text {
   padding: 4px 8px;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 16px;
   background-color: #fff;
   margin-right: 8px;
   border: 1px solid #ebeef5;
+  font-size: 12px;
+  transition: all 0.2s ease;
 }
 
 .branch-tag-text:hover {
   background-color: #ecf5ff;
   color: #409eff;
+}
+
+.edit-branch-btn {
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.branch-tag-item:hover .edit-branch-btn {
+  opacity: 1;
 }
 
 .branch-tag-input {
@@ -1221,17 +1286,146 @@ export default {
   display: flex;
 }
 
+.chat-input {
+  padding: 5px;
+  border-top: 1px solid #ebeef5;
+  background-color: #fff;
+  display: flex;
+  flex-direction: column;
+}
+.input-tools {
+  display: flex;
+  margin-bottom: 20px;
+  margin-top: 10px;
+  padding-left: 150px;
+}
+.input-tools .el-button {
+  display: flex;
+  align-items: center;
+  margin-right: 15px;
+  padding: 8px 12px;
+  color: #606266;
+  background-color: #f5f7fa;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+}
+
+.input-tools .el-button:hover {
+  background-color: #ecf5ff;
+  color: #409eff;
+}
+
+.input-tools .button-text {
+  margin-left: 5px;
+  font-size: 13px;
+}
+.input-container {
+  display: flex;
+  align-items: center;
+  height: 150px;
+  padding-left: 150px;
+  padding-bottom: 10px;
+  position: relative;
+}
+
+.input-actions {
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+}
+.message-input {
+  flex: 1;
+  border-radius: 8px;
+  padding-bottom: 10px;
+}
+
+.message-input :deep(.el-textarea__inner) {
+  resize: none;
+  border-radius: 8px;
+  transition: border-color 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  height: 150px;
+  width: 70%;
+}
+
+.message-input :deep(.el-textarea__inner:focus) {
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+}
+
+.send-button {
+  position: absolute;
+  right: 200px;
+  height: 50px;
+  width: 120px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.3s ease;
+  align-self: center; /* 确保按钮在容器中垂直居中 */
+}
+
+.send-button i {
+  font-size: 18px;
+  margin-bottom: 5px;
+}
+
+/* 文件卡片样式 */
+.file-card {
+  width: 300px;
+  height: 50px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+}
+
+.file-card-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0px;
+}
+
+.file-remove-btn {
+  padding: 0;
+  margin-left: 18px;
+  color: #f56c6c;
+}
+
+.processed-files {
+  padding-left: 100px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 0px;
+}
 /* 消息操作按钮 */
 .message-actions {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 5px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  margin: 0 8px;
+}
+
+.user-message .message-content-wrapper:hover .message-actions,
+.message-actions.show {
+  opacity: 1;
+  visibility: visible;
 }
 
 .edit-actions {
   display: flex;
   gap: 8px;
+}
+
+.message-actions.show,
+.message .message-actions:has(.edit-actions) {
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 /* 打字机效果 */
@@ -1262,26 +1456,29 @@ export default {
   text-align: center;
   background-color: #f5f7fa;
   margin-bottom: 20px;
-
 }
 
 .upload-area:hover {
   border-color: #c0c4cc;
 }
+
 .el-upload__text {
   font-size: 14px;
   color: #606266;
   margin: 10px 0;
 }
+
 .el-upload__text em {
   color: #409eff;
   font-style: normal;
 }
+
 .el-upload__tip {
   font-size: 12px;
   color: #909399;
   margin-top: 10px;
 }
+
 .selected-files {
   margin-top: 20px;
 }
@@ -1307,13 +1504,14 @@ export default {
   padding: 8px 0;
   border-bottom: 1px solid #ebeef5;
 }
+
 .file-remove-btn {
   padding: 0;
   color: #f56c6c;
 }
+
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
 }
-
 </style>
