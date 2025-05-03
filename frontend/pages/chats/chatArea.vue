@@ -26,7 +26,7 @@
             </div>
             <el-input v-else type="textarea" :rows="3" v-model="message.editText" class="edit-input"></el-input>
           </div>
-          <div v-if="message.role === 'user'" class="message-actions" v-show="message.showActions || message.editing">
+          <div v-if="message.role === 'user'" class="message-actions" :class="{'show': message.showActions || message.editing}">
             <el-button v-if="!message.editing" type="text" icon="el-icon-edit"
               @click="startEditMessage(message)"></el-button>
             <el-button v-if="!message.editing" type="text" icon="el-icon-refresh"
@@ -1406,20 +1406,19 @@ export default {
   align-items: center;
   gap: 8px;
   opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
+  transition: opacity 0.3s ease;
   margin: 0 8px;
 }
 
 .user-message .message-content-wrapper:hover .message-actions,
 .message-actions.show {
   opacity: 1;
-  visibility: visible;
 }
 
 .edit-actions {
   display: flex;
   gap: 8px;
+  opacity: 1;
 }
 
 .message-actions.show,
@@ -1513,5 +1512,14 @@ export default {
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
+}
+/* 确保只有在悬停状态下才显示按钮，即使有.show类 */
+.message:not(:hover) .message-actions:not(:has(.edit-actions)) {
+  opacity: 0 !important;
+}
+
+/* 编辑状态下的按钮总是显示 */
+.message .message-actions:has(.edit-actions) {
+  opacity: 1 !important;
 }
 </style>
