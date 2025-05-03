@@ -24,17 +24,22 @@
             <div v-if="!message.editing" class="message-text"
               v-html="renderMarkdown(message.content.text, message.role)">
             </div>
-            <el-input v-else type="textarea" :rows="3" v-model="message.editText" class="edit-input"></el-input>
+            <div v-else class="edit-input-container">
+              <el-input type="textarea" :rows="3" v-model="message.editText" class="edit-input"></el-input>
+              <!-- 编辑状态下的按钮移到这里 -->
+              <div class="edit-actions">
+                <el-button size="mini" @click="cancelEdit(message)">取消</el-button>
+                <el-button size="mini" type="primary" @click="sendModifiedMessage(message)">确定</el-button>
+              </div>
+            </div>
           </div>
-          <div v-if="message.role === 'user'" class="message-actions" :class="{'show': message.showActions || message.editing}">
+          <div v-if="message.role === 'user'" class="message-actions"
+            :class="{ 'show': message.showActions || message.editing }">
             <el-button v-if="!message.editing" type="text" icon="el-icon-edit"
               @click="startEditMessage(message)"></el-button>
             <el-button v-if="!message.editing" type="text" icon="el-icon-refresh"
               @click="regenerateMessage(message)"></el-button>
-            <div v-else class="edit-actions">
-              <el-button size="mini" type="primary" @click="sendModifiedMessage(message)">发送</el-button>
-              <el-button size="mini" @click="cancelEdit(message)">取消</el-button>
-            </div>
+            <!-- 移除这里的编辑按钮 -->
           </div>
         </div>
 
@@ -115,32 +120,32 @@
       </div>
     </div>
 
-  <el-dialog title="上传文件" :visible.sync="uploadDialogVisible" width="600px" @close="clearUploadFiles">
-    <el-upload class="upload-area" drag action="#" ref="fileUpload" multiple :auto-upload="false"
-      :on-change="handleFileChange" :show-file-list="false">
-      <i class="el-icon-upload"></i>
-      <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
-      <div class="el-upload__tip" slot="tip">
-        支持上传pdf/docx/txt等格式文件，单个文件不超过50MB
+    <el-dialog title="上传文件" :visible.sync="uploadDialogVisible" width="600px" @close="clearUploadFiles">
+      <el-upload class="upload-area" drag action="#" ref="fileUpload" multiple :auto-upload="false"
+        :on-change="handleFileChange" :show-file-list="false">
+        <i class="el-icon-upload"></i>
+        <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
+        <div class="el-upload__tip" slot="tip">
+          支持上传pdf/docx/txt等格式文件，单个文件不超过50MB
+        </div>
+      </el-upload>
+
+      <div class="selected-files" v-if="this.selectedFiles.length > 0">
+        <h4>已选择文件：</h4>
+        <ul>
+          <li v-for="(file, index) in this.selectedFiles" :key="index">
+            {{ file.name }} ({{ formatFileSize(file.size) }})
+            <el-button type="text" icon="el-icon-close" @click="removeSelectedFile(index)"
+              class="file-remove-btn"></el-button>
+          </li>
+        </ul>
       </div>
-    </el-upload>
 
-    <div class="selected-files" v-if="this.selectedFiles.length > 0">
-      <h4>已选择文件：</h4>
-      <ul>
-        <li v-for="(file, index) in this.selectedFiles" :key="index">
-          {{ file.name }} ({{ formatFileSize(file.size) }})
-          <el-button type="text" icon="el-icon-close" @click="removeSelectedFile(index)"
-            class="file-remove-btn"></el-button>
-        </li>
-      </ul>
-    </div>
-
-    <span slot="footer" class="dialog-footer">
-      <el-button @click="uploadDialogVisible = false">取 消</el-button>
-      <el-button type="primary" @click="uploadFiles">确 定</el-button>
-    </span>
-  </el-dialog>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="uploadDialogVisible = false">取 消</el-button>
+        <el-button type="primary" @click="uploadFiles">确 定</el-button>
+      </span>
+    </el-dialog>
   </div>
 </template>
 
@@ -1166,15 +1171,15 @@ export default {
 }
 
 .user-message .message-content {
-  background-color: #409eff;
+  background-color: #EFF6FF;
   border: 1px solid #ebeef5;
-  color: white;
+  color: #262626;
   border-top-right-radius: 0;
 }
 
 .ai-message .message-content {
-  background-color: #fff;
-  color: #333;
+  background-color: #f5f5f5;
+  color: #262626;
   border: 1px solid #ebeef5;
   border-top-left-radius: 0;
 }
@@ -1215,8 +1220,10 @@ export default {
   border-radius: 8px;
   padding: 12px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-  width: 100%;
-  max-width: 80%;
+  /* 移除固定宽度，使用自适应宽度 */
+  display: inline-block;
+  min-width: 200px;
+  max-width: 90%;
   transition: all 0.3s ease;
   align-self: flex-start;
 }
@@ -1230,6 +1237,7 @@ export default {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  justify-content: flex-start;
 }
 
 /* 分支标签项 */
@@ -1241,6 +1249,9 @@ export default {
   padding: 4px 12px 4px 4px;
   border: 1px solid #ebeef5;
   transition: all 0.2s ease;
+  /* 确保长文本能够适应空间 */
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .branch-tag-item:hover {
@@ -1261,6 +1272,12 @@ export default {
   border: 1px solid #ebeef5;
   font-size: 12px;
   transition: all 0.2s ease;
+  /* 确保长文本能够适应空间 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+  /* 限制最大宽度，避免太长的标签文本 */
 }
 
 .branch-tag-text:hover {
@@ -1288,24 +1305,28 @@ export default {
 
 .chat-input {
   padding: 5px;
-  border-top: 1px solid #ebeef5;
-  background-color: #fff;
+  border-top: none;
+  background-color: #f9fafc;
   display: flex;
   flex-direction: column;
 }
+
 .input-tools {
   display: flex;
   margin-bottom: 20px;
   margin-top: 10px;
   padding-left: 150px;
+  background-color: #f9fafc;
+
 }
+
 .input-tools .el-button {
   display: flex;
   align-items: center;
   margin-right: 15px;
   padding: 8px 12px;
-  color: #606266;
-  background-color: #f5f7fa;
+  color: #474747;
+  background-color: #ededee;
   border-radius: 20px;
   transition: all 0.3s ease;
 }
@@ -1319,6 +1340,7 @@ export default {
   margin-left: 5px;
   font-size: 13px;
 }
+
 .input-container {
   display: flex;
   align-items: center;
@@ -1326,6 +1348,8 @@ export default {
   padding-left: 150px;
   padding-bottom: 10px;
   position: relative;
+  background-color: #f9fafc;
+
 }
 
 .input-actions {
@@ -1333,6 +1357,7 @@ export default {
   align-items: center;
   margin-top: 10px;
 }
+
 .message-input {
   flex: 1;
   border-radius: 8px;
@@ -1364,7 +1389,8 @@ export default {
   justify-content: center;
   align-items: center;
   transition: all 0.3s ease;
-  align-self: center; /* 确保按钮在容器中垂直居中 */
+  align-self: center;
+  /* 确保按钮在容器中垂直居中 */
 }
 
 .send-button i {
@@ -1376,7 +1402,7 @@ export default {
 .file-card {
   width: 300px;
   height: 50px;
-  margin-bottom: 12px;
+  padding-bottom: 10px;
   border-radius: 8px;
 }
 
@@ -1394,12 +1420,16 @@ export default {
 }
 
 .processed-files {
-  padding-left: 100px;
+  padding-left: 150px;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   margin-bottom: 0px;
 }
+.processed-files .file-card{
+  
+}
+
 /* 消息操作按钮 */
 .message-actions {
   display: flex;
@@ -1513,6 +1543,7 @@ export default {
   display: flex;
   justify-content: flex-end;
 }
+
 /* 确保只有在悬停状态下才显示按钮，即使有.show类 */
 .message:not(:hover) .message-actions:not(:has(.edit-actions)) {
   opacity: 0 !important;
@@ -1521,5 +1552,43 @@ export default {
 /* 编辑状态下的按钮总是显示 */
 .message .message-actions:has(.edit-actions) {
   opacity: 1 !important;
+}
+.edit-input-container {
+  position: relative;
+  width: 100%;
+  min-width: 450px; /* 设置最小宽度 */
+  max-width: 100%;
+  padding-bottom: 40px; /* 为按钮留出空间 */
+}
+
+/* 编辑输入框 */
+.edit-input {
+  width: 100%;
+}
+
+/* 编辑操作按钮 */
+.edit-actions {
+  position: absolute;
+  bottom: 0px;
+  right: 8px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* 确保消息内容在编辑状态下有足够空间 */
+.message-content {
+  min-width: 0px;
+  transition: all 0.3s ease;
+}
+
+/* 调整用户消息的编辑样式 */
+.user-message .edit-input-container .el-textarea__inner {
+  background-color: rgba(64, 158, 255, 0.05);
+  border-color: #409eff;
+}
+.user-message .edit-input :deep(.el-textarea__inner) {
+  background-color: rgba(64, 158, 255, 0.03); /* 半透明蓝色背景 */
+  border: none; /* 蓝色边框 */
 }
 </style>
