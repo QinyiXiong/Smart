@@ -48,4 +48,9 @@ public class JudgeResultDTO {
      * 提交ID
      */
     private Long submissionId;
+    
+    /**
+     * 是否已请求AI评价
+     */
+    private Boolean aiReviewRequested;
 }

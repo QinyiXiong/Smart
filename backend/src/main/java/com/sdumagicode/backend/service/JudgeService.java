@@ -31,4 +31,12 @@ public interface JudgeService {
      * @return 提交记录列表
      */
     java.util.List<CodeSubmission> getSubmissionHistory(Long problemId, Long userId);
+    
+    /**
+     * 获取AI对代码的评价
+     * @param codeSubmission 代码提交记录
+     * @return 提交ID，用于后续轮询获取评价结果
+     */
+    String getAiCodeReview(CodeSubmission codeSubmission);
+
 }
