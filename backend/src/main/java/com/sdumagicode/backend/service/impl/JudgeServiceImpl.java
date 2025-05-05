@@ -56,6 +56,9 @@ public class JudgeServiceImpl implements JudgeService {
 
     @Autowired
     private CodeSubmissionMapper codeSubmissionMapper;
+    
+    @Autowired
+    private com.sdumagicode.backend.service.ChatService chatService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -271,6 +274,47 @@ public class JudgeServiceImpl implements JudgeService {
             example.setUserId(userId);
         }
         return codeSubmissionMapper.select(example);
+    }
+    
+    @Override
+    public String getAiCodeReview(CodeSubmission codeSubmission) {
+        if (codeSubmission == null || codeSubmission.getId() == null) {
+            log.error("代码提交记录为空或ID为空");
+            throw new RuntimeException("代码提交记录为空或ID为空");
+        }
+        
+        // 如果只传入了ID，需要查询完整的提交记录
+        if (codeSubmission.getCode() == null || codeSubmission.getCode().isEmpty()) {
+            CodeSubmission submission = codeSubmissionMapper.selectByPrimaryKey(codeSubmission.getId());
+            if (submission == null) {
+                log.error("找不到ID为{}的代码提交记录", codeSubmission.getId());
+                throw new RuntimeException("找不到对应的代码提交记录");
+            }
+            codeSubmission = submission;
+        }
+        
+        // 生成唯一的消息ID
+        String messageId = codeSubmission.getId().toString();
+        
+        try {
+            // 获取当前用户ID
+            Long userId = UserUtils.getCurrentUserByToken().getIdUser();
+            
+            // 异步发送代码到AI进行评价
+            chatService.sendMessageToCoder(
+                codeSubmission,
+                userId,
+                output -> {
+                    // 将AI的评价结果添加到消息队列中，供前端轮询获取
+                    com.sdumagicode.backend.util.chatUtil.MessageQueueUtil.addMessage(output);
+                }
+            );
+            
+            return messageId;
+        } catch (Exception e) {
+            log.error("获取AI代码评价失败", e);
+            throw new RuntimeException("获取AI代码评价失败: " + e.getMessage());
+        }
     }
 
     /**

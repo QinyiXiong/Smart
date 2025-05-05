@@ -184,6 +184,14 @@
               提交代码
             </el-button>
             <el-button
+              type="warning"
+              @click="getAiReview"
+              icon="el-icon-chat-line-round"
+              :loading="isGettingAiReview"
+            >
+              AI代码评价
+            </el-button>
+            <el-button
               @click="resetCode"
               icon="el-icon-refresh-right"
               plain
@@ -214,6 +222,19 @@
               </div>
               <el-card class="output-card" shadow="never">
                 <pre class="result-output" :class="{ 'error': runResult.status === 'error' }">{{ runResult.output }}</pre>
+              </el-card>
+            </div>
+          </transition>
+          
+          <!-- AI代码评价结果 -->
+          <transition name="fade">
+            <div v-if="aiReviewResult" class="ai-review-container">
+              <div class="ai-review-header">
+                <h3><i class="el-icon-chat-line-round"></i> AI代码评价</h3>
+                <el-tag v-if="isPollingAiReview" type="info">正在生成评价...</el-tag>
+              </div>
+              <el-card class="ai-review-card" shadow="hover">
+                <pre class="ai-review-content">{{ aiReviewResult }}</pre>
               </el-card>
             </div>
           </transition>
@@ -325,6 +346,10 @@ export default {
       examples: [],
       isRunning: false,
       isSubmitting: false,
+      isGettingAiReview: false,
+      isPollingAiReview: false,
+      aiReviewResult: null,
+      pollingAnimationFrame: null,
       runResult: null,
       judgeResult: null,
       languages: [
@@ -679,7 +704,16 @@ export default {
             errorMessage: result.errorMessage,
             passedTestCases: result.passedTestCases || 0,
             totalTestCases: result.totalTestCases || 0,
-            testcases: result.testcases || []
+            testcases: result.testcases || [],
+            submissionId: submissionId,
+            aiReviewRequested: result.aiReviewRequested
+          }
+          
+          // 如果评测完成且后端已请求AI评价，但前端还没有开始轮询，则自动开始轮询AI评价结果
+          if (result.aiReviewRequested && !this.isGettingAiReview && !this.aiReviewResult) {
+            this.aiReviewResult = '正在分析代码，请稍候...'
+            this.isGettingAiReview = true
+            this.startPollingAiReview(submissionId.toString())
           }
           
           // 更新题目统计信息
@@ -720,6 +754,13 @@ export default {
           // 开始轮询获取评测结果
           if (res.data.submissionId) {
             this.fetchSubmissionResult(res.data.submissionId)
+            
+            // 如果后端已请求AI评价，自动开始轮询AI评价结果
+            if (res.data.aiReviewRequested) {
+              this.aiReviewResult = '正在分析代码，请稍候...'
+              this.isGettingAiReview = true
+              this.startPollingAiReview(res.data.submissionId.toString())
+            }
           }
           
           // 设置初始评测状态
@@ -729,7 +770,9 @@ export default {
             memory: 0,
             passedTestCases: 0,
             totalTestCases: res.data.totalTestCases || 0,
-            testcases: []
+            testcases: [],
+            submissionId: res.data.submissionId,
+            aiReviewRequested: res.data.aiReviewRequested
           }
         } else {
           console.error('提交失败:', res.message)
@@ -745,6 +788,125 @@ export default {
     resetCode() {
       this.code = ''
       this.runResult = null
+      this.aiReviewResult = null
+    },
+    
+    // 获取AI代码评价
+    async getAiReview() {
+      if (!this.code) {
+        this.$message.warning('请先输入代码')
+        return
+      }
+      
+      // 如果没有提交过代码，先提交代码
+      if (!this.judgeResult || !this.judgeResult.submissionId) {
+        this.$message.info('需要先提交代码才能获取AI评价')
+        await this.submitCode()
+        if (!this.judgeResult || !this.judgeResult.submissionId) {
+          return
+        }
+      }
+      
+      this.isGettingAiReview = true
+      this.aiReviewResult = ''
+      
+      try {
+        // 发送请求获取AI评价
+        const res = await this.$axios.post(`/api/problems/submissions/${this.judgeResult.submissionId}/ai-review`)
+        
+        if (res.code === 0 && res.data) {
+          // 开始轮询获取AI评价结果
+          this.aiReviewResult = '正在分析代码，请稍候...'
+          this.startPollingAiReview(res.data)
+        } else {
+          this.$message.error(res.message || '获取AI评价失败')
+        }
+      } catch (error) {
+        console.error('获取AI评价异常:', error)
+        this.$message.error('获取AI评价异常: ' + error.message)
+        this.isGettingAiReview = false
+      }
+    },
+    
+    // 开始轮询获取AI评价结果
+    startPollingAiReview(messageId) {
+      const POLLING_TIMEOUT = 60000 // 60秒超时
+      let pollingStartTime = Date.now()
+      this.isPollingAiReview = true
+      
+      const processBatch = async () => {
+        if (!this.isPollingAiReview) return
+        
+        try {
+          // 检查是否超时
+          if (Date.now() - pollingStartTime > POLLING_TIMEOUT) {
+            throw new Error('轮询超时，未收到有效响应')
+          }
+          
+          const params = new URLSearchParams()
+          params.append('messageId', messageId)
+          params.append('batchSize', '5')
+          
+          const response = await this.$axios.get('/api/problems/poll-ai-review', {
+            params: params
+          })
+          
+          if (response.code === 0 && response.data && response.data.length) {
+            let shouldStop = false
+            // 重置超时计时器（每次收到有效数据就重置）
+            pollingStartTime = Date.now()
+            
+            // 批量处理消息
+            for (const msg of response.data) {
+              // 检查是否收到停止信号
+              if (msg.finish === 'stop') {
+                shouldStop = true
+              }
+              
+              // 使用打字机效果添加文本
+              await this.typeText(msg.text)
+            }
+            
+            // 如果收到停止信号，则中止轮询
+            if (shouldStop) {
+              this.stopPollingAiReview()
+              return
+            }
+          }
+          
+          // 继续轮询
+          this.pollingAnimationFrame = requestAnimationFrame(processBatch)
+          
+        } catch (error) {
+          this.stopPollingAiReview()
+          this.$message.error('获取AI评价失败: ' + error.message)
+        }
+      }
+      
+      processBatch()
+    },
+    
+    // 停止轮询
+    stopPollingAiReview() {
+      this.isPollingAiReview = false
+      this.isGettingAiReview = false
+      if (this.pollingAnimationFrame) {
+        cancelAnimationFrame(this.pollingAnimationFrame)
+        this.pollingAnimationFrame = null
+      }
+    },
+    
+    // 打字机效果
+    async typeText(newText) {
+      if (!newText) return
+      
+      const typingSpeed = 30 // 控制打字速度(ms/字)
+      
+      for (let i = 0; i < newText.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, typingSpeed))
+        this.aiReviewResult += newText[i]
+        this.$forceUpdate()
+      }
     }
   }
 }
@@ -1036,6 +1198,46 @@ export default {
 
 .result-output.error {
   color: #f56c6c;
+}
+
+.ai-review-container {
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+
+.ai-review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.ai-review-header h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  color: #E6A23C;
+}
+
+.ai-review-header h3 i {
+  font-size: 20px;
+}
+
+.ai-review-card {
+  background: #fffbf2;
+  border-left: 4px solid #E6A23C;
+}
+
+.ai-review-content {
+  margin: 0;
+  padding: 16px;
+  white-space: pre-wrap;
+  font-family: 'Source Code Pro', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #303133;
 }
 
 .judge-result {
