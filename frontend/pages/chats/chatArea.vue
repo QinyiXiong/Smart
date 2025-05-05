@@ -1,7 +1,7 @@
 <template>
   <div class="right-chat-area">
     <div class="chat-header">
-      <h2 v-if="currentInterviewer">{{ currentInterviewer.name }} 面试</h2>
+      <h2 v-if="currentInterviewer">{{ currentInterviewer.name }}</h2>
       <h2 v-else>请选择AI面试官</h2>
     </div>
 
