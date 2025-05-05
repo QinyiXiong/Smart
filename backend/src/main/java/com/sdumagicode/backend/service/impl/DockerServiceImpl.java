@@ -14,66 +14,74 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Docker容器服务实现类
+ * Docker服务实现类
  */
 @Service
 @Slf4j
 public class DockerServiceImpl implements DockerService {
 
-    @Value("${judge.docker.enabled:false}")
-    private boolean dockerEnabled;
+    @Value("${judge.docker.image:judge-env}")
+    private String judgeImage;
 
-    @Value("${judge.docker.image.java:openjdk:11-jdk}")
-    private String javaImage;
-
-    @Value("${judge.docker.image.cpp:gcc:latest}")
-    private String cppImage;
-
-    @Value("${judge.docker.image.python:python:3.9}")
-    private String pythonImage;
-
-    @Value("${judge.docker.memory:512m}")
+    @Value("${judge.docker.memory-limit:512m}")
     private String memoryLimit;
 
-    @Value("${judge.docker.cpu:1.0}")
+    @Value("${judge.docker.cpu-limit:1.0}")
     private String cpuLimit;
 
+    @Value("${judge.docker.network:none}")
+    private String network;
+
+    @Value("${judge.docker.timeout:10000}")
+    private int dockerTimeout;
+
     @Override
-    public String createContainer(String language, Path tempDir) {
-        if (!dockerEnabled) {
-            log.warn("Docker功能未启用，将使用本地环境执行代码");
-            return null;
-        }
-
+    public boolean isDockerAvailable() {
         try {
-            // 根据语言选择镜像
-            String image = getDockerImage(language);
-            String containerId = UUID.randomUUID().toString().substring(0, 8);
-            String hostPath = tempDir.toAbsolutePath().toString();
-            String containerPath = "/judge";
+            ProcessBuilder pb = new ProcessBuilder("docker", "version");
+            Process process = pb.start();
+            boolean completed = process.waitFor(5, TimeUnit.SECONDS);
+            if (completed && process.exitValue() == 0) {
+                log.info("Docker可用");
+                return true;
+            }
+            log.warn("Docker不可用");
+            return false;
+        } catch (Exception e) {
+            log.error("检查Docker可用性失败", e);
+            return false;
+        }
+    }
 
-            // 创建并启动容器
-            String[] command = {
-                "docker", "run", "-d",
+    @Override
+    public String createContainer(String language, Path codePath) {
+        try {
+            // 生成容器ID
+            String containerId = "judge-" + UUID.randomUUID().toString().substring(0, 8);
+            
+            // 创建容器
+            ProcessBuilder pb = new ProcessBuilder(
+                "docker", "run",
                 "--name", containerId,
                 "--memory", memoryLimit,
                 "--cpus", cpuLimit,
-                "-v", hostPath + ":" + containerPath,
-                "--network", "none", // 禁止网络访问
-                "-w", containerPath, // 设置工作目录
-                image,
-                "tail", "-f", "/dev/null" // 保持容器运行
-            };
-
-            Process process = Runtime.getRuntime().exec(command);
+                "--network", network,
+                "--rm",
+                "-d",
+                "-v", codePath.toAbsolutePath() + ":/judge",
+                judgeImage,
+                "sleep", "30" // 容器启动后休眠等待命令执行
+            );
+            
+            Process process = pb.start();
             boolean completed = process.waitFor(10, TimeUnit.SECONDS);
-
+            
             if (!completed || process.exitValue() != 0) {
-                log.error("创建Docker容器失败: {}", readProcessOutput(process));
+                log.error("创建Docker容器失败");
                 return null;
             }
-
-            log.info("成功创建Docker容器: {}, 语言: {}", containerId, language);
+            
+            log.info("创建Docker容器成功: {}", containerId);
             return containerId;
         } catch (Exception e) {
             log.error("创建Docker容器异常", e);
@@ -83,192 +91,198 @@ public class DockerServiceImpl implements DockerService {
 
     @Override
     public Map<String, Object> executeCompileCommand(String containerId, String[] command, String workDir) {
-        if (!dockerEnabled || containerId == null) {
-            return null; // 如果Docker未启用，返回null表示使用本地环境
-        }
-
+        Map<String, Object> result = new HashMap<>();
+        result.put("completed", false);
+        result.put("exitCode", -1);
+        result.put("output", "");
+        
         try {
-            // 构建在容器中执行的命令
+            // 参数检查
+            if (containerId == null || command == null || workDir == null) {
+                throw new IllegalArgumentException("容器ID、命令或工作目录不能为空");
+            }
+            
+            // 构建Docker exec命令
             String[] dockerCommand = buildDockerExecCommand(containerId, command, workDir);
-
-            Process process = Runtime.getRuntime().exec(dockerCommand);
-            boolean completed = process.waitFor(30, TimeUnit.SECONDS); // 编译给30秒超时
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("completed", completed);
-            result.put("exitCode", completed ? process.exitValue() : -1);
-            result.put("output", readProcessOutput(process));
-
-            return result;
-        } catch (Exception e) {
-            log.error("在Docker容器中执行编译命令异常", e);
-            Map<String, Object> result = new HashMap<>();
-            result.put("completed", false);
-            result.put("exitCode", -1);
-            result.put("output", "执行异常: " + e.getMessage());
-            return result;
-        }
-    }
-
-    @Override
-    public Map<String, Object> executeRunCommand(String containerId, String[] command, String workDir,
-                                              String inputFile, int timeLimit) {
-        if (!dockerEnabled || containerId == null) {
-            return null; // 如果Docker未启用，返回null表示使用本地环境
-        }
-
-        try {
-            // 构建在容器中执行的命令
-            String[] dockerCommand = buildDockerExecCommand(containerId, command, workDir);
-
-            // 开始计时
-            long startTime = System.currentTimeMillis();
-
+            if (dockerCommand == null) {
+                throw new IllegalStateException("构建Docker命令失败");
+            }
+            
             // 执行命令
             ProcessBuilder pb = new ProcessBuilder(dockerCommand);
-            if (inputFile != null && !inputFile.isEmpty()) {
-                // 如果有输入文件，将其内容作为标准输入
-                pb.redirectInput(new File(inputFile));
-            }
-            pb.redirectErrorStream(true);
-
             Process process = pb.start();
-            boolean completed = process.waitFor(timeLimit, TimeUnit.MILLISECONDS);
-            long endTime = System.currentTimeMillis();
-            int executionTime = (int) (endTime - startTime);
+            
+            // 等待命令执行完成
+            boolean completed = process.waitFor(dockerTimeout, TimeUnit.MILLISECONDS);
+            result.put("completed", completed);
+            
+            if (completed) {
+                int exitCode = process.exitValue();
+                result.put("exitCode", exitCode);
+                
+                // 读取输出
+                String output = readProcessOutput(process);
+                result.put("output", output);
+                
+                log.info("Docker容器编译命令执行完成: exitCode={}", exitCode);
+            } else {
+                process.destroyForcibly();
+                log.warn("Docker容器编译命令执行超时");
+                result.put("output", "编译超时");
+            }
+            
+            return result;
+        } catch (Exception e) {
+            log.error("执行Docker容器编译命令异常", e);
+            result.put("output", "执行编译命令异常: " + e.getMessage());
+            return result;
+        }
+    }
 
-            // 获取内存使用情况（这里只是一个估计值，实际应该使用Docker stats API获取更准确的值）
-            int memoryUsage = 50; // 默认值
-            try {
-                String[] statsCommand = {"docker", "stats", containerId, "--no-stream", "--format", "{{.MemUsage}}"};
-                Process statsProcess = Runtime.getRuntime().exec(statsCommand);
-                statsProcess.waitFor(2, TimeUnit.SECONDS);
-                String statsOutput = readProcessOutput(statsProcess);
-                // 解析内存使用（格式通常是 "123.4MiB / 512MiB"）
-                if (statsOutput.contains("MiB")) {
-                    String memUsage = statsOutput.split("/")[0].trim();
-                    memUsage = memUsage.replace("MiB", "").trim();
-                    try {
-                        memoryUsage = (int) Double.parseDouble(memUsage);
-                    } catch (NumberFormatException e) {
-                        log.warn("解析内存使用失败: {}", memUsage);
+    @Override
+    public Map<String, Object> executeRunCommand(String containerId, String[] command, String workDir, String inputFilePath, Integer timeLimit) {
+        Map<String, Object> result = new HashMap<>();
+        result.put("completed", false);
+        result.put("exitCode", -1);
+        result.put("output", "");
+        result.put("error", "");
+        result.put("time", 0L);
+        result.put("memory", 0);
+        
+        try {
+            // 构建Docker exec命令
+            String[] dockerCommand = buildDockerExecCommand(containerId, command, workDir);
+            
+            // 执行命令
+            ProcessBuilder pb = new ProcessBuilder(dockerCommand);
+            Process process = pb.start();
+            
+            // 如果有输入文件，将内容写入进程的标准输入
+            if (inputFilePath != null && !inputFilePath.isEmpty()) {
+                try (OutputStream stdin = process.getOutputStream();
+                     BufferedReader reader = new BufferedReader(new FileReader(inputFilePath))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        stdin.write((line + "\n").getBytes(StandardCharsets.UTF_8));
+                        stdin.flush();
                     }
                 }
-            } catch (Exception e) {
-                log.warn("获取容器内存使用异常", e);
             }
-
-            Map<String, Object> result = new HashMap<>();
+            
+            // 设置超时时间（默认为10秒，可由timeLimit参数覆盖）
+            int timeout = timeLimit != null ? timeLimit : dockerTimeout;
+            long startTime = System.currentTimeMillis();
+            boolean completed = process.waitFor(timeout, TimeUnit.MILLISECONDS);
+            long endTime = System.currentTimeMillis();
+            long executionTime = endTime - startTime;
+            
             result.put("completed", completed);
-            result.put("exitCode", completed ? process.exitValue() : -1);
-            result.put("output", readProcessOutput(process));
-            result.put("time", executionTime);
-            result.put("memory", memoryUsage);
-
+            result.put("time", executionTime); // 确保executionTime作为Long类型存储
+            
+            if (completed) {
+                int exitCode = process.exitValue();
+                result.put("exitCode", exitCode);
+                
+                // 读取标准输出和错误输出
+                String output = readProcessOutput(process);
+                String error = readProcessError(process);
+                result.put("output", output);
+                result.put("error", error);
+                
+                // 获取内存使用情况（这里只是一个估计值，实际应该通过Docker stats获取）
+                result.put("memory", 0); // 暂时不实现内存统计
+                
+                log.info("Docker容器运行命令执行完成: exitCode={}, time={}ms", exitCode, executionTime);
+            } else {
+                process.destroyForcibly();
+                log.warn("Docker容器运行命令执行超时");
+                result.put("error", "运行超时");
+            }
+            
             return result;
         } catch (Exception e) {
-            log.error("在Docker容器中执行运行命令异常", e);
-            Map<String, Object> result = new HashMap<>();
-            result.put("completed", false);
-            result.put("exitCode", -1);
-            result.put("output", "执行异常: " + e.getMessage());
-            result.put("time", 0);
-            result.put("memory", 0);
+            log.error("执行Docker容器运行命令异常", e);
+            result.put("error", "执行运行命令异常: " + e.getMessage());
             return result;
         }
     }
 
     @Override
-    public void removeContainer(String containerId) {
-        if (!dockerEnabled || containerId == null) {
-            return;
-        }
-
+    public boolean removeContainer(String containerId) {
         try {
-            // 停止容器
-            String[] stopCommand = {"docker", "stop", containerId};
-            Process stopProcess = Runtime.getRuntime().exec(stopCommand);
-            stopProcess.waitFor(5, TimeUnit.SECONDS);
-
-            // 删除容器
-            String[] rmCommand = {"docker", "rm", "-f", containerId};
-            Process rmProcess = Runtime.getRuntime().exec(rmCommand);
-            rmProcess.waitFor(5, TimeUnit.SECONDS);
-
-            log.info("已删除Docker容器: {}", containerId);
-        } catch (Exception e) {
-            log.error("删除Docker容器异常: {}", containerId, e);
-        }
-    }
-
-    @Override
-    public boolean isDockerAvailable() {
-        if (!dockerEnabled) {
-            return false;
-        }
-
-        try {
-            Process process = Runtime.getRuntime().exec("docker --version");
+            ProcessBuilder pb = new ProcessBuilder("docker", "rm", "-f", containerId);
+            Process process = pb.start();
             boolean completed = process.waitFor(5, TimeUnit.SECONDS);
-            return completed && process.exitValue() == 0;
+            
+            if (completed && process.exitValue() == 0) {
+                log.info("移除Docker容器成功: {}", containerId);
+                return true;
+            }
+            
+            log.warn("移除Docker容器失败: {}", containerId);
+            return false;
         } catch (Exception e) {
-            log.error("检查Docker可用性异常", e);
+            log.error("移除Docker容器异常", e);
             return false;
         }
     }
-
+    
     /**
-     * 根据语言获取对应的Docker镜像
-     */
-    private String getDockerImage(String language) {
-        switch (language.toLowerCase()) {
-            case "java":
-                return javaImage;
-            case "cpp":
-                return cppImage;
-            case "python":
-                return pythonImage;
-            default:
-                return pythonImage; // 默认使用Python镜像
-        }
-    }
-
-    /**
-     * 构建在Docker容器中执行的命令
+     * 构建Docker exec命令
+     * 使用bash -c命令来设置工作目录，避免使用-w参数
      */
     private String[] buildDockerExecCommand(String containerId, String[] command, String workDir) {
-        // 基本的docker exec命令
-        String[] baseCommand = {"docker", "exec", "-i"};
+        // 基础Docker exec命令前缀
+        String[] dockerExecPrefix = {"docker", "exec", "-i", containerId};
         
-        // 如果指定了工作目录
-        if (workDir != null && !workDir.isEmpty()) {
-            baseCommand = new String[]{"docker", "exec", "-i", "-w", workDir};
+        // 使用bash -c来执行命令并设置工作目录
+        // 构建命令字符串：cd 到指定目录，然后执行原始命令
+        StringBuilder commandStr = new StringBuilder();
+        commandStr.append("cd ").append(workDir).append(" && ");
+        
+        // 添加原始命令到命令字符串
+        for (int i = 0; i < command.length; i++) {
+            commandStr.append(command[i]);
+            if (i < command.length - 1) {
+                commandStr.append(" ");
+            }
         }
         
-        // 完整命令 = docker exec -i [-w workDir] containerId command...
-        String[] fullCommand = new String[baseCommand.length + 1 + command.length];
-        System.arraycopy(baseCommand, 0, fullCommand, 0, baseCommand.length);
-        fullCommand[baseCommand.length] = containerId;
-        System.arraycopy(command, 0, fullCommand, baseCommand.length + 1, command.length);
+        // 最终命令：docker exec -i containerId bash -c "cd /path && original command"
+        String[] fullCommand = new String[dockerExecPrefix.length + 3];
+        System.arraycopy(dockerExecPrefix, 0, fullCommand, 0, dockerExecPrefix.length);
+        fullCommand[dockerExecPrefix.length] = "bash";
+        fullCommand[dockerExecPrefix.length + 1] = "-c";
+        fullCommand[dockerExecPrefix.length + 2] = commandStr.toString();
         
         return fullCommand;
     }
-
+    
     /**
-     * 读取进程的输出
+     * 读取进程的标准输出
      */
-    private String readProcessOutput(Process process) {
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-            StringBuilder output = new StringBuilder();
+    private String readProcessOutput(Process process) throws IOException {
+        StringBuilder output = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 output.append(line).append("\n");
             }
-            return output.toString();
-        } catch (IOException e) {
-            log.error("读取进程输出异常", e);
-            return "读取输出异常: " + e.getMessage();
         }
+        return output.toString();
+    }
+    
+    /**
+     * 读取进程的错误输出
+     */
+    private String readProcessError(Process process) throws IOException {
+        StringBuilder error = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                error.append(line).append("\n");
+            }
+        }
+        return error.toString();
     }
 }

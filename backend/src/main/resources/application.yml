@@ -57,6 +57,14 @@ wx:
         token: #微信小程序消息服务器配置的 token
         aesKey: #微信小程序消息服务器配置的 EncodingAESKey
         msgDataFormat: JSON
+# Docker判题环境配置
+judge:
+  docker:
+    image: judge-env
+    memory-limit: 512m
+    cpu-limit: 1.0
+    network: none
+    timeout: 10000
 env: dev
 logging:
   file:
