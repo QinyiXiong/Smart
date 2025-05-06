@@ -1,5 +1,6 @@
 package com.sdumagicode.backend.service.impl;
 
+import com.aliyun.oss.OSS;
 import com.github.f4b6a3.ulid.UlidCreator;
 import com.sdumagicode.backend.auth.JwtConstants;
 import com.sdumagicode.backend.auth.TokenManager;
@@ -35,7 +36,7 @@ import javax.annotation.Resource;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-
+import com.sdumagicode.backend.util.OSSUpload;
 /**
  * @author CodeGenerator
  * @date 2018/05/29
@@ -57,6 +58,9 @@ public class UserServiceImpl extends AbstractService<User> implements UserServic
     private LoginRecordService loginRecordService;
 
     private final static String DEFAULT_AVATAR = "https://static.rymcu.com/article/1578475481946.png";
+
+    @Autowired
+    private OSSUpload ossUpload;
 
     @Override
     public User findByAccount(String account) throws TooManyResultsException {
@@ -196,9 +200,13 @@ public class UserServiceImpl extends AbstractService<User> implements UserServic
         }
         user.setNickname(nickname);
         if (FileDataType.BASE64.equals(user.getAvatarType())) {
-            String avatarUrl = UploadController.uploadBase64File(user.getAvatarUrl(), FilePath.AVATAR);
-            user.setAvatarUrl(avatarUrl);
-            user.setAvatarType("0");
+            // 1. 上传Base64图片到OSS
+            String ossUrl = ossUpload.uploadBase64ToOSS(user.getAvatarUrl(), "avatars/");
+
+            // 2. 更新用户信息
+            user.setAvatarUrl(ossUrl);
+            user.setAvatarType("0"); // 假设"0"表示URL类型
+
         }
         Integer result = userMapper.updateUserInfo(user.getIdUser(), user.getNickname(), user.getAvatarType(), user.getAvatarUrl(), user.getSignature(), user.getSex());
         UserIndexUtil.addIndex(UserLucene.builder()
