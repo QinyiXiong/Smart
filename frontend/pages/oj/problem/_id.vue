@@ -184,14 +184,6 @@
               提交代码
             </el-button>
             <el-button
-              type="warning"
-              @click="getAiReview"
-              icon="el-icon-chat-line-round"
-              :loading="isGettingAiReview"
-            >
-              AI代码评价
-            </el-button>
-            <el-button
               @click="resetCode"
               icon="el-icon-refresh-right"
               plain
@@ -234,7 +226,7 @@
                 <el-tag v-if="isPollingAiReview" type="info">正在生成评价...</el-tag>
               </div>
               <el-card class="ai-review-card" shadow="hover">
-                <pre class="ai-review-content">{{ aiReviewResult }}</pre>
+                <div class="ai-review-content markdown-body" v-html="renderedAiReview"></div>
               </el-card>
             </div>
           </transition>
@@ -398,6 +390,9 @@ export default {
     },
     renderedHints() {
       return marked(this.problem.hints || '')
+    },
+    renderedAiReview() {
+      return marked(this.aiReviewResult || '')
     }
   },
   async created() {
@@ -1233,11 +1228,49 @@ export default {
 .ai-review-content {
   margin: 0;
   padding: 16px;
-  white-space: pre-wrap;
-  font-family: 'Source Code Pro', monospace;
   font-size: 14px;
   line-height: 1.6;
   color: #303133;
+}
+
+.markdown-body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+}
+
+.markdown-body pre {
+  background-color: #f6f8fa;
+  border-radius: 3px;
+  padding: 16px;
+  overflow: auto;
+  font-family: 'Source Code Pro', monospace;
+}
+
+.markdown-body code {
+  background-color: rgba(27, 31, 35, 0.05);
+  border-radius: 3px;
+  font-family: 'Source Code Pro', monospace;
+  padding: 0.2em 0.4em;
+}
+
+.markdown-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.markdown-body table th,
+.markdown-body table td {
+  padding: 6px 13px;
+  border: 1px solid #dfe2e5;
+}
+
+.markdown-body table tr {
+  background-color: #fff;
+  border-top: 1px solid #c6cbd1;
+}
+
+.markdown-body table tr:nth-child(2n) {
+  background-color: #f6f8fa;
 }
 
 .judge-result {
