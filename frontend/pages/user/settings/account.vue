@@ -25,11 +25,10 @@
                   :mouthType='avatar.mouthType'
                   :skinColor='avatar.skinColor'>
                 </Avataaars>
-                <img @click="cropperVisible=true" alt="用户头像" :src="user.avatarUrl" class="card-profile-img-avatar"/>
+                <img @click="cropperVisible = true" alt="用户头像" :src="user.avatarUrl" class="card-profile-img-avatar"/>
               </el-col>
               <el-col>
-                <el-button @click="cropperVisible=true">上传</el-button>
-                <el-button @click="genAvatar" class="random">{{ randomTitle }}</el-button>
+                <el-button @click="cropperVisible = true">上传</el-button>
               </el-col>
             </el-form-item>
             <el-form-item label="昵称" prop="nickname">
@@ -84,19 +83,19 @@
         </el-col>
       </el-row>
     </client-only>
-    <ImgCropper @onSubmit="updateAvatar" :visible.sync='cropperVisible' :avatarUrl="user.avatarUrl||''"></ImgCropper>
+    <ImgCropper @onSubmit="updateAvatar" :visible.sync='cropperVisible' :avatarUrl="user.avatarUrl || ''"></ImgCropper>
 
   </el-card>
 
 </template>
 
 <script>
-import {mapState} from 'vuex';
+import { mapState } from 'vuex';
 import ImgCropper from "~/components/ImgCropper.vue";
 import saveSvg from "save-svg-as-png";
 import Avataaars from 'vuejs-avataaars';
 
-const {generateRandomAvatar} = require('~/plugins/avataaars/generator/generateAvatar');
+const { generateRandomAvatar } = require('~/plugins/avataaars/generator/generateAvatar');
 
 export default {
   name: "account",
@@ -115,12 +114,12 @@ export default {
       userExtend: {},
       rules: {
         nickname: [
-          {required: true, message: '请输入昵称', trigger: 'blur'},
-          {min: 1, max: 32, message: '长度在 1 到 32 个字符', trigger: 'blur'}
+          { required: true, message: '请输入昵称', trigger: 'blur' },
+          { min: 1, max: 32, message: '长度在 1 到 32 个字符', trigger: 'blur' }
         ],
         email: [
-          {required: true, message: '请输入邮箱地址', trigger: 'blur'},
-          {type: 'email', message: '请输入正确的邮箱地址', trigger: ['blur', 'change']}
+          { required: true, message: '请输入邮箱地址', trigger: 'blur' },
+          { type: 'email', message: '请输入正确的邮箱地址', trigger: ['blur', 'change'] }
         ]
       },
       loading: false,
@@ -212,10 +211,10 @@ export default {
         });
       }, 300);
     },
-    updateAvatar(data) {
+    updateAvatar(url) {
       let _ts = this;
       let user = _ts.user;
-      user.avatarUrl = data
+      user.avatarUrl = url
       user.avatarType = 1
       _ts.updateUser(user);
     }

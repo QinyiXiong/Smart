@@ -17,7 +17,7 @@
       </el-col>
       <el-col :span="24" style="margin-top: 2rem;">
         <el-col :span="8" style="max-width: 20rem;max-height: 20rem;">
-          <div class="preview preview-large" :style="{height:cropImg.h+'px',width:cropImg.w+'px'}"
+          <div class="preview preview-large" :style="{ height: cropImg.h + 'px', width: cropImg.w + 'px' }"
                style="overflow:hidden;margin: 0 auto">
             <img :src="cropImg.url" :style="cropImg.img">
           </div>
@@ -75,7 +75,7 @@ export default {
   methods: {
     onSubmit() {
       this.$refs.cropper.getCropData(data => {
-        this.$emit('onSubmit',data)
+        this.$emit('onSubmit', data)
       });
     },
     onOpen() {
@@ -252,5 +252,4 @@ export default {
   width: 2rem;
   height: 2rem;
 }
-
 </style>
