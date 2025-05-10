@@ -1,22 +1,11 @@
 package com.sdumagicode.backend.service.impl;
 
-import com.alibaba.dashscope.app.ApplicationOutput;
 import com.alibaba.dashscope.app.ApplicationResult;
-import com.alibaba.dashscope.exception.ApiException;
-import com.alibaba.dashscope.exception.InputRequiredException;
-import com.alibaba.dashscope.exception.NoApiKeyException;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.mongodb.client.result.UpdateResult;
 import com.sdumagicode.backend.core.exception.ServiceException;
-import com.sdumagicode.backend.core.result.GlobalResult;
-import com.sdumagicode.backend.core.result.GlobalResultGenerator;
-import com.sdumagicode.backend.core.service.AbstractService;
 import com.sdumagicode.backend.dto.chat.ChatOutput;
 import com.sdumagicode.backend.dto.chat.MessageFileDto;
 import com.sdumagicode.backend.dto.chat.MessageLocalDto;
 import com.sdumagicode.backend.entity.CodeSubmission;
-import com.sdumagicode.backend.entity.User;
 import com.sdumagicode.backend.entity.chat.*;
 import com.sdumagicode.backend.mapper.ChatMapper;
 import com.sdumagicode.backend.mapper.ValuationMapper;
@@ -31,9 +20,6 @@ import com.sdumagicode.backend.util.embeddingUtil.MilvusClient;
 import io.reactivex.Flowable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,7 +28,9 @@ import reactor.core.publisher.Flux;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -246,6 +234,8 @@ public class ChatServiceImpl implements ChatService {
             // 2.生成发送内容并组装成messageList
             String text = InterviewerPromptGenerator.generateCodeMessageContent(codeSubmission);
             MessageLocal messageLocal = new MessageLocal();
+            // 设置role为user，确保AI能正确处理代码评审请求
+            messageLocal.setRole("user");
             Content content = new Content();
             content.setText(text);
             messageLocal.setContent(content);
