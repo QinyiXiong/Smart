@@ -1,5 +1,6 @@
 package com.sdumagicode.backend.util.chatUtil;
 
+import com.sdumagicode.backend.entity.User;
 import com.sdumagicode.backend.entity.chat.Interviewer;
 import com.sdumagicode.backend.entity.chat.ValuationStandard;
 import com.sdumagicode.backend.entity.CodeSubmission;
@@ -145,7 +146,8 @@ public class InterviewerPromptGenerator {
         return PROMPT_TEMPLATE
                 + generateValuationStandardsPrompt()
                 + "\n用户提示词部分：" + interviewer.getCustomPrompt()
-                + "\n面试官设定部分：" + interviewer.getSettingsList();
+                + "\n面试官设定部分：" + interviewer.getSettingsList()
+                + "\n当前的chatId为："+ UserUtils.getCurrentChatId();
     }
 
 

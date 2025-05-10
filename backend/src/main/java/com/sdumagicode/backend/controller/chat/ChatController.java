@@ -45,54 +45,55 @@ public class ChatController {
     private ChatService chatService;
 
     @PostMapping("/saveChatRecords")
-    public GlobalResult<ChatRecords> saveChatRecords(@RequestBody ChatRecords chatRecords){
+    public GlobalResult<ChatRecords> saveChatRecords(@RequestBody ChatRecords chatRecords) {
 
         ChatRecords _chatRecord = chatService.saveChatRecords(chatRecords);
         return GlobalResultGenerator.genSuccessResult(_chatRecord);
     }
 
     @PostMapping("/getChatRecords")
-    public GlobalResult<List<ChatRecords>> getChatRecords(@RequestBody ChatRecords chatRecords){
-        if(chatRecords.getInterviewerId() == null){
-            throw  new ServiceException("缺少关键信息");
+    public GlobalResult<List<ChatRecords>> getChatRecords(@RequestBody ChatRecords chatRecords) {
+        if (chatRecords.getInterviewerId() == null) {
+            throw new ServiceException("缺少关键信息");
         }
-
 
         return GlobalResultGenerator.genSuccessResult(chatService.getChatRecords(chatRecords));
     }
 
     @PostMapping("/getAllBranches")
-    public GlobalResult<List<Branch>> getAllBranches(@RequestBody ChatRecords chatRecords){
-        if(chatRecords.getChatId() == null){
-            throw  new ServiceException("缺少关键信息");
+    public GlobalResult<List<Branch>> getAllBranches(@RequestBody ChatRecords chatRecords) {
+        if (chatRecords.getChatId() == null) {
+            throw new ServiceException("缺少关键信息");
         }
         List<Branch> allBranches = chatService.getAllBranches(chatRecords);
         return GlobalResultGenerator.genSuccessResult(allBranches);
     }
 
-
-//    @PostMapping(value = "/sendMessageWithFlux" ,produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-//    public Flux<GlobalResult<ChatOutput>> sendMessageWithFlux(@RequestBody ChatRequest chatRequest){
-//        if (chatRequest.getMessageList() == null || chatRequest.getMessageList().isEmpty()) {
-//            throw new ServiceException("缺少发送信息");
-//        }
-//        if (chatRequest.getInterviewer() == null) {
-//            throw new ServiceException("未设置面试官");
-//        }
-//        Flux<ChatOutput> globalResultFlux = chatService.sendMessageToInterviewerAndGetFlux(chatRequest.getMessageList(), chatRequest.getInterviewer());
-//
-//        return globalResultFlux.map(GlobalResultGenerator::genSuccessResult);
-//
-//    }
-
-
+    // @PostMapping(value = "/sendMessageWithFlux" ,produces =
+    // MediaType.TEXT_EVENT_STREAM_VALUE)
+    // public Flux<GlobalResult<ChatOutput>> sendMessageWithFlux(@RequestBody
+    // ChatRequest chatRequest){
+    // if (chatRequest.getMessageList() == null ||
+    // chatRequest.getMessageList().isEmpty()) {
+    // throw new ServiceException("缺少发送信息");
+    // }
+    // if (chatRequest.getInterviewer() == null) {
+    // throw new ServiceException("未设置面试官");
+    // }
+    // Flux<ChatOutput> globalResultFlux =
+    // chatService.sendMessageToInterviewerAndGetFlux(chatRequest.getMessageList(),
+    // chatRequest.getInterviewer());
+    //
+    // return globalResultFlux.map(GlobalResultGenerator::genSuccessResult);
+    //
+    // }
 
     @PostMapping("/sendMessageWithPoll")
     public GlobalResult<String> sendMessage(
             @RequestParam(value = "chatRequest") String chatRequestStr,
             @RequestPart(value = "files", required = false) List<MultipartFile> files,
-            @RequestParam(value = "fileMessageId", required = false) String fileMessageId
-    ) throws JsonProcessingException {
+            @RequestParam(value = "fileMessageId", required = false) String fileMessageId)
+            throws JsonProcessingException {
         // 手动解析JSON字符串
         ObjectMapper objectMapper = new ObjectMapper();
         ChatRequest chatRequest = objectMapper.readValue(chatRequestStr, ChatRequest.class);
@@ -100,19 +101,19 @@ public class ChatController {
 
         List<MessageLocalDto> collect = messageList.stream().map((item) -> {
             MessageLocalDto messageLocalDto = new MessageLocalDto(item);
-            if(fileMessageId != null && !fileMessageId.isEmpty()){
+            if (fileMessageId != null && !fileMessageId.isEmpty()) {
                 if (Objects.equals(messageLocalDto.getMessageId(), fileMessageId)) {
                     messageLocalDto.setUploadFiles(files);
                 }
             }
-
 
             return messageLocalDto;
         }).collect(Collectors.toList());
         List<MessageLocal> messageLocals = chatService.convertMessageListDto(collect);
         Interviewer interviewer = chatRequest.getInterviewer();
         // 参数验证
-        if (messageList == null || messageList.isEmpty() || messageList.get(messageList.size() - 1).getContent().getText().isEmpty()) {
+        if (messageList == null || messageList.isEmpty()
+                || messageList.get(messageList.size() - 1).getContent().getText().isEmpty()) {
             throw new ServiceException("缺少发送信息");
         }
         if (interviewer == null) {
@@ -123,8 +124,8 @@ public class ChatController {
 
         String messageId = String.valueOf(UUID.randomUUID());
         try {
-                    chatService.sendMessageToInterviewer(
-                            messageLocals,
+            chatService.sendMessageToInterviewer(
+                    messageLocals,
                     interviewer,
                     idUser,
                     messageId,
@@ -132,9 +133,8 @@ public class ChatController {
                         // 将每个输出添加到队列
 
                         MessageQueueUtil.addMessage(output);
-                        //System.out.println("add queue: "+ output.getText());
-                    }
-            );
+                        // System.out.println("add queue: "+ output.getText());
+                    });
         } catch (Exception e) {
             e.printStackTrace();
             MessageQueueUtil.addMessage(new ChatOutput("系统错误: " + e.getMessage()));
@@ -143,10 +143,10 @@ public class ChatController {
     }
 
     @PostMapping("/sendMessageToCoderWithPoll")
-    public GlobalResult<String> sendMessageToCoder(@RequestBody CodeSubmission codeSubmission)  {
+    public GlobalResult<String> sendMessageToCoder(@RequestBody CodeSubmission codeSubmission) {
 
         // 参数验证
-        if (codeSubmission == null || codeSubmission.getId() == null ) {
+        if (codeSubmission == null || codeSubmission.getId() == null) {
             throw new ServiceException("缺少关键信息");
         }
         Long idUser = UserUtils.getCurrentUserByToken().getIdUser();
@@ -161,9 +161,8 @@ public class ChatController {
                         // 将每个输出添加到队列
 
                         MessageQueueUtil.addMessage(output);
-                        //System.out.println("add queue: "+ output.getText());
-                    }
-            );
+                        // System.out.println("add queue: "+ output.getText());
+                    });
         } catch (Exception e) {
             e.printStackTrace();
             MessageQueueUtil.addMessage(new ChatOutput("系统错误: " + e.getMessage()));
@@ -171,13 +170,12 @@ public class ChatController {
         return GlobalResultGenerator.genSuccessStringDataResult(messageId);
     }
 
-
     @GetMapping("/pollMessages")
     public GlobalResult<List<ChatOutput>> pollMessages(
             @RequestParam("messageId") String messageId,
             @RequestParam(defaultValue = "10") int batchSize) {
-//        MessageQueueUtil.check();
-//        System.out.println("messageId: "+ messageId);
+        // MessageQueueUtil.check();
+        // System.out.println("messageId: "+ messageId);
         // 参数校验
         if (messageId == null || messageId.isEmpty()) {
             return GlobalResultGenerator.genErrorResult("messageId不能为空");
@@ -195,25 +193,20 @@ public class ChatController {
         try {
             while ((System.currentTimeMillis() - startTime) < timeout) {
 
-
                 List<ChatOutput> messages = MessageQueueUtil.pollBatch(messageId, batchSize);
 
-
-
                 if (!messages.isEmpty()) {
-                    //增加验证信息
+                    // 增加验证信息
                     ChatOutput chatOutput = messages.get(0);
-                    if(!userId.equals(chatOutput.getUserId())){
+                    if (!userId.equals(chatOutput.getUserId())) {
                         throw new ServiceException("验证失败");
                     }
 
-
                     // 检查当前批次是否有stop信号
                     hasStopSignal = messages.stream()
-                            .anyMatch(msg -> "stop".equals(msg.getFinish())) ;
+                            .anyMatch(msg -> "stop".equals(msg.getFinish()));
 
                     batch.addAll(messages);
-
 
                     if (hasStopSignal) {
                         MessageQueueUtil.removeQueue(messageId);
@@ -236,23 +229,19 @@ public class ChatController {
         }
     }
 
-
-
-
-
     @PostMapping("/saveBranches")
-    public GlobalResult saveBranches(@RequestBody List<Branch> branchList){
+    public GlobalResult saveBranches(@RequestBody List<Branch> branchList) {
         Long userId = UserUtils.getCurrentUserByToken().getIdUser();
-        if(branchList == null || branchList.isEmpty()){
+        if (branchList == null || branchList.isEmpty()) {
             throw new ServiceException("缺少保存列表");
         }
-        for (Branch branch:branchList) {
+        for (Branch branch : branchList) {
             branch.setUserId(userId);
         }
         boolean res = chatService.saveBranches(branchList);
-        if(res){
+        if (res) {
             return GlobalResultGenerator.genSuccessResult();
-        }else{
+        } else {
             return GlobalResultGenerator.genErrorResult("保存失败");
         }
     }
@@ -264,16 +253,17 @@ public class ChatController {
 
     /**
      * 删除聊天记录
+     * 
      * @param chatRecords 包含要删除的聊天记录信息
      * @return 操作结果
      */
     @PostMapping("/deleteChatRecords")
     public GlobalResult deleteChatRecords(@RequestBody ChatRecords chatRecords) {
-        if(chatRecords.getChatId() == null) {
+        if (chatRecords.getChatId() == null) {
             throw new ServiceException("缺少聊天记录ID");
         }
         boolean result = chatService.deleteChatRecords(chatRecords);
-        if(result) {
+        if (result) {
             return GlobalResultGenerator.genSuccessResult("删除成功");
         } else {
             return GlobalResultGenerator.genErrorResult("删除失败");
@@ -281,12 +271,19 @@ public class ChatController {
     }
 
     @PostMapping("/getValutionByChatId")
-    public GlobalResult<ValuationRecord> getValuationByChatId(@RequestBody ChatRecords chatRecords){
-        if(chatRecords.getChatId() == null) {
+    public GlobalResult<ValuationRecord> getValuationByChatId(@RequestBody ChatRecords chatRecords) {
+        if (chatRecords.getChatId() == null) {
             throw new ServiceException("缺少聊天记录ID");
         }
-        return GlobalResultGenerator.genSuccessStringDataResult(chatService.getValuationRecord(chatRecords.getChatId()));
+        return GlobalResultGenerator
+                .genSuccessStringDataResult(chatService.getValuationRecord(chatRecords.getChatId()));
     }
 
+    @PostMapping("/updateChatTopic")
+    public GlobalResult<Boolean> updateChatTopic(@RequestParam("chatId") Long chatId,
+            @RequestParam("newTopic") String newTopic) {
+        boolean result = chatService.updateChatTopic(chatId, newTopic);
+        return GlobalResultGenerator.genSuccessResult(result);
+    }
 
 }

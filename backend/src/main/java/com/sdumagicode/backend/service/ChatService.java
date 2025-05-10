@@ -21,37 +21,47 @@ import java.util.function.Consumer;
 
 public interface ChatService {
 
-    public List<ChatRecords> getChatRecords(ChatRecords chatRecords);
+        public List<ChatRecords> getChatRecords(ChatRecords chatRecords);
 
-    public ChatRecords saveChatRecords(ChatRecords chatRecords);
+        public ChatRecords saveChatRecords(ChatRecords chatRecords);
 
-    public boolean deleteChatRecords(ChatRecords chatRecords);
+        public boolean deleteChatRecords(ChatRecords chatRecords);
 
-    public  List<Branch> getAllBranches(ChatRecords chatRecords);
+        public List<Branch> getAllBranches(ChatRecords chatRecords);
 
-    public Flux<ChatOutput> sendMessageAndGetFlux(List<MessageLocal> messageList, String Prompt, ChatUtil.AppType appType);
+        public Flux<ChatOutput> sendMessageAndGetFlux(List<MessageLocal> messageList, String Prompt,
+                        ChatUtil.AppType appType);
 
-    public Flux<ChatOutput> sendMessageToInterviewerAndGetFlux(List<MessageLocal> messageList, Interviewer interviewer);
+        public Flux<ChatOutput> sendMessageToInterviewerAndGetFlux(List<MessageLocal> messageList,
+                        Interviewer interviewer);
 
-    void sendMessageToInterviewer(
-            List<MessageLocal> messages,
-            Interviewer interviewer,
-            Long userId,
-            String messageId,
-            Consumer<ChatOutput> outputConsumer
-    );
+        void sendMessageToInterviewer(
+                        List<MessageLocal> messages,
+                        Interviewer interviewer,
+                        Long userId,
+                        String messageId,
+                        Consumer<ChatOutput> outputConsumer);
 
-    void sendMessageToCoder(
-            CodeSubmission codeSubmission,
-            Long userId,
-            Consumer<ChatOutput> outputConsumer
-    );
-    public MessageFileDto convertMessageFile(MultipartFile multipartFile) throws IOException;
+        void sendMessageToCoder(
+                        CodeSubmission codeSubmission,
+                        Long userId,
+                        Consumer<ChatOutput> outputConsumer);
 
-    public boolean saveBranches(List<Branch> branchList);
+        public MessageFileDto convertMessageFile(MultipartFile multipartFile) throws IOException;
 
-    public List<MessageLocal> convertMessageListDto(List<MessageLocalDto> messageLocalDtoList);
+        public boolean saveBranches(List<Branch> branchList);
 
-    public ValuationRecord getValuationRecord(Long chatId);
+        public List<MessageLocal> convertMessageListDto(List<MessageLocalDto> messageLocalDtoList);
+
+        public ValuationRecord getValuationRecord(Long chatId);
+
+        /**
+         * 更新聊天话题
+         * 
+         * @param chatId   聊天ID
+         * @param newTopic 新话题名称
+         * @return 是否更新成功
+         */
+        boolean updateChatTopic(Long chatId, String newTopic);
 
 }

@@ -47,7 +47,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 @Service
-public class ChatServiceImpl  implements ChatService {
+public class ChatServiceImpl implements ChatService {
 
     @Autowired
     private ChatMapper chatMapper;
@@ -83,14 +83,14 @@ public class ChatServiceImpl  implements ChatService {
     @Override
     public ChatRecords saveChatRecords(ChatRecords chatRecords) {
         chatRecords.setUserId(UserUtils.getCurrentUserByToken().getIdUser());
-        if(chatRecords.getChatId() == null){
+        if (chatRecords.getChatId() == null) {
             chatRecords.setCreatedAt(LocalDateTime.now());
             chatRecords.setUpdatedAt(LocalDateTime.now());
 
             // 使用 insert 方法，会自动填充主键
             chatMapper.insertChatRecord(chatRecords);
 
-            //创建对应的评价表
+            // 创建对应的评价表
             List<Valuation> valuations = valuationMapper.selectAll();
             ValuationRank valuationRank = new ValuationRank();
             valuationRank.setRank(0);
@@ -103,8 +103,7 @@ public class ChatServiceImpl  implements ChatService {
             valuationRecord.setValuationRanks(collect);
             valuationRecordRepository.insert(valuationRecord);
 
-
-        }else{
+        } else {
             chatRecords.setUpdatedAt(LocalDateTime.now());
             chatMapper.updateChatRecord(chatRecords);
         }
@@ -112,17 +111,29 @@ public class ChatServiceImpl  implements ChatService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean deleteChatRecords(ChatRecords chatRecords) {
+        try {
+            // 先删除对应的branch
+            List<Branch> branches = branchRepository.findByChatId(chatRecords.getChatId());
+            if (branches != null && !branches.isEmpty()) {
+                branchRepository.deleteAll(branches);
+            }
 
-        //先删除对应的branch
-        branchRepository.deleteAll(branchRepository.findByChatId(chatRecords.getChatId()));
+            // 再删除对应的valuationRecord
+            valuationRecordRepository.deleteByChatId(chatRecords.getChatId());
 
-        //再删除对应的valuationRecord
-        valuationRecordRepository.deleteByChatId(chatRecords.getChatId());
+            // 最后删除聊天记录本身
+            int result = chatMapper.deleteChatRecord(chatRecords.getChatId());
 
-        chatMapper.deleteChatRecord(chatRecords.getChatId());
+            if (result <= 0) {
+                throw new ServiceException("删除聊天记录失败");
+            }
 
-        return true;
+            return true;
+        } catch (Exception e) {
+            throw new ServiceException("删除聊天记录时发生错误: " + e.getMessage());
+        }
     }
 
     @Override
@@ -132,7 +143,8 @@ public class ChatServiceImpl  implements ChatService {
     }
 
     @Override
-    public Flux<ChatOutput> sendMessageAndGetFlux(List<MessageLocal> messageList, String Prompt, ChatUtil.AppType appType) {
+    public Flux<ChatOutput> sendMessageAndGetFlux(List<MessageLocal> messageList, String Prompt,
+            ChatUtil.AppType appType) {
         try {
             // 1. 调用AI接口并转换为Flux流
             Flowable<ApplicationResult> aiStream = chatUtil.streamCall(messageList, Prompt, appType);
@@ -161,24 +173,27 @@ public class ChatServiceImpl  implements ChatService {
     }
 
     @Override
-    public Flux<ChatOutput> sendMessageToInterviewerAndGetFlux(List<MessageLocal> messageList, Interviewer interviewer) {
-        //对用户最后一条信息进行RAG搜索
+    public Flux<ChatOutput> sendMessageToInterviewerAndGetFlux(List<MessageLocal> messageList,
+            Interviewer interviewer) {
+        // 对用户最后一条信息进行RAG搜索
         MessageLocal messageLocal = messageList.get(messageList.size() - 1);
 
         Long idUser = UserUtils.getCurrentUserByToken().getIdUser();
-        milvusClient.buildRAGContent(idUser,interviewer.getKnowledgeBaseId(),messageLocal.getContent().getText(),5);
+        milvusClient.buildRAGContent(idUser, interviewer.getKnowledgeBaseId(), messageLocal.getContent().getText(), 5);
 
-//        System.out.println(InterviewerPromptGenerator.generatePrompt(interviewer));
-        return sendMessageAndGetFlux(messageList,InterviewerPromptGenerator.generatePrompt(interviewer), ChatUtil.AppType.INTERVIEWER);
+        // System.out.println(InterviewerPromptGenerator.generatePrompt(interviewer));
+        return sendMessageAndGetFlux(messageList, InterviewerPromptGenerator.generatePrompt(interviewer),
+                ChatUtil.AppType.INTERVIEWER);
     }
 
     @Override
     @Async
-    public void sendMessageToInterviewer(List<MessageLocal> messageList, Interviewer interviewer, Long userId, String messageId, Consumer<ChatOutput> outputConsumer) {
+    public void sendMessageToInterviewer(List<MessageLocal> messageList, Interviewer interviewer, Long userId,
+            String messageId, Consumer<ChatOutput> outputConsumer) {
         try {
 
             Optional<Branch> byId = branchRepository.findById(messageList.get(0).getBranchId());
-            if(UserUtils.getCurrentChatId() != null){
+            if (UserUtils.getCurrentChatId() != null) {
                 UserUtils.clearCurrentChatId();
             }
             UserUtils.setCurrentChatId(byId.get().getChatId());
@@ -186,30 +201,26 @@ public class ChatServiceImpl  implements ChatService {
             // 1. RAG搜索
             MessageLocal lastMessage = messageList.get(messageList.size() - 1);
 
-
             milvusClient.buildRAGContent(
                     userId,
                     interviewer.getKnowledgeBaseId(),
                     lastMessage.getContent().getText(),
-                    5
-            );
+                    5);
             // 2. 生成Prompt
             String prompt = InterviewerPromptGenerator.generatePrompt(interviewer);
-//            System.out.println(prompt);
+            // System.out.println(prompt);
 
             // 3. 调用AI接口
             Flowable<ApplicationResult> aiStream = chatUtil.streamCall(
                     messageList,
                     prompt,
-                    ChatUtil.AppType.INTERVIEWER
-            );
-
+                    ChatUtil.AppType.INTERVIEWER);
 
             // 4. 使用Consumer处理流式输出
             aiStream.blockingSubscribe(data -> {
                 ChatOutput chatOutput = new ChatOutput(data.getOutput());
-                //System.out.println("content: " + chatOutput.getText());
-                //添加验证信息和标识信息
+                // System.out.println("content: " + chatOutput.getText());
+                // 添加验证信息和标识信息
                 chatOutput.setUserId(userId);
                 chatOutput.setMessageId(messageId);
                 System.out.println(chatOutput);
@@ -229,7 +240,6 @@ public class ChatServiceImpl  implements ChatService {
     public void sendMessageToCoder(CodeSubmission codeSubmission, Long userId, Consumer<ChatOutput> outputConsumer) {
         try {
 
-
             // 1. 生成Prompt
             String prompt = InterviewerPromptGenerator.generateCoderPrompt(codeSubmission);
 
@@ -246,20 +256,19 @@ public class ChatServiceImpl  implements ChatService {
             Flowable<ApplicationResult> aiStream = chatUtil.streamCall(
                     messageList,
                     prompt,
-                    ChatUtil.AppType.CODER
-            );
+                    ChatUtil.AppType.CODER);
 
-            //使用submissionId作为messageId
+            // 使用submissionId作为messageId作为messageId
             // 4. 使用Consumer处理流式输出
             aiStream.blockingSubscribe(data -> {
-                        ChatOutput chatOutput = new ChatOutput(data.getOutput());
-                        //System.out.println("content: " + chatOutput.getText());
-                        //添加验证信息和标识信息
-                        chatOutput.setUserId(userId);
-                        chatOutput.setMessageId(String.valueOf(codeSubmission.getId()));
-                        System.out.println(chatOutput);
-                        outputConsumer.accept(chatOutput);
-                    }
+                ChatOutput chatOutput = new ChatOutput(data.getOutput());
+                // System.out.println("content: " + chatOutput.getText());
+                // 添加验证信息和标识信息
+                chatOutput.setUserId(userId);
+                chatOutput.setMessageId(String.valueOf(codeSubmission.getId()));
+                System.out.println(chatOutput);
+                outputConsumer.accept(chatOutput);
+            }
 
             );
 
@@ -271,6 +280,7 @@ public class ChatServiceImpl  implements ChatService {
 
     /**
      * 上传文件，并解析文件相关内容
+     * 
      * @param multipartFile
      * @return
      * @throws IOException
@@ -288,12 +298,12 @@ public class ChatServiceImpl  implements ChatService {
         return true;
     }
 
-    public List<MessageLocal> convertMessageListDto(List<MessageLocalDto> messageLocalDtoList){
+    public List<MessageLocal> convertMessageListDto(List<MessageLocalDto> messageLocalDtoList) {
 
         List<MessageLocal> messageLocalList = messageLocalDtoList.stream().map(item -> {
-            //对有上传文件的处理
-            //当uploadFiles有值时，说明这个信息是第一次发送，尚未执行转化，或者是重新上传文件，覆盖原来的文件
-            //提取文件中的内容分析，获取fileInfoList后保存这条信息
+            // 对有上传文件的处理
+            // 当uploadFiles有值时，说明这个信息是第一次发送，尚未执行转化，或者是重新上传文件，覆盖原来的文件
+            // 提取文件中的内容分析，获取fileInfoList后保存这条信息
             List<MultipartFile> uploadFiles = item.getUploadFiles();
             MessageLocal messageLocal;
             if (uploadFiles != null && !uploadFiles.isEmpty()) {
@@ -309,7 +319,7 @@ public class ChatServiceImpl  implements ChatService {
                         throw new ServiceException("文件分析失败");
                     }
                 }
-                //构建新的messageLocal并保存
+                // 构建新的messageLocal并保存
                 Content content = item.getContent();
                 content.setFiles(files);
                 item.setContent(content);
@@ -356,6 +366,30 @@ public class ChatServiceImpl  implements ChatService {
         }
     }
 
+    @Override
+    public boolean updateChatTopic(Long chatId, String newTopic) {
+        if (chatId == null || newTopic == null || newTopic.trim().isEmpty()) {
+            throw new ServiceException("聊天ID或话题名称不能为空");
+        }
 
+        // 检查聊天记录是否存在
+        ChatRecords existingRecord = chatMapper.selectById(chatId);
+        if (existingRecord == null) {
+            throw new ServiceException("聊天记录不存在");
+        }
+
+        // 检查用户权限
+        Long currentUserId = UserUtils.getCurrentUserByToken().getIdUser();
+        if (!existingRecord.getUserId().equals(currentUserId)) {
+            throw new ServiceException("无权修改此聊天记录");
+        }
+
+        // 更新话题
+        existingRecord.setTopic(newTopic);
+        existingRecord.setUpdatedAt(LocalDateTime.now());
+        int result = chatMapper.updateChatRecord(existingRecord);
+
+        return result > 0;
+    }
 
 }
