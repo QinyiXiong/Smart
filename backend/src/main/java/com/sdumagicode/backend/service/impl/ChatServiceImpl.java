@@ -61,6 +61,9 @@ public class ChatServiceImpl implements ChatService {
     @Autowired
     ValuationMapper valuationMapper;
 
+    @Autowired
+    InterviewerPromptGenerator interviewerPromptGenerator;
+
     @Override
     public List<ChatRecords> getChatRecords(ChatRecords chatRecords) {
         Long userId = UserUtils.getCurrentUserByToken().getIdUser();
@@ -80,11 +83,12 @@ public class ChatServiceImpl implements ChatService {
 
             // 创建对应的评价表
             List<Valuation> valuations = valuationMapper.selectAll();
-            ValuationRank valuationRank = new ValuationRank();
-            valuationRank.setRank(0);
+
             List<ValuationRank> collect = valuations.stream().map((item) -> {
-                valuationRank.setValuation(item);
-                return valuationRank;
+                ValuationRank newRank = new ValuationRank();
+                newRank.setRank(0);
+                newRank.setValuation(item);
+                return newRank;
             }).collect(Collectors.toList());
             ValuationRecord valuationRecord = new ValuationRecord();
             valuationRecord.setChatId(chatRecords.getChatId());
@@ -170,7 +174,7 @@ public class ChatServiceImpl implements ChatService {
         milvusClient.buildRAGContent(idUser, interviewer.getKnowledgeBaseId(), messageLocal.getContent().getText(), 5);
 
         // System.out.println(InterviewerPromptGenerator.generatePrompt(interviewer));
-        return sendMessageAndGetFlux(messageList, InterviewerPromptGenerator.generatePrompt(interviewer),
+        return sendMessageAndGetFlux(messageList, interviewerPromptGenerator.generatePrompt(interviewer),
                 ChatUtil.AppType.INTERVIEWER);
     }
 
@@ -195,7 +199,7 @@ public class ChatServiceImpl implements ChatService {
                     lastMessage.getContent().getText(),
                     5);
             // 2. 生成Prompt
-            String prompt = InterviewerPromptGenerator.generatePrompt(interviewer);
+            String prompt = interviewerPromptGenerator.generatePrompt(interviewer);
             // System.out.println(prompt);
 
             // 3. 调用AI接口

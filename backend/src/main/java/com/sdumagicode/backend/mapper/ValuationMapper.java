@@ -9,6 +9,6 @@ import java.util.List;
 
 @org.apache.ibatis.annotations.Mapper
 public interface ValuationMapper extends Mapper<Valuation> {
-    @Select("select id, valuation_description, valuation_name as settingName from interview_valuation")
+    @Select("select id, valuation_description as valuationDescription, valuation_name as valuationName from interview_valuation")
     public List<Valuation> selectAll();
 }

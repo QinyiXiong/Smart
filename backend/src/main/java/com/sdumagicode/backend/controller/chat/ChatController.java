@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sdumagicode.backend.core.exception.ServiceException;
 import com.sdumagicode.backend.core.result.GlobalResult;
 import com.sdumagicode.backend.core.result.GlobalResultGenerator;
+import com.sdumagicode.backend.core.service.redis.RedisService;
 import com.sdumagicode.backend.dto.chat.ChatOutput;
 import com.sdumagicode.backend.dto.chat.ChatRequest;
 import com.sdumagicode.backend.dto.chat.MessageFileDto;
@@ -43,6 +44,9 @@ public class ChatController {
 
     @Autowired
     private ChatService chatService;
+
+    @Autowired
+    private RedisService redisService;
 
     @PostMapping("/saveChatRecords")
     public GlobalResult<ChatRecords> saveChatRecords(@RequestBody ChatRecords chatRecords) {
@@ -284,6 +288,28 @@ public class ChatController {
             @RequestParam("newTopic") String newTopic) {
         boolean result = chatService.updateChatTopic(chatId, newTopic);
         return GlobalResultGenerator.genSuccessResult(result);
+    }
+    /**
+     * 获取所有的action,前端执行对应的操作
+     */
+    @GetMapping("/getActions")
+    public GlobalResult<List<String>> getActions(@RequestParam("chatId") String chatId) {
+        if (chatId == null || chatId.isEmpty()) {
+            throw new ServiceException("chatId不能为空");
+        }
+        int chatIdInt = Integer.parseInt(chatId);
+        
+        Set<String> keys = redisService.keys("action" + chatIdInt + "*");
+        List<String> actions = new ArrayList<>();
+        if (keys != null) {
+            for (String key : keys) {
+                String value = redisService.get(key);
+                if (value != null) {
+                    actions.add(value);
+                }
+            }
+        }
+        return GlobalResultGenerator.genSuccessResult(actions);
     }
 
 }

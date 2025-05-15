@@ -13,7 +13,9 @@ public class ChatOutput {
     public ChatOutput(ApplicationOutput output){
         this.finish = output.getFinishReason();
         this.text = output.getText();
-        this.thoughts = output.getThoughts().toString();
+        if(output.getThoughts() != null){
+            this.thoughts = output.getThoughts().toString();
+        }
     }
 
     private String text;

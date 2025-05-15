@@ -904,6 +904,8 @@ export default {
                 this.modifiedBranch = [];
                 await this.fetchData(this.chatRecordId)
                 this.scrollToBottom();
+                this.$emit('polling-completed');
+                
               }
               this.isLoading = false;
               return;

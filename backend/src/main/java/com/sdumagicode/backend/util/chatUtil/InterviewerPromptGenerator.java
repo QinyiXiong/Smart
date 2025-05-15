@@ -2,10 +2,14 @@ package com.sdumagicode.backend.util.chatUtil;
 
 import com.sdumagicode.backend.entity.User;
 import com.sdumagicode.backend.entity.chat.Interviewer;
+import com.sdumagicode.backend.entity.chat.ValuationRank;
+import com.sdumagicode.backend.entity.chat.ValuationRecord;
 import com.sdumagicode.backend.entity.chat.ValuationStandard;
 import com.sdumagicode.backend.entity.CodeSubmission;
+import com.sdumagicode.backend.mapper.mongoRepo.ValuationRecordRepository;
 import com.sdumagicode.backend.util.UserUtils;
 import com.sdumagicode.backend.util.ValuationStandardHolder;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
@@ -13,6 +17,10 @@ import java.util.List;
 
 @Component
 public class InterviewerPromptGenerator {
+
+    @Autowired
+    ValuationRecordRepository valuationRecordRepository;
+
     private static final String PROMPT_TEMPLATE = "提示词来源包括：1、当前基础版本。（本篇文章给出）2、用户使用时说的提示词。（使用时给出）3、用户在使用前可能在基础版本上新增的提示词。（后续给出）4、语音输入模块的提示词。（后续给出）5、用户上传的文件等（后续给出）。本篇内容只是提供了提示词的基础版本，后续开发中会给出新的提示词，尤其是3、4、5部分。\n" +
             "\n" +
             "流程设定：候选者问好，面试官开始面试-问题阶段-结束阶段（含反问阶段）-完成面试\n" +
@@ -141,13 +149,31 @@ public class InterviewerPromptGenerator {
         return valuationPrompt;
     }
 
-    public static String generatePrompt(Interviewer interviewer){
-        System.out.println(UserUtils.getCurrentChatId());
-        return PROMPT_TEMPLATE
-                + generateValuationStandardsPrompt()
-                + "\n用户提示词部分：" + interviewer.getCustomPrompt()
-                + "\n面试官设定部分：" + interviewer.getSettingsList()
-                + "\n当前的chatId为："+ UserUtils.getCurrentChatId();
+    public String generatePrompt(Interviewer interviewer){ 
+        Long currentChatId = UserUtils.getCurrentChatId(); 
+        ValuationRecord byChatId = valuationRecordRepository.findByChatId(currentChatId); 
+        
+        // 添加评分信息
+        StringBuilder valuationInfo = new StringBuilder("\n当前的评分信息：");
+        if (byChatId != null && byChatId.getValuationRanks() != null) {
+            for (ValuationRank rank : byChatId.getValuationRanks()) {
+                valuationInfo.append(rank.getValuation().getValuationName())
+                           .append(":")
+                           .append(rank.getRank())
+                           .append(" ");
+            }
+        }
+        
+//        return PROMPT_TEMPLATE
+//                + generateValuationStandardsPrompt()
+//                + "\n用户提示词部分：" + interviewer.getCustomPrompt()
+//                + "\n面试官设定部分：" + interviewer.getSettingsList()
+//                + "\n当前的chatId为："+ currentChatId
+//                + valuationInfo.toString();
+
+        //测试加减分的prompt,勿删
+        return "\n当前的chatId为："+ currentChatId
+                + valuationInfo.toString();
     }
 
 

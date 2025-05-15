@@ -1,7 +1,7 @@
 {
   "name": "mcp-for-smart-interview-mock",
-  "version": "1.1.2",
-  "description": "功能测试",
+  "version": "1.2.4",
+  "description": "redis数据库修改",
   "type": "module",
   "bin": {
     "mcp-for-smart-interview-mock": "build/mcp-server.js"

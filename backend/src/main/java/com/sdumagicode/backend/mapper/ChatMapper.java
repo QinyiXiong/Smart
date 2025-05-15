@@ -16,6 +16,10 @@ public interface ChatMapper extends BaseMapper<ChatRecords> {
         List<ChatRecords> selectChatRecords(@Param("userId") Long userId,
                         @Param("chatRecords") ChatRecords chatRecords);
 
+        @Select("SELECT chat_id as chatId, user_id as userId, interviewer_id as interviewerId, created_at as createdAt, updated_at as updatedAt, topic" +
+                " FROM interview_chat_records WHERE chat_id = #{id}")
+        ChatRecords selectById(@Param("id") Long id);
+
         @Insert("INSERT INTO interview_chat_records (user_id, interviewer_id, created_at, updated_at, topic) " +
                         "VALUES (#{userId}, #{interviewerId}, #{createdAt}, #{updatedAt}, #{topic})")
         @Options(useGeneratedKeys = true, keyProperty = "chatId", keyColumn = "chat_id")

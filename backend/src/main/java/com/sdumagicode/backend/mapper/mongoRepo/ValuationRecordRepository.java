@@ -8,5 +8,5 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 public interface ValuationRecordRepository extends MongoRepository<ValuationRecord,String> {
     ValuationRecord findByChatId(Long chatId);
 
-    boolean deleteByChatId(Long chatId);
+    void deleteByChatId(Long chatId);
 }
