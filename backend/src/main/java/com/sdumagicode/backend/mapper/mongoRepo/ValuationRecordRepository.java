@@ -9,4 +9,6 @@ public interface ValuationRecordRepository extends MongoRepository<ValuationReco
     ValuationRecord findByChatId(Long chatId);
 
     void deleteByChatId(Long chatId);
+
+
 }

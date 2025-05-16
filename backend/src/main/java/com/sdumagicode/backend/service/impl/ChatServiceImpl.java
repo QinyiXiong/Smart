@@ -113,7 +113,11 @@ public class ChatServiceImpl implements ChatService {
             }
 
             // 再删除对应的valuationRecord
-            valuationRecordRepository.deleteByChatId(chatRecords.getChatId());
+            ValuationRecord byChatId = valuationRecordRepository.findByChatId(chatRecords.getChatId());
+            if(byChatId != null && byChatId.getValuationRanks() != null && !byChatId.getValuationRanks().isEmpty()){
+                valuationRecordRepository.delete(byChatId);
+            }
+
 
             // 最后删除聊天记录本身
             int result = chatMapper.deleteChatRecord(chatRecords.getChatId());

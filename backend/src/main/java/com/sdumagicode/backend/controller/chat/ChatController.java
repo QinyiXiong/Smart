@@ -105,6 +105,7 @@ public class ChatController {
 
         List<MessageLocalDto> collect = messageList.stream().map((item) -> {
             MessageLocalDto messageLocalDto = new MessageLocalDto(item);
+            //把文件和所属message绑定
             if (fileMessageId != null && !fileMessageId.isEmpty()) {
                 if (Objects.equals(messageLocalDto.getMessageId(), fileMessageId)) {
                     messageLocalDto.setUploadFiles(files);
@@ -116,8 +117,8 @@ public class ChatController {
         List<MessageLocal> messageLocals = chatService.convertMessageListDto(collect);
         Interviewer interviewer = chatRequest.getInterviewer();
         // 参数验证
-        if (messageList == null || messageList.isEmpty()
-                || messageList.get(messageList.size() - 1).getContent().getText().isEmpty()) {
+        if (messageLocals == null || messageLocals.isEmpty()
+                || (messageLocals.get(messageList.size() - 1).getContent().getText().isEmpty() && messageLocals.get(messageList.size() - 1).getContent().getFiles().isEmpty())) {
             throw new ServiceException("缺少发送信息");
         }
         if (interviewer == null) {
@@ -300,7 +301,19 @@ public class ChatController {
         int chatIdInt = Integer.parseInt(chatId);
         
         Set<String> keys = redisService.keys("action" + chatIdInt + "*");
+        // 获取所有action后删除对应的key
         List<String> actions = new ArrayList<>();
+        if (keys != null) {
+            for (String key : keys) {
+                String value = redisService.get(key);
+                if (value != null) {
+                    actions.add(value);
+                    // 删除已经获取的action key
+                    redisService.delete(key);
+                }
+            }
+        }
+
         if (keys != null) {
             for (String key : keys) {
                 String value = redisService.get(key);

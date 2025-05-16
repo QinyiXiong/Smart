@@ -13,10 +13,12 @@ import com.sdumagicode.backend.entity.chat.FileInfo;
 import com.sdumagicode.backend.entity.chat.MessageLocal;
 import io.reactivex.Flowable;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Component
@@ -28,8 +30,14 @@ public class ChatUtil {
     @Value("${coder.app.id}")
     private String APP_ID_CODER;
 
+    @Value("${scorer.app.id}")
+    private String APP_ID_SCORER;
+
     @Value("${openai.api.key}")
     private String apiKey;
+
+    @Autowired
+    InterviewerPromptGenerator interviewerPromptGenerator;
 
     private String appId;
 
@@ -66,6 +74,27 @@ public class ChatUtil {
         
         // 调用接口
         Application application = new Application();
+
+//        if(appType == AppType.INTERVIEWER){
+//
+//            String scorePrompt = interviewerPromptGenerator.generateScorePrompt();
+//            //异步调用打分官
+//            CompletableFuture.runAsync(() -> {
+//                try {
+//                    ApplicationParam scoreParam = ApplicationParam.builder()
+//                            .apiKey(apiKey)
+//                            .appId(APP_ID_SCORER)
+//                            .incrementalOutput(false)
+//                            .messages(convertScoreMessages(messages,scorePrompt))
+//                            .build();
+//
+//                    application.call(scoreParam);
+//                } catch (Exception e) {
+//                    // 异步调用出现异常时进行日志记录
+//                    e.printStackTrace();
+//                }
+//            });
+//        }
         
         return application.streamCall(param);
     }
@@ -112,6 +141,41 @@ public class ChatUtil {
                 })
                 .collect(Collectors.toList()));
         
+        return messages;
+    }
+
+    private List<Message> convertScoreMessages(List<Message> messageList,String prompt) {
+        List<Message> messages = new ArrayList<>();
+
+        // 添加系统提示
+        messages.add(Message.builder()
+                .role("system")
+                .content(prompt)
+                .build());
+
+        // 如果消息列表为空或只有系统消息，直接返回
+        if (messageList == null || messageList.size() <= 1) {
+            return messages;
+        }
+
+        // 去掉第一条系统消息，合并其余消息
+        List<Message> contentMessages = messageList.subList(1, messageList.size());
+        StringBuilder mergedContent = new StringBuilder();
+        
+        for (int i = 0; i < contentMessages.size(); i++) {
+            if (i % 2 == 0) {
+                mergedContent.append("被面试者: ").append(contentMessages.get(i).getContent()).append("\n");
+            } else {
+                mergedContent.append("面试官: ").append(contentMessages.get(i).getContent()).append("\n");
+            }
+        }
+
+        // 添加合并后的消息
+        messages.add(Message.builder()
+                .role("user")
+                .content(mergedContent.toString().trim())
+                .build());
+
         return messages;
     }
     

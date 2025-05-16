@@ -111,7 +111,7 @@
       <div class="input-container">
         <el-input type="textarea" :rows="3" placeholder="请输入您的问题..." v-model="inputMessage"
           @keyup.enter.native="handleKeyEnter" class="message-input"></el-input>
-        <el-button type="primary" @click="sendMessageWithPolling()" :disabled="!inputMessage.trim() || isLoading"
+        <el-button type="primary" @click="sendMessageWithPolling()" :disabled="(!inputMessage.trim() && processedFiles.length === 0) || isLoading"
           class="send-button">
           <i class="el-icon-s-promotion"></i>
           <span v-if="!isLoading">发送</span>
@@ -193,6 +193,11 @@ export default {
       selectedFiles: [],  // 新增选择的文件列表
       uploadOnWhichMessage: -1,//使用哪个消息框上传文件，用于显示（-1表示在下方消息框，不是-1表示在上方消息栏的编辑页面的messageId）
       processedFiles: [],//用于保存和展示上传的文件
+
+      // 语音录音相关
+      mediaRecorder: null, // 媒体录音器实例
+      recordingTimer: null, // 录音计时器
+      recordingMessageBox: null, // 录音消息框
 
       md: new MarkdownIt(),
     }
@@ -367,7 +372,7 @@ export default {
         const parentBranch = this.allBranches.find(b =>
           b.children?.some(child => child.branchIndex == branch.index)
         );
-        console.log(parentBranch)
+      
         if (parentBranch) {
           // 更新标签
           const siblings = this.siblingNodes.find(node => node.branchId == message.branchId)?.siblings || [];
@@ -377,7 +382,7 @@ export default {
               child.tag = sibling.tag;
             }
           });
-          console.log(parentBranch)
+      
           // 保存到服务器
           await this.saveBranchList([parentBranch]);
         }
@@ -673,7 +678,7 @@ export default {
     },
 
     async sendModifiedMessage(message) {
-      console.log(message)
+     
       const modifiedText = message.editText;
       if (!modifiedText.trim()) {
         this.$message.warning('修改内容不能为空');
@@ -710,9 +715,13 @@ export default {
       // 参数messageContent为null时表示来自聊天框的消息，否则表示修改后的消息
 
       // 参数messageContent为null时表示来自聊天框的消息，否则表示修改后的消息
-      const messageText = messageContent !== null ? String(messageContent) : String(this.inputMessage);
-      if (!messageText || !messageText.trim() || this.isLoading) return;
-      if (!messageText.trim() || this.isLoading) return;
+      let messageText = messageContent !== null ? String(messageContent) : String(this.inputMessage);
+       if ((!messageText || !messageText.trim()) && this.processedFiles.length === 0 || this.isLoading) return;
+       
+       // 如果输入框为空但有上传文件，添加默认文本
+       if ((!messageText || !messageText.trim()) && this.processedFiles.length > 0) {
+         messageText = '用户上传文件';
+       }
       if (!this.currentInterviewer) {
         this.$message.warning('请先选择面试官');
         return;
@@ -730,7 +739,7 @@ export default {
       }
 
       const userMessage = this.createMessage('user', messageText);
-      // 关键修改：处理文件上传逻辑
+      //处理文件上传逻辑
 
       this.messageListForShow.push(userMessage);
 
@@ -846,12 +855,13 @@ export default {
             params: params,
             paramsSerializer: params => params.toString()  // 使用默认序列化
           });
-
+          console.log(response.data)
           if (response.data && response.data.length) {
             let shouldStop = false;
             // 重置超时计时器（每次收到有效数据就重置）
             pollingStartTime = Date.now();
             let hasNewContent = false;
+           
             // 批量处理消息
             for (const msg of response.data) {
 
@@ -864,11 +874,16 @@ export default {
               // 更新AI消息内容
               const aiMsg = this.messageListForShow.find(m => m.messageId === messageId);
               if (aiMsg) {
+              
                 aiMsg.content = aiMsg.content || { text: '' };
                 const oldLength = aiMsg.content.text.length;
-                await this.typeText(aiMsg, msg.text);
-                if (aiMsg.content.text.length > oldLength) {
-                  hasNewContent = true;  // 只有内容变化时才标记
+             
+                // 确保msg.text不为null或undefined再处理
+                if (msg.text !== null && msg.text !== undefined) {
+                  await this.typeText(aiMsg, msg.text);
+                  if (aiMsg.content.text.length > oldLength) {
+                    hasNewContent = true;  // 只有内容变化时才标记
+                  }
                 }
               }
             }
@@ -900,11 +915,13 @@ export default {
                 this.modifiedBranch.push(this.currentBranch);
                 // 调用封装的方法保存currentBranch，并手动传入branchList
                 console.log(this.modifiedBranch)
+                
                 await this.saveBranchList(this.modifiedBranch);
                 this.modifiedBranch = [];
+                this.$emit('polling-completed');
                 await this.fetchData(this.chatRecordId)
                 this.scrollToBottom();
-                this.$emit('polling-completed');
+                
                 
               }
               this.isLoading = false;
@@ -951,7 +968,22 @@ export default {
     },
 
     beforeDestroy() {
-      this.stopPolling()
+      this.stopPolling();
+      
+      // 清理录音相关资源
+      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+        this.mediaRecorder.stop();
+      }
+      
+      if (this.recordingTimer) {
+        clearInterval(this.recordingTimer);
+        this.recordingTimer = null;
+      }
+      
+      // 关闭录音消息框
+      if (this.recordingMessageBox) {
+        this.recordingMessageBox.close();
+      }
     },
 
 
@@ -1103,9 +1135,144 @@ export default {
       return filename;
     },
 
-    // 新增语音输入方法
+    // 语音输入方法
     startVoiceInput() {
-      this.$message.info('语音输入功能正在开发中')
+      // 检查浏览器是否支持录音API
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        this.$message.error('您的浏览器不支持录音功能');
+        return;
+      }
+
+      // 创建录音对话框
+      this.$confirm('准备开始录音，点击确定开始录音，取消则退出', '语音输入', {
+        confirmButtonText: '开始录音',
+        cancelButtonText: '取消',
+        type: 'info'
+      }).then(() => {
+        // 开始录音
+        this.startRecording();
+      }).catch(() => {
+        this.$message.info('已取消录音');
+      });
+    },
+
+    // 开始录音
+    async startRecording() {
+      try {
+        // 请求麦克风权限
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // 创建MediaRecorder实例
+        this.mediaRecorder = new MediaRecorder(stream);
+        
+        // 存储录音数据
+        const audioChunks = [];
+        
+        // 监听数据可用事件
+        this.mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunks.push(event.data);
+          }
+        };
+        
+        // 监听录音停止事件
+        this.mediaRecorder.onstop = () => {
+          // 将录音数据合并为一个Blob
+          const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+          
+          // 创建一个唯一的文件名
+          const fileName = `voice_${new Date().getTime()}.mp3`;
+          
+          // 创建File对象
+          const audioFile = new File([audioBlob], fileName, { type: 'audio/mp3' });
+          
+          // 将录音文件添加到文件列表
+          this.processedFiles.push({
+            name: fileName,
+            size: audioBlob.size,
+            type: 'audio/mp3',
+            raw: audioFile
+          });
+          
+          // 关闭所有轨道
+          stream.getTracks().forEach(track => track.stop());
+          
+          this.$message.success('录音已完成并添加到文件列表');
+        };
+        
+        // 开始录音
+        this.mediaRecorder.start();
+        
+        // 显示正在录音的提示
+        this.$message({
+          message: '正在录音中，点击停止按钮结束录音',
+          type: 'warning',
+          duration: 0,
+          showClose: true,
+          center: true,
+          customClass: 'recording-message'
+        });
+        
+        // 创建停止录音按钮
+        const h = this.$createElement;
+        this.recordingMessageBox = this.$msgbox({
+          title: '录音中',
+          message: h('div', null, [
+            h('p', { style: 'text-align: center' }, '正在录音，请对着麦克风说话'),
+            h('div', { style: 'text-align: center; margin-top: 20px' }, [
+              h('span', { style: 'color: #f56c6c; margin-right: 10px' }, '录音时长: '),
+              h('span', { class: 'recording-timer', ref: 'timer' }, '00:00')
+            ])
+          ]),
+          showCancelButton: false,
+          confirmButtonText: '停止录音',
+          beforeClose: (action, instance, done) => {
+            if (action === 'confirm') {
+              // 停止录音
+              if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+                this.mediaRecorder.stop();
+              }
+              // 清除计时器
+              if (this.recordingTimer) {
+                clearInterval(this.recordingTimer);
+                this.recordingTimer = null;
+              }
+              // 关闭所有消息
+              this.$message.closeAll();
+            }
+            done();
+          }
+        });
+        
+        // 开始计时
+        let seconds = 0;
+        this.recordingTimer = setInterval(() => {
+          seconds++;
+          const minutes = Math.floor(seconds / 60);
+          const remainingSeconds = seconds % 60;
+          const timeString = `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+          
+          // 更新计时器显示
+          const timerElements = document.getElementsByClassName('recording-timer');
+          if (timerElements && timerElements.length > 0) {
+            timerElements[0].textContent = timeString;
+          }
+          
+          // 如果录音超过3分钟，自动停止
+          if (seconds >= 180) {
+            if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+              this.mediaRecorder.stop();
+            }
+            clearInterval(this.recordingTimer);
+            this.recordingTimer = null;
+            this.recordingMessageBox.close();
+            this.$message.info('录音已达到最大时长(3分钟)，已自动停止');
+          }
+        }, 1000);
+      } catch (error) {
+        console.error('录音失败:', error);
+        this.$message.error('无法访问麦克风，请确保已授予麦克风权限');
+      }
     }
   }
 }
@@ -1592,5 +1759,17 @@ export default {
 .user-message .edit-input :deep(.el-textarea__inner) {
   background-color: rgba(64, 158, 255, 0.03); /* 半透明蓝色背景 */
   border: none; /* 蓝色边框 */
+}
+
+/* 录音相关样式 */
+.recording-message {
+  background-color: #fef0f0;
+  border: 1px solid #fbc4c4;
+}
+
+.recording-timer {
+  font-size: 18px;
+  font-weight: bold;
+  color: #409eff;
 }
 </style>

@@ -164,18 +164,33 @@ public class InterviewerPromptGenerator {
             }
         }
         
-//        return PROMPT_TEMPLATE
-//                + generateValuationStandardsPrompt()
-//                + "\n用户提示词部分：" + interviewer.getCustomPrompt()
-//                + "\n面试官设定部分：" + interviewer.getSettingsList()
-//                + "\n当前的chatId为："+ currentChatId
-//                + valuationInfo.toString();
+        return PROMPT_TEMPLATE
+                + generateValuationStandardsPrompt()
+                + "\n用户提示词部分：" + interviewer.getCustomPrompt()
+                + "\n面试官设定部分：" + interviewer.getSettingsList()
+                + "\n当前的chatId为："+ currentChatId
+                + valuationInfo.toString();
 
         //测试加减分的prompt,勿删
-        return "\n当前的chatId为："+ currentChatId
-                + valuationInfo.toString();
+//        return "\n当前的chatId为："+ currentChatId
+//                + valuationInfo.toString() + "每次加减分都是调用mcp工具完成的,不是只是说一下";
     }
-
+    public String generateScorePrompt(){
+        Long currentChatId = UserUtils.getCurrentChatId();
+        ValuationRecord byChatId = valuationRecordRepository.findByChatId(currentChatId);
+        StringBuilder valuationInfo = new StringBuilder("\n当前的评分信息：");
+        if (byChatId != null && byChatId.getValuationRanks() != null) {
+            for (ValuationRank rank : byChatId.getValuationRanks()) {
+                valuationInfo.append(rank.getValuation().getValuationName())
+                        .append(":")
+                        .append(rank.getRank())
+                        .append(" ");
+            }
+        }
+        return "你作为一个面试记录官,我会给你发送面试者和面试官的聊天记录,chatId(用于调用工具用)以及当前面试者各方面的评分," +
+                "你只需要根据目前的聊天记录判断当前面试者的评分和他的行为举止是否匹配,如果不匹配,则调用mcp服务进行加减分." +
+                "记住:你不需要输出多余信息,只需要按照我指定的规则调用mcp工具即可" + "\n当前的chatId为："+ currentChatId + valuationInfo.toString();
+    }
 
     public static String generateCoderPrompt(CodeSubmission codesubmissioner) {
         return PROMPT_TEMPLATE_OJ

@@ -44,9 +44,11 @@ public class FileAnalysisService {
         // 1. 处理语音内容
         if (fileInfo != null && fileInfo.getUrl() != null) {
             try {
-                String audioAnalysis = audioAnalysisUtil.analyzeInterviewAudio(fileInfo.getUrl());
+                String fullPath = new File(UPLOAD_DIR, fileInfo.getUrl()).getAbsolutePath();
+                String audioAnalysis = audioAnalysisUtil.analyzeInterviewAudio(fullPath);
                 combinedText.append(audioAnalysis).append("\n\n");
             } catch (Exception e) {
+                e.printStackTrace();
                 combinedText.append("<语音分析失败>\n\n");
             }
         }
