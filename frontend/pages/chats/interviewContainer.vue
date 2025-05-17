@@ -1,9 +1,15 @@
 <template>
   <div class="interview-container">
     <!-- 左侧导航栏 -->
-    <div class="left-sidebar">
+    <div class="left-sidebar" :class="{ 'collapsed': isSidebarCollapsed }">
       <div class="panel-header">
         <span>AI面试官</span>
+        <el-button 
+          class="collapse-btn" 
+          type="text" 
+          @click="toggleSidebar"
+          :icon="isSidebarCollapsed ? 'el-icon-d-arrow-right' : 'el-icon-d-arrow-left'"
+        ></el-button>
       </div>
 
       <!-- 切换标签 -->
@@ -132,7 +138,7 @@
               <div class="valuation-progress">
                 <div class="valuation-progress-bar" :style="{ width: item.rank + '%' }"></div>
               </div>
-              <span class="valuation-score">{{ item.rank }}%</span>
+              <span class="valuation-score">{{ item.rank }}/100</span>
               <el-tooltip :content="item.valuation.valuationDescription" placement="left">
                 <i class="el-icon-question"></i>
               </el-tooltip>
@@ -186,7 +192,9 @@ export default {
       newTopicName: '',
       currentRecordToRename: null,
       valuationData: null,
-      radarChart: null
+      radarChart: null,
+      isSidebarCollapsed: false,
+      showSkeleton: false
     }
   },
   watch: {
@@ -214,6 +222,9 @@ export default {
     });
   },
   methods: {
+    toggleSidebar() {
+      this.isSidebarCollapsed = !this.isSidebarCollapsed;
+    },
     async handlePollingCompleted() {
       try {
         if (!this.activeChatRecord) return;
@@ -362,7 +373,7 @@ export default {
         
         // 更新UI
         progressBar.style.width = `${currentValue}%`;
-        scoreElement.textContent = `${Math.round(currentValue)}%`;
+    scoreElement.textContent = `${Math.round(currentValue)}/100`;
         
         // 继续动画或结束
         if (progress < 1) {
@@ -491,9 +502,15 @@ export default {
         this.$message.success('删除成功')
         // 删除后重新加载记录
         await this.loadChatRecords()
-        // 如果删除的是当前激活的记录，则清空activeChatRecord
+        // 如果删除的是当前激活的记录，则清空activeChatRecord和相关数据
         if (this.activeChatRecord === chatId.toString()) {
           this.activeChatRecord = null
+          this.currentInterviewer = null
+          this.valuationData = null
+          if (this.radarChart) {
+            this.radarChart.dispose()
+            this.radarChart = null
+          }
         }
 
       } catch (error) {
@@ -504,7 +521,31 @@ export default {
       }
     },
     handleChatRecordSelect(chatId) {
-      this.activeChatRecord = chatId
+      // 添加过渡效果
+      this.$nextTick(() => {
+        const valuationArea = this.$refs.valuationArea;
+        if (valuationArea) {
+          valuationArea.style.transition = 'opacity 0.3s ease';
+          valuationArea.style.opacity = 0;
+        }
+        
+        setTimeout(() => {
+          // 清空评估数据
+          this.valuationData = null;
+          if (this.radarChart) {
+            this.radarChart.dispose();
+            this.radarChart = null;
+          }
+          this.activeChatRecord = chatId;
+          
+          // 强制重新获取评估数据并初始化雷达图
+          this.fetchValuationData(chatId).then(() => {
+            if (valuationArea) {
+              valuationArea.style.opacity = 1;
+            }
+          });
+        }, 300);
+      });
     },
     formatDate(dateString) {
       if (!dateString) return ''
@@ -549,19 +590,28 @@ export default {
     // 获取面试评估数据
     async fetchValuationData(chatId) {
       try {
+        // 显示骨架屏
+        this.showSkeleton = true;
+        
         const res = await axios.post('/api/chat/getValutionByChatId', {
           chatId: parseInt(chatId)
         });
         
         if (res.data) {
-          this.valuationData = res.data;
-          // 在下一个DOM更新周期初始化雷达图
+          // 使用动画过渡
           this.$nextTick(() => {
+            this.valuationData = res.data;
             this.initRadarChart();
+            this.showSkeleton = false;
           });
+        } else {
+          this.valuationData = null;
+          this.showSkeleton = false;
         }
       } catch (error) {
         console.error('获取评估数据失败', error);
+        this.valuationData = null;
+        this.showSkeleton = false;
       }
     },
     
@@ -678,6 +728,16 @@ export default {
   flex: 1;
   display: flex;
   height: 100%;
+  transition: margin-left 0.3s ease;
+}
+
+.main-content-area.expanded {
+  margin-left: -220px;
+}
+
+/* 确保雷达图在边栏折叠时正确显示 */
+.valuation-area {
+  transition: width 0.3s ease;
 }
 
 /* 评估区域样式 */
@@ -829,6 +889,35 @@ export default {
   border-right: 1px solid #ebeef5;
   display: flex;
   flex-direction: column;
+  transition: width 0.3s ease;
+  overflow: hidden;
+}
+
+.left-sidebar.collapsed {
+  width: 40px;
+}
+
+.left-sidebar.collapsed .panel-header,
+.left-sidebar.collapsed .tab-switcher,
+.left-sidebar.collapsed .ai-interviewer-section,
+.left-sidebar.collapsed .chat-records-section {
+  visibility: hidden;
+}
+
+.left-sidebar.collapsed .collapse-btn {
+  visibility: visible;
+  z-index: 10;
+}
+
+.left-sidebar.collapsed .interviewer-item,
+.left-sidebar.collapsed .chat-record-item {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.left-sidebar.collapsed .new-chat-button {
+  padding: 8px 0;
+  justify-content: center;
 }
 
 .panel-header {
@@ -838,6 +927,22 @@ export default {
   justify-content: space-between;
   border-bottom: 1px solid #ebeef5;
   background: #f5f7fa;
+}
+
+.left-sidebar.collapsed .panel-header {
+  padding: 22px;
+  justify-content: center;
+  visibility: visible;
+}
+
+.left-sidebar.collapsed .panel-header span {
+  display: none;
+}
+
+.collapse-btn {
+  font-size: 16px;
+  padding: 0;
+  z-index: 10;
 }
 
 .panel-header span {

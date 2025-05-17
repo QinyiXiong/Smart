@@ -14,19 +14,25 @@
         <div v-if="message.content.files.length > 0" class="processed-files">
           <el-card v-for="(file, index) in message.content.files" :key="index" class="file-card" shadow="hover">
             <div class="file-card-content">
-              <i class="el-icon-document" style="margin-right: 8px;"></i>
+              <i :class="getFileIcon(file.fileName)" style="margin-right: 8px;"></i>
               <span :title="file.fileName">{{ truncateFilename(file.fileName) }}</span>
             </div>
           </el-card>
         </div>
+        
         <div class="message-content-wrapper">
           <div class="message-content">
-            <div v-if="!message.editing" class="message-text"
-              v-html="renderMarkdown(message.content.text, message.role)">
+            <div v-if="!message.editing">
+              <!-- AI消息加载状态 -->
+              <div v-if="message.role === 'assistant' && isAiThinking && message.content.text === ''" 
+                   class="thinking-indicator">
+                <div class="blue-spinner"><div class="spinner"></div></div>
+                <span>思考中...</span>
+              </div>
+              <div v-else class="message-text" v-html="renderMarkdown(message.content.text, message.role)"></div>
             </div>
             <div v-else class="edit-input-container">
               <el-input type="textarea" :rows="3" v-model="message.editText" class="edit-input"></el-input>
-              <!-- 编辑状态下的按钮移到这里 -->
               <div class="edit-actions">
                 <el-button size="mini" @click="cancelEdit(message)">取消</el-button>
                 <el-button size="mini" type="primary" @click="sendModifiedMessage(message)">确定</el-button>
@@ -39,11 +45,10 @@
               @click="startEditMessage(message)"></el-button>
             <el-button v-if="!message.editing" type="text" icon="el-icon-refresh"
               @click="regenerateMessage(message)"></el-button>
-            <!-- 移除这里的编辑按钮 -->
           </div>
         </div>
 
-        <!-- 添加分支切换按钮，放置在容器右侧 -->
+        <!-- 分支切换按钮 -->
         <div class="branch-switch-container">
           <div v-if="isFirstMessageInBranch(message) && checkSiblings(message) && !isLoading" class="branch-switch"
             :class="{ 'user-branch': message.role === 'user' }">
@@ -61,15 +66,12 @@
             <div v-for="(sibling, idx) in siblingNodes.find(node => node.branchId === message.branchId)?.siblings || []"
               :key="sibling.index" class="branch-tag-item"
               :class="{ 'active-branch': sibling.index === currentBranchIndex }">
-              <!-- 显示模式 -->
               <template v-if="!sibling.editing">
                 <span class="branch-tag-text" @click="switchBranch(sibling.index)">{{ sibling.tag }}</span>
                 <el-button type="text" size="mini" @click="startEditBranchTag(sibling)" class="edit-branch-btn">
                   <i class="el-icon-edit"></i>
                 </el-button>
               </template>
-
-              <!-- 编辑模式 -->
               <template v-else>
                 <el-input v-model="sibling.tag" size="mini" class="branch-tag-input"
                   @keyup.enter.native="saveBranchTag(sibling, message)"></el-input>
@@ -85,18 +87,17 @@
     </div>
 
     <div class="chat-input">
-      <!-- 已处理文件显示区域 -->
       <div v-if="processedFiles.length > 0 && uploadOnWhichMessage === -1" class="processed-files">
         <el-card v-for="(file, index) in processedFiles" :key="index" class="file-card" shadow="hover">
           <div class="file-card-content">
-            <i class="el-icon-document" style="margin-right: 8px;"></i>
+            <i v-if="file.type === 'audio/mp3'" class="el-icon-headset" style="margin-right: 8px;"></i>
+            <i v-else class="el-icon-document" style="margin-right: 8px;"></i>
             <span :title="file.name">{{ truncateFilename(file.name) }}</span>
             <el-button type="text" icon="el-icon-close" @click="removeProcessedFile(index)"
               class="file-remove-btn"></el-button>
           </div>
         </el-card>
       </div>
-
 
       <div class="input-tools">
         <el-button type="text" icon="el-icon-upload" @click="showUploadDialog" title="上传文件">
@@ -107,12 +108,11 @@
         </el-button>
       </div>
 
-
       <div class="input-container">
         <el-input type="textarea" :rows="3" placeholder="请输入您的问题..." v-model="inputMessage"
           @keyup.enter.native="handleKeyEnter" class="message-input"></el-input>
-        <el-button type="primary" @click="sendMessageWithPolling()" :disabled="(!inputMessage.trim() && processedFiles.length === 0) || isLoading"
-          class="send-button">
+        <el-button type="primary" @click="sendMessageWithPolling()"
+          :disabled="(!inputMessage.trim() && processedFiles.length === 0) || isLoading" class="send-button">
           <i class="el-icon-s-promotion"></i>
           <span v-if="!isLoading">发送</span>
           <span v-else>发送中...</span>
@@ -199,6 +199,9 @@ export default {
       recordingTimer: null, // 录音计时器
       recordingMessageBox: null, // 录音消息框
 
+      // ai思考跟踪
+      isAiThinking: false,
+
       md: new MarkdownIt(),
     }
   },
@@ -207,6 +210,11 @@ export default {
       handler(newVal) {
         if (newVal) {
           this.loadChatMessages(newVal);
+        } else {
+          // 当chatRecordId为null时清空聊天区域
+          this.messageListForShow = [];
+          this.allBranches = [];
+          this.currentBranch = null;
         }
       },
       immediate: true
@@ -248,6 +256,35 @@ export default {
       // console.log(branchMsgIndex)
       // 如果是branch中的第一条消息，返回true
       return branchMsgIndex == 0;
+    },
+    getFileIcon(filename) {
+      const extension = filename.split('.').pop().toLowerCase();
+      switch (extension) {
+        case 'mp3':
+        case 'wav':
+        case 'ogg':
+          return 'el-icon-headset'; // 使用耳机图标表示音频文件
+        case 'pdf':
+          return 'el-icon-document';
+        case 'doc':
+        case 'docx':
+          return 'el-icon-document-checked';
+        case 'xls':
+        case 'xlsx':
+          return 'el-icon-document-excel';
+        case 'ppt':
+        case 'pptx':
+          return 'el-icon-document-ppt';
+        case 'txt':
+          return 'el-icon-document-text';
+        case 'jpg':
+        case 'jpeg':
+        case 'png':
+        case 'gif':
+          return 'el-icon-picture';
+        default:
+          return 'el-icon-document';
+      }
     },
     async fetchData(chatId) {
       try {
@@ -310,6 +347,10 @@ export default {
     },
 
     handleKeyEnter(e) {
+      // 如果是Shift+Enter组合键，允许换行
+      if (e.shiftKey) {
+        return;
+      }
       // 阻止默认行为（避免在textarea中换行）
       e.preventDefault();
       // 只有当输入框有内容时才发送
@@ -372,7 +413,7 @@ export default {
         const parentBranch = this.allBranches.find(b =>
           b.children?.some(child => child.branchIndex == branch.index)
         );
-      
+
         if (parentBranch) {
           // 更新标签
           const siblings = this.siblingNodes.find(node => node.branchId == message.branchId)?.siblings || [];
@@ -382,7 +423,7 @@ export default {
               child.tag = sibling.tag;
             }
           });
-      
+
           // 保存到服务器
           await this.saveBranchList([parentBranch]);
         }
@@ -678,7 +719,7 @@ export default {
     },
 
     async sendModifiedMessage(message) {
-     
+
       const modifiedText = message.editText;
       if (!modifiedText.trim()) {
         this.$message.warning('修改内容不能为空');
@@ -716,12 +757,12 @@ export default {
 
       // 参数messageContent为null时表示来自聊天框的消息，否则表示修改后的消息
       let messageText = messageContent !== null ? String(messageContent) : String(this.inputMessage);
-       if ((!messageText || !messageText.trim()) && this.processedFiles.length === 0 || this.isLoading) return;
-       
-       // 如果输入框为空但有上传文件，添加默认文本
-       if ((!messageText || !messageText.trim()) && this.processedFiles.length > 0) {
-         messageText = '用户上传文件';
-       }
+      if ((!messageText || !messageText.trim()) && this.processedFiles.length === 0 || this.isLoading) return;
+
+      // 如果输入框为空但有上传文件，添加默认文本
+      if ((!messageText || !messageText.trim()) && this.processedFiles.length > 0) {
+        messageText = '用户上传文件';
+      }
       if (!this.currentInterviewer) {
         this.$message.warning('请先选择面试官');
         return;
@@ -763,6 +804,7 @@ export default {
 
 
       this.isLoading = true;
+      this.isAiThinking = true;
       let messageId = null; // 用于存储消息ID
 
       try {
@@ -829,6 +871,7 @@ export default {
       } catch (error) {
         this.$message.error('发送消息失败');
         this.isLoading = false;
+        this.isAiThinking = false;
         console.error(error);
       }
     },
@@ -861,7 +904,7 @@ export default {
             // 重置超时计时器（每次收到有效数据就重置）
             pollingStartTime = Date.now();
             let hasNewContent = false;
-           
+
             // 批量处理消息
             for (const msg of response.data) {
 
@@ -874,10 +917,10 @@ export default {
               // 更新AI消息内容
               const aiMsg = this.messageListForShow.find(m => m.messageId === messageId);
               if (aiMsg) {
-              
+
                 aiMsg.content = aiMsg.content || { text: '' };
                 const oldLength = aiMsg.content.text.length;
-             
+
                 // 确保msg.text不为null或undefined再处理
                 if (msg.text !== null && msg.text !== undefined) {
                   await this.typeText(aiMsg, msg.text);
@@ -897,6 +940,7 @@ export default {
             // 如果收到停止信号，则中止轮询
             if (shouldStop) {
               this.stopPolling();
+              this.isAiThinking = false;
               const aiMsg = this.messageListForShow.find(m => m.messageId === messageId);
               if (aiMsg) {
 
@@ -915,14 +959,14 @@ export default {
                 this.modifiedBranch.push(this.currentBranch);
                 // 调用封装的方法保存currentBranch，并手动传入branchList
                 console.log(this.modifiedBranch)
-                
+
                 await this.saveBranchList(this.modifiedBranch);
                 this.modifiedBranch = [];
                 this.$emit('polling-completed');
                 await this.fetchData(this.chatRecordId)
                 this.scrollToBottom();
-                
-                
+
+
               }
               this.isLoading = false;
               return;
@@ -977,17 +1021,17 @@ export default {
 
     beforeDestroy() {
       this.stopPolling();
-      
+
       // 清理录音相关资源
       if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
         this.mediaRecorder.stop();
       }
-      
+
       if (this.recordingTimer) {
         clearInterval(this.recordingTimer);
         this.recordingTimer = null;
       }
-      
+
       // 关闭录音消息框
       if (this.recordingMessageBox) {
         this.recordingMessageBox.close();
@@ -1169,31 +1213,31 @@ export default {
       try {
         // 请求麦克风权限
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        
+
         // 创建MediaRecorder实例
         this.mediaRecorder = new MediaRecorder(stream);
-        
+
         // 存储录音数据
         const audioChunks = [];
-        
+
         // 监听数据可用事件
         this.mediaRecorder.ondataavailable = (event) => {
           if (event.data.size > 0) {
             audioChunks.push(event.data);
           }
         };
-        
+
         // 监听录音停止事件
         this.mediaRecorder.onstop = () => {
           // 将录音数据合并为一个Blob
           const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
-          
+
           // 创建一个唯一的文件名
           const fileName = `voice_${new Date().getTime()}.mp3`;
-          
+
           // 创建File对象
           const audioFile = new File([audioBlob], fileName, { type: 'audio/mp3' });
-          
+
           // 将录音文件添加到文件列表
           this.processedFiles.push({
             name: fileName,
@@ -1201,16 +1245,16 @@ export default {
             type: 'audio/mp3',
             raw: audioFile
           });
-          
+
           // 关闭所有轨道
           stream.getTracks().forEach(track => track.stop());
-          
+
           this.$message.success('录音已完成并添加到文件列表');
         };
-        
+
         // 开始录音
         this.mediaRecorder.start();
-        
+
         // 显示正在录音的提示
         this.$message({
           message: '正在录音中，点击停止按钮结束录音',
@@ -1220,7 +1264,7 @@ export default {
           center: true,
           customClass: 'recording-message'
         });
-        
+
         // 创建停止录音按钮
         const h = this.$createElement;
         this.recordingMessageBox = this.$msgbox({
@@ -1251,7 +1295,7 @@ export default {
             done();
           }
         });
-        
+
         // 开始计时
         let seconds = 0;
         this.recordingTimer = setInterval(() => {
@@ -1259,13 +1303,13 @@ export default {
           const minutes = Math.floor(seconds / 60);
           const remainingSeconds = seconds % 60;
           const timeString = `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-          
+
           // 更新计时器显示
           const timerElements = document.getElementsByClassName('recording-timer');
           if (timerElements && timerElements.length > 0) {
             timerElements[0].textContent = timeString;
           }
-          
+
           // 如果录音超过3分钟，自动停止
           if (seconds >= 180) {
             if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
@@ -1287,6 +1331,47 @@ export default {
 </script>
 
 <style scoped>
+@import url("//unpkg.com/element-ui@2.15.13/lib/theme-chalk/index.css");
+
+.thinking-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #909399;
+}
+
+.el-icon-loading {
+  font-size: 16px;
+  animation: rotating 2s linear infinite;
+}
+
+@keyframes rotating {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.thinking-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #909399;
+}
+
+.el-icon-loading {
+  animation: rotating 2s linear infinite;
+}
+
+@keyframes rotating {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
 .right-chat-area {
   flex: 1;
   display: flex;
@@ -1520,13 +1605,12 @@ export default {
 
 .input-container {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   height: 150px;
   padding-left: 150px;
+  padding-right: 150px;
   padding-bottom: 10px;
-  position: relative;
   background-color: #f9fafc;
-
 }
 
 .input-actions {
@@ -1547,7 +1631,7 @@ export default {
   transition: border-color 0.3s ease;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   height: 150px;
-  width: 70%;
+  width: 100%;
 }
 
 .message-input :deep(.el-textarea__inner:focus) {
@@ -1556,10 +1640,9 @@ export default {
 }
 
 .send-button {
-  position: absolute;
-  right: 200px;
   height: 50px;
   width: 120px;
+  margin-left: 15px;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -1603,9 +1686,8 @@ export default {
   gap: 10px;
   margin-bottom: 0px;
 }
-.processed-files .file-card{
-  
-}
+
+.processed-files .file-card {}
 
 /* 消息操作按钮 */
 .message-actions {
@@ -1730,12 +1812,15 @@ export default {
 .message .message-actions:has(.edit-actions) {
   opacity: 1 !important;
 }
+
 .edit-input-container {
   position: relative;
   width: 100%;
-  min-width: 450px; /* 设置最小宽度 */
+  min-width: 450px;
+  /* 设置最小宽度 */
   max-width: 100%;
-  padding-bottom: 40px; /* 为按钮留出空间 */
+  padding-bottom: 40px;
+  /* 为按钮留出空间 */
 }
 
 /* 编辑输入框 */
@@ -1764,9 +1849,12 @@ export default {
   background-color: rgba(64, 158, 255, 0.05);
   border-color: #409eff;
 }
+
 .user-message .edit-input :deep(.el-textarea__inner) {
-  background-color: rgba(64, 158, 255, 0.03); /* 半透明蓝色背景 */
-  border: none; /* 蓝色边框 */
+  background-color: rgba(64, 158, 255, 0.03);
+  /* 半透明蓝色背景 */
+  border: none;
+  /* 蓝色边框 */
 }
 
 /* 录音相关样式 */
@@ -1779,5 +1867,64 @@ export default {
   font-size: 18px;
   font-weight: bold;
   color: #409eff;
+}
+/* 蓝色转圈加载器 */
+.blue-spinner {
+  display: inline-block;
+  position: relative;
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+}
+
+.blue-spinner .spinner {
+  box-sizing: border-box;
+  display: block;
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #409EFF;
+  border-radius: 50%;
+  border-color: #409EFF transparent transparent transparent;
+  animation: spinner 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+@keyframes spinner {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* 思考中指示器 */
+.thinking-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #909399;
+  padding: 10px 16px;
+}
+
+.thinking-indicator .el-icon {
+  animation: rotating 2s linear infinite;
+  font-size: 16px;
+}
+
+@keyframes rotating {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 确保AI消息气泡有最小高度 */
+.ai-message .message-content {
+  min-height: 50px;
+  display: flex;
+  align-items: center;
 }
 </style>
