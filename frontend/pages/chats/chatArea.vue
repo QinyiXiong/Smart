@@ -834,7 +834,7 @@ export default {
     },
 
     async startPolling(messageId) {
-      const POLLING_TIMEOUT = 20000; // 5秒超时
+      const POLLING_TIMEOUT = 30000; // 5秒超时
       let pollingStartTime = Date.now();
 
       const processBatch = async () => {
@@ -952,6 +952,14 @@ export default {
       if (this.pollingTimer) {
         clearTimeout(this.pollingTimer);
         this.pollingTimer = null;
+      }
+    },
+
+    // 处理action171_push类型数据的方法
+    handleActionPush(problemId) {
+      if (problemId) {
+        // 跳转到题目页面，并带上currentBranchId和chatId参数
+        this.$router.push(`/oj/problem/${problemId}?branchId=${this.currentBranch.branchId}&chatId=${this.chatRecordId}`);
       }
     },
 

@@ -114,9 +114,10 @@
         :current-interviewer="currentInterviewer"
         :chat-record-id="activeChatRecord"
         @polling-completed="handlePollingCompleted"
+        ref="chatArea"
       />
       
-      <!-- 右侧评估结果显示区域 -->
+      <!-- 右侧评估tresultult区域 -->
       <div class="valuation-area" v-if="activeChatRecord && valuationData">
         <div class="valuation-header">
           <h3>面试评估结果</h3>
@@ -226,7 +227,7 @@ export default {
           
           // 收集所有需要处理的评估变化
           const valuationChanges = [];
-          
+          const pageChanges = [];
           // 处理每个action
           for (const actionData of res.data) {
             try {
@@ -244,6 +245,22 @@ export default {
                   delta: parseFloat(actionObj.delta)
                 });
               }
+              
+              // 处理action171_push类型数据
+              if (actionObj.action === 'push' && 
+                  actionObj.chatId && 
+                  actionObj.problemId && 
+                  actionObj.code === 'P1022') {
+                
+                // 调用chatArea组件的handleActionPush方法
+                // 添加检查确保chatArea组件存在
+                if (this.$refs.chatArea) {
+                  this.$refs.chatArea.handleActionPush(actionObj.problemId);
+                } else {
+                  console.warn('chatArea组件未找到，无法调用handleActionPush方法');
+                }
+              }
+              
             } catch (parseError) {
               console.error('解析action数据失败:', parseError);
             }

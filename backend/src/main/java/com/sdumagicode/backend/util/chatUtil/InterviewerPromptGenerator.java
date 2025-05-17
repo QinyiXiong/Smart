@@ -164,16 +164,16 @@ public class InterviewerPromptGenerator {
             }
         }
         
-        return PROMPT_TEMPLATE
-                + generateValuationStandardsPrompt()
-                + "\n用户提示词部分：" + interviewer.getCustomPrompt()
-                + "\n面试官设定部分：" + interviewer.getSettingsList()
-                + "\n当前的chatId为："+ currentChatId
-                + valuationInfo.toString();
+//        return PROMPT_TEMPLATE
+//                + generateValuationStandardsPrompt()
+//                + "\n用户提示词部分：" + interviewer.getCustomPrompt()
+//                + "\n面试官设定部分：" + interviewer.getSettingsList()
+//                + "\n当前的chatId为："+ currentChatId
+//                + valuationInfo.toString();
 
         //测试加减分的prompt,勿删
-//        return "\n当前的chatId为："+ currentChatId
-//                + valuationInfo.toString() + "每次加减分都是调用mcp工具完成的,不是只是说一下";
+        return "\n当前的chatId为："+ currentChatId
+                + valuationInfo.toString() + "每次加减分都是调用mcp工具完成的,不是只是说一下";
     }
     public String generateScorePrompt(){
         Long currentChatId = UserUtils.getCurrentChatId();

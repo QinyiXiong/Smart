@@ -1,10 +1,10 @@
 {
-  "name": "mcp-for-smart-interview-mock",
-  "version": "1.2.6",
-  "description": "测试联调",
+  "name": "mcp-server-for-smart-interview-mock-problem-selector",
+  "version": "1.0.4",
+  "description": "测试mcp服务发布",
   "type": "module",
   "bin": {
-    "mcp-for-smart-interview-mock": "build/mcp-server.js"
+    "mcp-server-for-smart-interview-mock-problem-selector": "build/mcp-server.js"
   },
   "files": [
     "build"
@@ -15,18 +15,18 @@
     "weather",
     "ai",
     "claude",
-    "cline"
+    "cline",
+    "meizu"
   ],
   "author": "TydKsx",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.7.0",
-    "axios": "^1.9.0",
     "dotenv": "^16.4.7",
-    "mongodb": "^6.15.0",
+    "mongodb": "^6.16.0",
     "mysql2": "^3.11.5",
     "node-fetch": "^3.3.2",
-    "redis": "^4.7.0",
+    "redis": "^5.0.1",
     "string-similarity": "^4.0.4",
     "zod": "^3.22.4"
   },
