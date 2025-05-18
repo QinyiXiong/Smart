@@ -28,11 +28,19 @@ public class ProblemController {
             @RequestParam(required = false) String difficulty,
             @RequestParam(required = false) String category,
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "10") Integer rows) {
+            @RequestParam(defaultValue = "50") Integer rows) {
         PageHelper.startPage(page, rows);
         List<ProblemDTO> list = problemService.selectProblems(difficulty, category);
         PageInfo<ProblemDTO> pageInfo = new PageInfo<>(list);
         return GlobalResultGenerator.genSuccessResult(pageInfo);
+    }
+    
+    @GetMapping("/all")
+    public GlobalResult<List<ProblemDTO>> getAllProblems(
+            @RequestParam(required = false) String difficulty,
+            @RequestParam(required = false) String category) {
+        List<ProblemDTO> list = problemService.selectProblems(difficulty, category);
+        return GlobalResultGenerator.genSuccessResult(list);
     }
 
     @GetMapping("/tags")
@@ -57,22 +65,36 @@ public class ProblemController {
     public GlobalResult<PageInfo<ProblemDTO>> getProblemsByCategory(
             @PathVariable String category,
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "10") Integer rows) {
+            @RequestParam(defaultValue = "50") Integer rows) {
         PageHelper.startPage(page, rows);
         List<ProblemDTO> list = problemService.selectProblemsByCategory(category);
         PageInfo<ProblemDTO> pageInfo = new PageInfo<>(list);
         return GlobalResultGenerator.genSuccessResult(pageInfo);
+    }
+    
+    @GetMapping("/category/{category}/all")
+    public GlobalResult<List<ProblemDTO>> getAllProblemsByCategory(
+            @PathVariable String category) {
+        List<ProblemDTO> list = problemService.selectProblemsByCategory(category);
+        return GlobalResultGenerator.genSuccessResult(list);
     }
 
     @GetMapping("/difficulty/{difficulty}")
     public GlobalResult<PageInfo<ProblemDTO>> getProblemsByDifficulty(
             @PathVariable String difficulty,
             @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "10") Integer rows) {
+            @RequestParam(defaultValue = "50") Integer rows) {
         PageHelper.startPage(page, rows);
         List<ProblemDTO> list = problemService.selectProblemsByDifficulty(difficulty);
         PageInfo<ProblemDTO> pageInfo = new PageInfo<>(list);
         return GlobalResultGenerator.genSuccessResult(pageInfo);
+    }
+    
+    @GetMapping("/difficulty/{difficulty}/all")
+    public GlobalResult<List<ProblemDTO>> getAllProblemsByDifficulty(
+            @PathVariable String difficulty) {
+        List<ProblemDTO> list = problemService.selectProblemsByDifficulty(difficulty);
+        return GlobalResultGenerator.genSuccessResult(list);
     }
 
     @PostMapping("/post")

@@ -145,7 +145,8 @@ export default {
       currentPage: 1,
       pageSize: 20,
       total: 0,
-      problemList: [],
+      allProblems: [], // 存储所有题目
+      problemList: [], // 兼容旧代码，保留但不使用
       difficulties: [
         { label: '简单', value: '简单' },
         { label: '中等', value: '中等' },
@@ -160,8 +161,9 @@ export default {
     }
   },
   computed: {
+    // 根据搜索条件、难度和标签筛选题目
     filteredProblems() {
-      return this.problemList.filter(problem => {
+      const filtered = this.allProblems.filter(problem => {
         const matchQuery = this.searchQuery === '' ||
           problem.title.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
           problem.problemCode.toLowerCase().includes(this.searchQuery.toLowerCase());
@@ -174,6 +176,14 @@ export default {
 
         return matchQuery && matchDifficulty && matchTags;
       });
+      
+      // 更新总数
+      this.total = filtered.length;
+      
+      // 前端分页
+      const start = (this.currentPage - 1) * this.pageSize;
+      const end = start + this.pageSize;
+      return filtered.slice(start, end);
     }
   },
   async created() {
@@ -198,15 +208,12 @@ export default {
     },
     async fetchProblems() {
       try {
-        const res = await this.$axios.get('/api/problems', {
-          params: {
-            page: this.currentPage,
-            pageSize: this.pageSize
-          }
-        });
+        // 使用新的不分页API一次性获取所有题目
+        const res = await this.$axios.get('/api/problems/all');
         if (res.code === 0) {
-          this.problemList = res.data.list;
-          this.total = res.data.total;
+          this.allProblems = res.data || [];
+          // 初始化总数，后续会在filteredProblems计算属性中更新
+          this.total = this.allProblems.length;
         }
       } catch (error) {
         this.$message.error('获取题目列表失败');
@@ -240,11 +247,15 @@ export default {
     },
     handleSizeChange(val) {
       this.pageSize = val;
-      this.fetchProblems();
+      // 前端分页，不需要重新请求
+      if (this.currentPage * this.pageSize > this.total) {
+        // 如果当前页码超出范围，重置为第一页
+        this.currentPage = 1;
+      }
     },
     handleCurrentChange(val) {
       this.currentPage = val;
-      this.fetchProblems();
+      // 前端分页，不需要重新请求
     }
   }
 }
