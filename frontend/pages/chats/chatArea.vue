@@ -90,8 +90,7 @@
       <div v-if="processedFiles.length > 0 && uploadOnWhichMessage === -1" class="processed-files">
         <el-card v-for="(file, index) in processedFiles" :key="index" class="file-card" shadow="hover">
           <div class="file-card-content">
-            <i v-if="file.type === 'audio/mp3'" class="el-icon-headset" style="margin-right: 8px;"></i>
-            <i v-else class="el-icon-document" style="margin-right: 8px;"></i>
+            <i :class="getFileIcon(file.name)" style="margin-right: 8px;"></i>
             <span :title="file.name">{{ truncateFilename(file.name) }}</span>
             <el-button type="text" icon="el-icon-close" @click="removeProcessedFile(index)"
               class="file-remove-btn"></el-button>
@@ -260,10 +259,26 @@ export default {
     getFileIcon(filename) {
       const extension = filename.split('.').pop().toLowerCase();
       switch (extension) {
+        // 音频文件
         case 'mp3':
         case 'wav':
         case 'ogg':
-          return 'el-icon-headset'; // 使用耳机图标表示音频文件
+        case 'flac':
+        case 'aac':
+        case 'm4a':
+          return 'el-icon-headset';
+        
+        // 视频文件
+        case 'mp4':
+        case 'avi':
+        case 'mov':
+        case 'wmv':
+        case 'mkv':
+        case 'flv':
+        case 'webm':
+          return 'el-icon-video-camera';
+        
+        // 文档文件
         case 'pdf':
           return 'el-icon-document';
         case 'doc':
@@ -271,17 +286,60 @@ export default {
           return 'el-icon-document-checked';
         case 'xls':
         case 'xlsx':
+        case 'csv':
           return 'el-icon-document-excel';
         case 'ppt':
         case 'pptx':
           return 'el-icon-document-ppt';
         case 'txt':
+        case 'md':
+        case 'rtf':
           return 'el-icon-document-text';
+        
+        // 图片文件
         case 'jpg':
         case 'jpeg':
         case 'png':
         case 'gif':
+        case 'bmp':
+        case 'svg':
+        case 'webp':
+        case 'tiff':
+        case 'ico':
           return 'el-icon-picture';
+        
+        // 压缩文件
+        case 'zip':
+        case 'rar':
+        case '7z':
+        case 'tar':
+        case 'gz':
+          return 'el-icon-folder-checked';
+        
+        // 代码文件
+        case 'js':
+        case 'ts':
+        case 'html':
+        case 'css':
+        case 'scss':
+        case 'less':
+        case 'vue':
+        case 'jsx':
+        case 'tsx':
+        case 'json':
+        case 'xml':
+        case 'py':
+        case 'java':
+        case 'c':
+        case 'cpp':
+        case 'cs':
+        case 'php':
+        case 'rb':
+        case 'go':
+        case 'sql':
+          return 'el-icon-tickets';
+        
+        // 默认图标
         default:
           return 'el-icon-document';
       }
@@ -1265,6 +1323,17 @@ export default {
           customClass: 'recording-message'
         });
 
+        // 创建音频分析器用于波形图显示
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = audioContext.createAnalyser();
+        analyser.fftSize = 2048;
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        
+        // 创建音频源
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+        
         // 创建停止录音按钮
         const h = this.$createElement;
         this.recordingMessageBox = this.$msgbox({
@@ -1274,25 +1343,114 @@ export default {
             h('div', { style: 'text-align: center; margin-top: 20px' }, [
               h('span', { style: 'color: #f56c6c; margin-right: 10px' }, '录音时长: '),
               h('span', { class: 'recording-timer', ref: 'timer' }, '00:00')
-            ])
+            ]),
+            // 添加波形图canvas
+            h('canvas', { 
+              style: 'width: 100%; height: 80px; background-color: #f5f5f5; margin-top: 10px;',
+              class: 'waveform-canvas',
+              ref: 'waveformCanvas'
+            })
           ]),
           showCancelButton: false,
           confirmButtonText: '停止录音',
           beforeClose: (action, instance, done) => {
-            if (action === 'confirm') {
-              // 停止录音
-              if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-                this.mediaRecorder.stop();
-              }
-              // 清除计时器
-              if (this.recordingTimer) {
-                clearInterval(this.recordingTimer);
-                this.recordingTimer = null;
-              }
-              // 关闭所有消息
-              this.$message.closeAll();
+            // 无论如何关闭对话框（点击确认按钮或叉号），都停止录音并清理资源
+            // 停止录音
+            if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+              this.mediaRecorder.stop();
             }
+            // 清除计时器和动画
+            if (this.recordingTimer) {
+              clearInterval(this.recordingTimer);
+              this.recordingTimer = null;
+            }
+            if (this.animationFrame) {
+              cancelAnimationFrame(this.animationFrame);
+              this.animationFrame = null;
+            }
+            // 关闭音频上下文
+            audioContext.close();
+            // 关闭所有消息
+            this.$message.closeAll();
             done();
+          }
+        });
+        
+        // 在下一个事件循环中获取canvas元素并开始绘制波形
+        this.$nextTick(() => {
+          const canvas = document.querySelector('.waveform-canvas');
+          if (canvas) {
+            const canvasCtx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // 创建波形数据缓冲区，用于存储历史波形数据
+            const waveformHistory = [];
+            // 设置要显示的数据点数量
+            const displayPoints = 100;
+            // 每次从分析器获取的数据中抽样的点数
+            const samplePoints = 10;
+            
+            // 绘制波形函数 - 从右向左推进（使用垂直线条）
+            const drawWaveform = () => {
+              this.animationFrame = requestAnimationFrame(drawWaveform);
+              
+              // 获取音频数据
+              analyser.getByteTimeDomainData(dataArray);
+              
+              // 计算当前音频数据的平均振幅
+              let sum = 0;
+              for (let i = 0; i < bufferLength; i++) {
+                // 将值转换为 -1 到 1 的范围
+                const amplitude = (dataArray[i] / 128.0) - 1.0;
+                sum += Math.abs(amplitude);
+              }
+              const averageAmplitude = sum / bufferLength;
+              
+              // 将平均振幅添加到历史记录的开头（新数据在左侧）
+               waveformHistory.unshift(averageAmplitude);
+               
+               // 如果历史记录过长，则移除最早的数据点（右侧）
+               while (waveformHistory.length > displayPoints) {
+                 waveformHistory.pop();
+               }
+              
+              // 清除画布
+              canvasCtx.fillStyle = '#f5f5f5';
+              canvasCtx.fillRect(0, 0, width, height);
+              
+              // 设置线条样式
+              canvasCtx.lineWidth = 2;
+              canvasCtx.strokeStyle = '#409EFF';
+              
+              // 计算每个线条的宽度
+              const barWidth = width / displayPoints;
+              const barSpacing = 2; // 线条之间的间距
+              const actualBarWidth = barWidth - barSpacing;
+              
+              // 绘制垂直线条（从左向右）
+               for (let i = 0; i < waveformHistory.length; i++) {
+                 // 计算x坐标，使最新的数据在最左侧
+                 const x = i * barWidth;
+                
+                // 计算线条高度（基于振幅）
+                const amplitude = waveformHistory[i];
+                const barHeight = Math.max(2, amplitude * height * 0.8); // 最小高度为2像素
+                
+                // 计算线条的起点和终点（垂直居中）
+                const startY = (height - barHeight) / 2;
+                const endY = startY + barHeight;
+                
+                // 绘制垂直线条
+                canvasCtx.beginPath();
+                canvasCtx.moveTo(x, startY);
+                canvasCtx.lineTo(x, endY);
+                canvasCtx.stroke();
+              }
+            };
+            
+            // 开始绘制波形
+            drawWaveform();
           }
         });
 
