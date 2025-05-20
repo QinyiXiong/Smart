@@ -473,6 +473,14 @@ export default {
         this.chatRecords.unshift(res.data)
         this.$message.success('新建对话成功')
         this.activeChatRecord = res.data.chatId.toString()
+        
+        // 清空评估数据并重新获取
+        this.valuationData = null;
+        if (this.radarChart) {
+          this.radarChart.dispose();
+          this.radarChart = null;
+        }
+        await this.fetchValuationData(res.data.chatId);
       } catch (error) {
         this.$message.error('新建对话失败')
         console.error(error)
