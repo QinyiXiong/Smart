@@ -1,11 +1,14 @@
 package com.sdumagicode.backend.dto;
 
 import lombok.Data;
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
 
+
 @Data
-public class ProblemDTO {
+public class ProblemDTO implements Serializable {
+    private static final long serialVersionUID = 1L;
     private Long id;
     private String problemCode;
     private String title;

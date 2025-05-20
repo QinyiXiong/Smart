@@ -24,24 +24,38 @@ public class ProblemController {
     private ProblemService problemService;
 
     @GetMapping
-    public GlobalResult<PageInfo<ProblemDTO>> getProblemList(
-            @RequestParam(required = false) String difficulty,
-            @RequestParam(required = false) String category,
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "50") Integer rows) {
-        PageHelper.startPage(page, rows);
-        List<ProblemDTO> list = problemService.selectProblems(difficulty, category);
-        PageInfo<ProblemDTO> pageInfo = new PageInfo<>(list);
-        return GlobalResultGenerator.genSuccessResult(pageInfo);
-    }
-    
-    @GetMapping("/all")
-    public GlobalResult<List<ProblemDTO>> getAllProblems(
-            @RequestParam(required = false) String difficulty,
-            @RequestParam(required = false) String category) {
-        List<ProblemDTO> list = problemService.selectProblems(difficulty, category);
-        return GlobalResultGenerator.genSuccessResult(list);
-    }
+public GlobalResult<PageInfo<ProblemDTO>> getProblemList(
+        @RequestParam(required = false) String difficulty,
+        @RequestParam(required = false) String category,
+        @RequestParam(defaultValue = "1") Integer page,
+        @RequestParam(defaultValue = "100") Integer rows) {
+    // 使用优化后的分页查询方法
+    List<ProblemDTO> list = problemService.selectProblemsWithPagination(difficulty, category, page, rows);
+    // 获取总数
+    int total = problemService.countProblems(difficulty, category);
+    // 手动构建PageInfo对象
+    PageInfo<ProblemDTO> pageInfo = new PageInfo<>(list);
+    pageInfo.setTotal(total);
+    pageInfo.setPageNum(page);
+    pageInfo.setPageSize(rows);
+    return GlobalResultGenerator.genSuccessResult(pageInfo);
+}
+
+@GetMapping("/count")
+public GlobalResult<Integer> getProblemCount(
+        @RequestParam(required = false) String difficulty,
+        @RequestParam(required = false) String category) {
+    int count = problemService.countProblems(difficulty, category);
+    return GlobalResultGenerator.genSuccessResult(count);
+}
+
+@GetMapping("/all")
+public GlobalResult<List<ProblemDTO>> getAllProblems(
+        @RequestParam(required = false) String difficulty,
+        @RequestParam(required = false) String category) {
+    List<ProblemDTO> list = problemService.selectProblems(difficulty, category);
+    return GlobalResultGenerator.genSuccessResult(list);
+}
 
     @GetMapping("/tags")
     public GlobalResult<List<String>> getAllTags() {
@@ -62,40 +76,66 @@ public class ProblemController {
     }
 
     @GetMapping("/category/{category}")
-    public GlobalResult<PageInfo<ProblemDTO>> getProblemsByCategory(
-            @PathVariable String category,
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "50") Integer rows) {
-        PageHelper.startPage(page, rows);
-        List<ProblemDTO> list = problemService.selectProblemsByCategory(category);
-        PageInfo<ProblemDTO> pageInfo = new PageInfo<>(list);
-        return GlobalResultGenerator.genSuccessResult(pageInfo);
-    }
-    
-    @GetMapping("/category/{category}/all")
-    public GlobalResult<List<ProblemDTO>> getAllProblemsByCategory(
-            @PathVariable String category) {
-        List<ProblemDTO> list = problemService.selectProblemsByCategory(category);
-        return GlobalResultGenerator.genSuccessResult(list);
-    }
+public GlobalResult<PageInfo<ProblemDTO>> getProblemsByCategory(
+        @PathVariable String category,
+        @RequestParam(defaultValue = "1") Integer page,
+        @RequestParam(defaultValue = "100") Integer rows) {
+    // 使用优化后的分页查询方法
+    List<ProblemDTO> list = problemService.selectProblemsByCategoryWithPagination(category, page, rows);
+    // 获取总数
+    int total = problemService.countProblems(null, category);
+    // 手动构建PageInfo对象
+    PageInfo<ProblemDTO> pageInfo = new PageInfo<>(list);
+    pageInfo.setTotal(total);
+    pageInfo.setPageNum(page);
+    pageInfo.setPageSize(rows);
+    return GlobalResultGenerator.genSuccessResult(pageInfo);
+}
 
-    @GetMapping("/difficulty/{difficulty}")
-    public GlobalResult<PageInfo<ProblemDTO>> getProblemsByDifficulty(
-            @PathVariable String difficulty,
-            @RequestParam(defaultValue = "1") Integer page,
-            @RequestParam(defaultValue = "50") Integer rows) {
-        PageHelper.startPage(page, rows);
-        List<ProblemDTO> list = problemService.selectProblemsByDifficulty(difficulty);
-        PageInfo<ProblemDTO> pageInfo = new PageInfo<>(list);
-        return GlobalResultGenerator.genSuccessResult(pageInfo);
-    }
-    
-    @GetMapping("/difficulty/{difficulty}/all")
-    public GlobalResult<List<ProblemDTO>> getAllProblemsByDifficulty(
-            @PathVariable String difficulty) {
-        List<ProblemDTO> list = problemService.selectProblemsByDifficulty(difficulty);
-        return GlobalResultGenerator.genSuccessResult(list);
-    }
+@GetMapping("/category/{category}/count")
+public GlobalResult<Integer> getProblemCountByCategory(
+        @PathVariable String category) {
+    int count = problemService.countProblems(null, category);
+    return GlobalResultGenerator.genSuccessResult(count);
+}
+
+@GetMapping("/category/{category}/all")
+public GlobalResult<List<ProblemDTO>> getAllProblemsByCategory(
+        @PathVariable String category) {
+    List<ProblemDTO> list = problemService.selectProblemsByCategory(category);
+    return GlobalResultGenerator.genSuccessResult(list);
+}
+
+@GetMapping("/difficulty/{difficulty}")
+public GlobalResult<PageInfo<ProblemDTO>> getProblemsByDifficulty(
+        @PathVariable String difficulty,
+        @RequestParam(defaultValue = "1") Integer page,
+        @RequestParam(defaultValue = "100") Integer rows) {
+    // 使用优化后的分页查询方法
+    List<ProblemDTO> list = problemService.selectProblemsByDifficultyWithPagination(difficulty, page, rows);
+    // 获取总数
+    int total = problemService.countProblems(difficulty, null);
+    // 手动构建PageInfo对象
+    PageInfo<ProblemDTO> pageInfo = new PageInfo<>(list);
+    pageInfo.setTotal(total);
+    pageInfo.setPageNum(page);
+    pageInfo.setPageSize(rows);
+    return GlobalResultGenerator.genSuccessResult(pageInfo);
+}
+
+@GetMapping("/difficulty/{difficulty}/count")
+public GlobalResult<Integer> getProblemCountByDifficulty(
+        @PathVariable String difficulty) {
+    int count = problemService.countProblems(difficulty, null);
+    return GlobalResultGenerator.genSuccessResult(count);
+}
+
+@GetMapping("/difficulty/{difficulty}/all")
+public GlobalResult<List<ProblemDTO>> getAllProblemsByDifficulty(
+        @PathVariable String difficulty) {
+    List<ProblemDTO> list = problemService.selectProblemsByDifficulty(difficulty);
+    return GlobalResultGenerator.genSuccessResult(list);
+}
 
     @PostMapping("/post")
     @RequiresPermissions(value = "user")
