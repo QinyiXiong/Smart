@@ -1,6 +1,11 @@
 package com.sdumagicode.backend.controller.common;
 
 import com.alibaba.fastjson2.JSONObject;
+import com.aliyun.oss.OSS;
+import com.aliyun.oss.OSSClientBuilder;
+import com.aliyun.oss.model.ObjectMetadata;
+import com.aliyun.oss.model.PutObjectRequest;
+
 import com.sdumagicode.backend.auth.JwtConstants;
 import com.sdumagicode.backend.core.result.GlobalResult;
 import com.sdumagicode.backend.core.result.GlobalResultGenerator;
@@ -15,6 +20,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.shiro.authz.UnauthorizedException;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.DigestUtils;
@@ -44,10 +50,13 @@ public class UploadController {
     private final static String UPLOAD_SIMPLE_URL = "/api/upload/file";
     private final static String UPLOAD_URL = "/api/upload/file/batch";
     private final static String LINK_TO_IMAGE_URL = "/api/upload/file/link";
-
     private final org.slf4j.Logger logger = LoggerFactory.getLogger(UploadController.class);
     @Resource
     private ForestFileService forestFileService;
+
+    @Autowired
+    private OSSUpload ossUpload;
+
 
     public static String uploadBase64File(String fileStr, FilePath filePath) {
         Environment env = SpringContextHolder.getBean(Environment.class);
@@ -176,14 +185,15 @@ public class UploadController {
                 String fileName = System.currentTimeMillis() + fileType;
                 String savePath = file.getPath() + File.separator + fileName;
                 File saveFile = new File(savePath);
-                fileUrl = localPath + fileName;
+//                fileUrl = localPath + fileName;
+                // 使用OSS上传文件
+                fileUrl = ossUpload.uploadFileToOSS(multipartFile, typePath + "/article");
+                successMap.put(orgName, fileUrl);
                 FileCopyUtils.copy(multipartFile.getBytes(), saveFile);
                 forestFileService.insertForestFile(fileUrl, savePath, md5, tokenUser.getIdUser(), multipartFile.getSize(), fileType);
-                successMap.put(orgName, localPath + fileName);
             } catch (IOException e) {
                 errFiles.add(orgName);
             }
-
 
         }
         JSONObject data = new JSONObject(2);

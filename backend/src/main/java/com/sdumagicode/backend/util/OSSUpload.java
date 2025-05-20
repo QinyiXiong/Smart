@@ -5,8 +5,10 @@ import com.aliyun.oss.model.PutObjectRequest;
 import com.sdumagicode.backend.config.OSSUploadConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.util.Base64;
 import java.util.UUID;
 
@@ -53,4 +55,36 @@ public class OSSUpload {
             throw new RuntimeException("上传图片到 OSS 失败: " + e.getMessage(), e);
         }
     }
+    
+    /**
+     * 上传MultipartFile文件到OSS
+     * 
+     * @param file MultipartFile文件
+     * @param folder 文件夹路径
+     * @return 访问URL
+     * @throws IOException IO异常
+     */
+    public String uploadFileToOSS(MultipartFile file, String folder) throws IOException {
+        try {
+            // 1. 获取文件名和扩展名
+            String originalFilename = file.getOriginalFilename();
+            String fileType = originalFilename.substring(originalFilename.lastIndexOf("."));
+            
+            // 2. 生成唯一文件名
+            String fileName = folder + UUID.randomUUID() + fileType;
+            
+            // 3. 上传文件到OSS
+            ossClient.putObject(
+                    ossConfig.getBucketName(),
+                    fileName,
+                    new ByteArrayInputStream(file.getBytes())
+            );
+            
+            // 4. 返回访问URL
+            return "https://" + ossConfig.getBucketName() + "." + ossConfig.getEndpoint() + "/" + fileName;
+        } catch (Exception e) {
+            throw new RuntimeException("上传文件到OSS失败: " + e.getMessage(), e);
+        }
+    }
 }
+
