@@ -263,12 +263,12 @@ export default {
               // 处理action171_push类型数据
               if (actionObj.action === 'push' && 
                   actionObj.chatId && 
-                  actionObj.problemId && 
-                  actionObj.code === 'P1022') {
-                
+                  actionObj.problemId) {
+    
                 // 调用chatArea组件的handleActionPush方法
                 // 添加检查确保chatArea组件存在
                 if (this.$refs.chatArea) {
+               
                   this.$refs.chatArea.handleActionPush(actionObj.problemId);
                 } else {
                   console.warn('chatArea组件未找到，无法调用handleActionPush方法');
@@ -476,6 +476,14 @@ export default {
         this.chatRecords.unshift(res.data)
         this.$message.success('新建对话成功')
         this.activeChatRecord = res.data.chatId.toString()
+        
+        // 清空评估数据并重新获取
+        this.valuationData = null;
+        if (this.radarChart) {
+          this.radarChart.dispose();
+          this.radarChart = null;
+        }
+        await this.fetchValuationData(res.data.chatId);
       } catch (error) {
         this.$message.error('新建对话失败')
         console.error(error)

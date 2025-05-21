@@ -24,10 +24,15 @@
           <div class="message-content">
             <div v-if="!message.editing">
               <!-- AI消息加载状态 -->
-              <div v-if="message.role === 'assistant' && isAiThinking && message.content.text === ''" 
+              <div v-if="message.role === 'assistant' && isAiThinking && !isAiMcp && message.content.text === ''" 
                    class="thinking-indicator">
                 <div class="blue-spinner"><div class="spinner"></div></div>
                 <span>思考中...</span>
+              </div>
+              <div v-if="message.role === 'assistant' && isAiMcp && message.content.text === ''" 
+                   class="thinking-indicator">
+                <div class="blue-spinner"><div class="spinner"></div></div>
+                <span>工具调用中...</span>
               </div>
               <div v-else class="message-text" v-html="renderMarkdown(message.content.text, message.role)"></div>
             </div>
@@ -200,7 +205,7 @@ export default {
 
       // ai思考跟踪
       isAiThinking: false,
-
+      isAiMcp: false,
       md: new MarkdownIt(),
     }
   },
@@ -971,7 +976,24 @@ export default {
               if (msg.finish === "stop") {
                 shouldStop = true;
               }
-
+              
+              // 解析AI思考过程
+              if (msg.thoughts) {
+                try {
+                  // 提取thought字段内容
+                  const thoughtMatch = msg.thoughts.match(/thought=(.*?),\s*actionType=(.*?),/);
+                  if (thoughtMatch) {
+                    const [_, thoughts, actionType] = thoughtMatch;
+                    
+                    // 如果是mcp类型的action,设置isAiMcp为true
+                    if (actionType === 'mcp') {
+                      this.isAiMcp = true;
+                    }
+                  }
+                } catch (error) {
+                  console.error('解析thought失败:', error);
+                }
+              }
               // 更新AI消息内容
               const aiMsg = this.messageListForShow.find(m => m.messageId === messageId);
               if (aiMsg) {

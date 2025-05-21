@@ -145,8 +145,8 @@ export default {
       currentPage: 1,
       pageSize: 20,
       total: 0,
-      allProblems: [], // 存储所有题目
-      problemList: [], // 兼容旧代码，保留但不使用
+      problems: [], // 当前页面显示的题目
+      loading: false, // 加载状态
       difficulties: [
         { label: '简单', value: '简单' },
         { label: '中等', value: '中等' },
@@ -161,29 +161,30 @@ export default {
     }
   },
   computed: {
-    // 根据搜索条件、难度和标签筛选题目
+    // 根据标签筛选题目
     filteredProblems() {
-      const filtered = this.allProblems.filter(problem => {
-        const matchQuery = this.searchQuery === '' ||
-          problem.title.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-          problem.problemCode.toLowerCase().includes(this.searchQuery.toLowerCase());
-
-        const matchDifficulty = !this.selectedDifficulty ||
-          problem.difficulty === this.selectedDifficulty;
-
-        const matchTags = this.selectedTags.length === 0 ||
-          this.selectedTags.every(tag => problem.tags.includes(tag));
-
-        return matchQuery && matchDifficulty && matchTags;
+      if (this.selectedTags.length === 0) {
+        return this.problems;
+      }
+      
+      return this.problems.filter(problem => {
+        return this.selectedTags.every(tag => problem.tags.includes(tag));
       });
-      
-      // 更新总数
-      this.total = filtered.length;
-      
-      // 前端分页
-      const start = (this.currentPage - 1) * this.pageSize;
-      const end = start + this.pageSize;
-      return filtered.slice(start, end);
+    }
+  },
+  watch: {
+    // 监听筛选条件变化，重新加载数据
+    selectedDifficulty() {
+      this.currentPage = 1;
+      this.fetchProblems();
+    },
+    searchQuery: {
+      handler: function(val) {
+        if (val === '') {
+          // 搜索条件为空时重新加载数据
+          this.fetchProblems();
+        }
+      }
     }
   },
   async created() {
@@ -207,16 +208,48 @@ export default {
       return '#F56C6C';
     },
     async fetchProblems() {
+      this.loading = true;
       try {
-        // 使用新的不分页API一次性获取所有题目
-        const res = await this.$axios.get('/api/problems/all');
-        if (res.code === 0) {
-          this.allProblems = res.data || [];
-          // 初始化总数，后续会在filteredProblems计算属性中更新
-          this.total = this.allProblems.length;
+        // 构建API请求参数
+        const params = {
+          page: this.currentPage,
+          rows: this.pageSize
+        };
+        
+        if (this.selectedDifficulty) {
+          params.difficulty = this.selectedDifficulty;
+        }
+        
+        if (this.searchQuery) {
+          // 如果有搜索关键词，使用全量API进行前端筛选
+          const res = await this.$axios.get('/api/problems/all', { params: { difficulty: this.selectedDifficulty } });
+          if (res.code === 0) {
+            const allProblems = res.data || [];
+            // 前端筛选搜索结果
+            const filteredProblems = allProblems.filter(problem => {
+              return problem.title.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+                problem.problemCode.toLowerCase().includes(this.searchQuery.toLowerCase());
+            });
+            this.total = filteredProblems.length;
+            
+            // 前端分页
+            const start = (this.currentPage - 1) * this.pageSize;
+            const end = start + this.pageSize;
+            this.problems = filteredProblems.slice(start, end);
+          }
+        } else {
+          // 使用分页API获取数据
+          const res = await this.$axios.get('/api/problems', { params });
+          if (res.code === 0) {
+            this.problems = res.data.list || [];
+            this.total = res.data.total;
+          }
         }
       } catch (error) {
+        console.error('获取题目列表失败:', error);
         this.$message.error('获取题目列表失败');
+      } finally {
+        this.loading = false;
       }
     },
     async fetchTags() {
@@ -247,15 +280,12 @@ export default {
     },
     handleSizeChange(val) {
       this.pageSize = val;
-      // 前端分页，不需要重新请求
-      if (this.currentPage * this.pageSize > this.total) {
-        // 如果当前页码超出范围，重置为第一页
-        this.currentPage = 1;
-      }
+      this.currentPage = 1; // 重置为第一页
+      this.fetchProblems(); // 重新请求数据
     },
     handleCurrentChange(val) {
       this.currentPage = val;
-      // 前端分页，不需要重新请求
+      this.fetchProblems(); // 重新请求数据
     }
   }
 }
