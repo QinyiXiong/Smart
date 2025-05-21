@@ -195,13 +195,16 @@ public class ChatServiceImpl implements ChatService {
             UserUtils.setCurrentChatId(byId.get().getChatId());
 
             // 1. RAG搜索
-            MessageLocal lastMessage = messageList.get(messageList.size() - 1);
+            if(interviewer.getKnowledgeBaseId() != null){
+                MessageLocal lastMessage = messageList.get(messageList.size() - 1);
 
-            milvusClient.buildRAGContent(
-                    userId,
-                    interviewer.getKnowledgeBaseId(),
-                    lastMessage.getContent().getText(),
-                    5);
+                milvusClient.buildRAGContent(
+                        userId,
+                        interviewer.getKnowledgeBaseId(),
+                        lastMessage.getContent().getText(),
+                        5);
+            }
+
             // 2. 生成Prompt
             String prompt = interviewerPromptGenerator.generatePrompt(interviewer);
             // System.out.println(prompt);

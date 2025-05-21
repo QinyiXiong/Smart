@@ -73,24 +73,7 @@ public class ChatController {
         return GlobalResultGenerator.genSuccessResult(allBranches);
     }
 
-    // @PostMapping(value = "/sendMessageWithFlux" ,produces =
-    // MediaType.TEXT_EVENT_STREAM_VALUE)
-    // public Flux<GlobalResult<ChatOutput>> sendMessageWithFlux(@RequestBody
-    // ChatRequest chatRequest){
-    // if (chatRequest.getMessageList() == null ||
-    // chatRequest.getMessageList().isEmpty()) {
-    // throw new ServiceException("缺少发送信息");
-    // }
-    // if (chatRequest.getInterviewer() == null) {
-    // throw new ServiceException("未设置面试官");
-    // }
-    // Flux<ChatOutput> globalResultFlux =
-    // chatService.sendMessageToInterviewerAndGetFlux(chatRequest.getMessageList(),
-    // chatRequest.getInterviewer());
-    //
-    // return globalResultFlux.map(GlobalResultGenerator::genSuccessResult);
-    //
-    // }
+
 
     @PostMapping("/sendMessageWithPoll")
     public GlobalResult<String> sendMessage(

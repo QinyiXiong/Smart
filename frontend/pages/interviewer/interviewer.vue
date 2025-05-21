@@ -21,19 +21,19 @@
                 @select="handleSelect"
               >
               <el-menu-item
-  v-for="item in aiList"
-  :key="item.interviewerId"
-  :index="item.interviewerId"
-  style="display: flex; justify-content: space-between; align-items: center"
->
-  <span>{{ item.name || '未命名AI' }}</span>
-  <el-button
-    type="text"
-    icon="el-icon-delete"
-    class="delete-btn"
-    @click.stop="deleteAi(item.interviewerId)"
-  ></el-button>
-</el-menu-item>
+                v-for="item in aiList"
+                :key="item.interviewerId"
+                :index="item.interviewerId"
+                style="display: flex; justify-content: space-between; align-items: center"
+              >
+                <span>{{ item.name || '未命名AI' }}</span>
+                <el-button
+                  type="text"
+                  icon="el-icon-delete"
+                  class="delete-btn"
+                  @click.stop="deleteAi(item.interviewerId)"
+                ></el-button>
+              </el-menu-item>
               </el-menu>
             </el-scrollbar>
           </div>

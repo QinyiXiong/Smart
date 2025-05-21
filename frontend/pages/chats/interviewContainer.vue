@@ -211,6 +211,9 @@ export default {
   },
   async mounted() {
     await this.fetchAiList()
+    if(this.$route.query.formData){
+      const formData = JSON.parse(this.$route.query.formData);
+    }
   },
   
   updated() {

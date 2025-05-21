@@ -56,6 +56,11 @@ public class MilvusServiceImpl implements MilvusService {
     public List<MilvusDatabase> getMilvusBases() {
         Long userId = UserUtils.getCurrentUserByToken().getIdUser();
         List<MilvusDatabase> milvusDatabasesByUserId = milvusDatabaseRepository.findMilvusDatabasesByUserId(userId);
+        if(milvusDatabasesByUserId == null || milvusDatabasesByUserId.isEmpty()){
+            MilvusDatabase milvusDatabase = createDefaultDataBase(userId);
+
+            milvusDatabasesByUserId.add(milvusDatabase);
+        }
         return milvusDatabasesByUserId;
     }
 
@@ -165,5 +170,17 @@ public class MilvusServiceImpl implements MilvusService {
         }
 
         return true;
+    }
+
+    MilvusDatabase createDefaultDataBase(Long userId){
+        MilvusDatabase milvusDatabase = new MilvusDatabase();
+        milvusDatabase.setDatabaseName("默认数据库");
+        milvusDatabase.setDescription("");
+        milvusDatabase.setUserId(userId);
+        milvusDatabase.setFileList(new ArrayList<MilvusFile>());
+        MilvusDatabase save = milvusDatabaseRepository.save(milvusDatabase);
+        milvusClient.createCollection(userId, save.getKnowledgeBaseId());
+
+        return milvusDatabase;
     }
 }
