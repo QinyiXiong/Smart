@@ -1,5 +1,6 @@
 package com.sdumagicode.backend.service.impl;
 
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -60,7 +61,14 @@ public class JudgeServiceImpl implements JudgeService {
     @Autowired
     private com.sdumagicode.backend.service.ChatService chatService;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper;
+
+    public JudgeServiceImpl() {
+        // 初始化ObjectMapper并配置以处理特殊字符
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_CONTROL_CHARS, true);
+        this.objectMapper.configure(JsonParser.Feature.ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER, true);
+    }
 
     // 代码文件扩展名映射
     private static final Map<String, String> LANGUAGE_EXTENSIONS = new HashMap<>();
@@ -869,11 +877,57 @@ public class JudgeServiceImpl implements JudgeService {
         }
 
         try {
-            return objectMapper.readValue(testCasesJson, new TypeReference<List<TestCaseDTO>>() {});
+            // 预处理JSON字符串，转义换行符和其他控制字符
+            String processedJson = testCasesJson
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
+            
+            // 使用已配置的objectMapper解析JSON
+            return objectMapper.readValue(processedJson, new TypeReference<List<TestCaseDTO>>() {});
         } catch (JsonProcessingException e) {
-            log.error("解析测试用例失败", e);
-            return Collections.emptyList();
+            // 如果第一次解析失败，尝试更严格的处理
+            try {
+                log.warn("第一次解析测试用例失败，尝试更严格的JSON处理");
+                // 使用正则表达式替换所有控制字符
+                String strictProcessedJson = processControlChars(testCasesJson);
+                return objectMapper.readValue(strictProcessedJson, new TypeReference<List<TestCaseDTO>>() {});
+            } catch (JsonProcessingException e2) {
+                log.error("解析测试用例失败，两种方法均无效", e2);
+                return Collections.emptyList();
+            }
         }
+    }
+    
+    /**
+     * 处理JSON字符串中的控制字符
+     * @param json 原始JSON字符串
+     * @return 处理后的JSON字符串
+     */
+    private String processControlChars(String json) {
+        if (json == null) return null;
+        
+        // 使用StringBuilder提高性能
+        StringBuilder sb = new StringBuilder(json.length() + 100);
+        for (int i = 0; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (c < 32) { // ASCII控制字符
+                switch (c) {
+                    case '\n': sb.append("\\n"); break;
+                    case '\r': sb.append("\\r"); break;
+                    case '\t': sb.append("\\t"); break;
+                    case '\b': sb.append("\\b"); break;
+                    case '\f': sb.append("\\f"); break;
+                    default: sb.append(String.format("\\u%04x", (int)c)); break;
+                }
+            } else if (c == '"' || c == '\\') {
+                // 确保引号和反斜杠被正确转义
+                sb.append('\\').append(c);
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
     }
 
     /**

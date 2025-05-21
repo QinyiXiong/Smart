@@ -1,5 +1,9 @@
 <template>
   <div class="problem-detail">
+    <!-- 返回按钮 -->
+    <div class="return-button-container" v-if="chatId && branchId">
+      <el-button type="primary" icon="el-icon-back" @click="returnToChat">返回聊天</el-button>
+    </div>
     <el-card class="problem-header">
       <div class="title-section">
         <div class="title-row">
@@ -299,6 +303,7 @@ marked.setOptions({
 })
 
 export default {
+  name: 'ProblemDetail',
   components: {
   },
   head() {
@@ -313,6 +318,9 @@ export default {
   },
   data() {
     return {
+      // 聊天相关参数
+      chatId: null,
+      branchId: null,
       problem: {
         problemCode: '',
         title: '',
@@ -401,6 +409,11 @@ export default {
     await this.$store.dispatch('code-template/fetchAllTemplates')
   },
   mounted() {
+    // 获取URL参数
+    const query = this.$route.query
+    if (query.chatId) this.chatId = query.chatId
+    if (query.branchId) this.branchId = query.branchId
+    
     this.loadMonaco()
   },
   beforeDestroy() {
@@ -409,6 +422,67 @@ export default {
     }
   },
   methods: {
+    // 返回聊天界面
+    async returnToChat() {
+      try {
+        // 构建基本返回参数
+        const params = {
+          chatId: this.chatId,
+          branchId: this.branchId
+        }
+        
+        // 如果有评测结果或AI评测结果，存入Redis
+        if ((this.judgeResult || (this.aiReviewResult && this.aiReviewResult !== '正在分析代码，请稍候...')) && 
+            this.chatId && this.branchId) {
+          
+          // 构建要存储的数据
+          const redisData = {}
+          
+          // 添加评测结果
+          if (this.judgeResult) {
+            redisData.judgeResult = {
+              status: this.judgeResult.status,
+              time: this.judgeResult.time,
+              memory: this.judgeResult.memory,
+              passedTestCases: this.judgeResult.passedTestCases,
+              totalTestCases: this.judgeResult.totalTestCases
+            }
+          }
+          
+          // 添加AI评测结果
+          if (this.aiReviewResult && this.aiReviewResult !== '正在分析代码，请稍候...') {
+            redisData.aiReviewResult = this.aiReviewResult
+          }
+          
+          // 调用API将数据存入Redis
+          const res = await this.$axios.post('/api/problems/save-results', {
+            chatId: this.chatId,
+            branchId: this.branchId,
+            data: redisData
+          })
+          console.log('保存结果到Redis成功:', res)
+          if (res.code !== 0) {
+            console.error('保存结果到Redis失败:', res.message)
+          }
+        }
+        
+        // 跳转回聊天界面，只传递必要的参数
+        this.$router.push({
+          path: '/chats/interviewContainer',
+          query: params
+        })
+      } catch (error) {
+        console.error('保存结果到Redis异常:', error)
+        // 发生异常时仍然返回聊天界面
+        this.$router.push({
+          path: '/chats/interviewContainer',
+          query: {
+            chatId: this.chatId,
+            branchId: this.branchId
+          }
+        })
+      }
+    },
     /**
      * 加载指定语言的代码模板
      */
@@ -914,6 +988,14 @@ export default {
   margin: 0 auto;
   min-height: 100vh;
   background: #f5f7fa;
+  position: relative;
+}
+
+.return-button-container {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  z-index: 10;
 }
 
 .problem-header {

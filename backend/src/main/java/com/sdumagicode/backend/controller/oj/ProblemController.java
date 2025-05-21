@@ -5,6 +5,7 @@ import com.github.pagehelper.PageInfo;
 import com.sdumagicode.backend.core.exception.BusinessException;
 import com.sdumagicode.backend.core.result.GlobalResult;
 import com.sdumagicode.backend.core.result.GlobalResultGenerator;
+import com.sdumagicode.backend.core.service.redis.RedisService;
 import com.sdumagicode.backend.core.service.security.annotation.AuthorshipInterceptor;
 import com.sdumagicode.backend.dto.ProblemDTO;
 import com.sdumagicode.backend.enumerate.Module;
@@ -22,6 +23,9 @@ import java.util.Objects;
 public class ProblemController {
     @Autowired
     private ProblemService problemService;
+    
+    @Autowired
+    private RedisService redisService;
 
     @GetMapping
 public GlobalResult<PageInfo<ProblemDTO>> getProblemList(
@@ -153,5 +157,48 @@ public GlobalResult<List<ProblemDTO>> getAllProblemsByDifficulty(
     @AuthorshipInterceptor(moduleName = Module.PROBLEM)
     public GlobalResult<Integer> delete(@PathVariable Long id) {
         return GlobalResultGenerator.genSuccessResult(problemService.delete(id));
+    }
+    
+    /**
+     * 保存题目评测结果和AI评价结果到Redis
+     *
+     * @param requestBody 包含chatId、branchId和data的请求体
+     * @return 操作结果
+     */
+    @PostMapping("/save-results")
+    public GlobalResult<Void> saveResults(@RequestBody Map<String, Object> requestBody) {
+        try {
+            // 从请求体中获取参数
+            String chatId = (String) requestBody.get("chatId");
+            String branchId = (String) requestBody.get("branchId");
+            
+            // 使用FastJSON格式化输出data对象
+            Object dataObj = requestBody.get("data");
+            System.out.println("Data对象类型: " + (dataObj != null ? dataObj.getClass().getName() : "null"));
+            System.out.println("Data内容: " + com.alibaba.fastjson.JSON.toJSONString(dataObj, true));
+            
+            Map<String, Object> data = (Map<String, Object>) dataObj;
+            
+            // 参数验证
+            if (chatId == null || branchId == null || data == null) {
+                return GlobalResultGenerator.genErrorResult("参数不完整，需要提供chatId、branchId和data");
+            }
+            
+            // 输出data中的键值对
+            System.out.println("Data中的键值对:");
+            for (Map.Entry<String, Object> entry : data.entrySet()) {
+                System.out.println(entry.getKey() + " = " + entry.getValue());
+            }
+            
+            // 构建Redis键名
+            String redisKey = "problem_results:" + chatId + ":" + branchId;
+            
+            // 将数据保存到Redis，有效期设置为24小时
+            redisService.set(redisKey, data, 24 * 60 * 60);
+            
+            return GlobalResultGenerator.genSuccessResult("保存成功");
+        } catch (Exception e) {
+            return GlobalResultGenerator.genErrorResult("保存结果失败: " + e.getMessage());
+        }
     }
 }
