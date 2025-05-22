@@ -20,4 +20,8 @@ public interface MilvusService {
 
     public boolean deleteMilvusFilse(String knowledgeBaseId,String milvusFileId) throws IOException;
 
+    public MilvusDatabase deepCopyForUser(String knowledgeBaseId);
+
+    public MilvusDatabase deepCopyForSnapshot(String knowledgeBaseId);
+
 }

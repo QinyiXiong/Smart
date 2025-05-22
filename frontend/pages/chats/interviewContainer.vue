@@ -119,7 +119,9 @@
       <chat-area
         :current-interviewer="currentInterviewer"
         :chat-record-id="activeChatRecord"
+        :initial-branch-id="branchId" 
         @polling-completed="handlePollingCompleted"
+        @branch-loaded="handleBranchLoaded"
         ref="chatArea"
       />
       
@@ -194,7 +196,8 @@ export default {
       valuationData: null,
       radarChart: null,
       isSidebarCollapsed: false,
-      showSkeleton: false
+      showSkeleton: false,
+      branchId: null,
     }
   },
   watch: {
@@ -211,8 +214,30 @@ export default {
   },
   async mounted() {
     await this.fetchAiList()
-    if(this.$route.query.formData){
-      const formData = JSON.parse(this.$route.query.formData);
+    
+    // 处理从 problem/_id.vue 跳转过来的参数
+    if(this.$route.query.interviewerId) {
+        await this.handleInterviewerSelect(this.$route.query.interviewerId);
+        this.handleTabSwitch('record')
+      }
+
+    if (this.$route.query.chatId) {
+      this.activeChatRecord = this.$route.query.chatId;
+      
+      if (this.$route.query.branchId) {
+        this.branchId = this.$route.query.branchId; 
+      }
+      
+      this.handleChatRecordSelect(this.activeChatRecord);
+      // 清空 URL 查询参数
+      this.$router.replace({ 
+        query: { 
+          ...this.$route.query,
+          branchId: undefined,
+          chatId: undefined,
+          interviewerId: undefined
+        } 
+        });
     }
   },
   
@@ -260,7 +285,7 @@ export default {
                 });
               }
               
-              // 处理action171_push类型数据
+              // 处理跳转类型动作
               if (actionObj.action === 'push' && 
                   actionObj.chatId && 
                   actionObj.problemId) {
@@ -289,6 +314,10 @@ export default {
         console.error('获取actions失败:', error);
         this.$message.error('获取面试动作失败');
       }
+    },
+
+    handleBranchLoaded() {
+      this.branchId = null; // 重置 branchId
     },
 
     async handleValuationUpdate(valuationChanges) {

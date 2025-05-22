@@ -172,6 +172,10 @@ export default {
     currentBranchId: {
       type: String,
       default: null
+    },
+    initialBranchId: { // 新增 initialBranchId prop
+      type: String,
+      default: null
     }
   },
   data() {
@@ -211,9 +215,35 @@ export default {
   },
   watch: {
     chatRecordId: {
-      handler(newVal) {
+      async handler(newVal) { // 修改为 async 函数
         if (newVal) {
-          this.loadChatMessages(newVal);
+          // 先调用原始的 loadChatMessages，确保基础消息和分支数据加载
+          await this.loadChatMessages(newVal);
+
+          // 如果提供了 initialBranchId，则尝试切换到该分支
+          if (this.initialBranchId && this.allBranches && this.allBranches.length > 0) {
+            // 调用 fetchData 方法，确保 allBranches 更新, 在loadChatMessages中已经调用过，这里不再重复
+            // await this.fetchData(newVal); 
+            const targetBranch = this.allBranches.find(b => b.branchId == this.initialBranchId);
+            if (targetBranch) {
+              this.currentBranch = targetBranch;
+              await this.buildPathForTargetBranch(this.currentBranch);
+              this.scrollToBottom();
+              this.initialBranchId = null; // 重置 initialBranchId，避免重复处理
+              this.$emit('branch-loaded'); // 发出事件通知父组件
+              await this.sendMessageWithPolling("用户已返回");
+              
+            } else {
+              console.warn(`Branch with id ${this.initialBranchId} not found after loading messages.`);
+              // 如果找不到分支，可以考虑回退到默认行为或显示提示
+            }
+          } else if (this.initialBranchId) {
+            // allBranches 可能还未被 loadChatMessages 完全填充，或者 initialBranchId 无效
+            console.warn(`initialBranchId (${this.initialBranchId}) was provided, but allBranches is empty or branch not found immediately.`);
+            // 这里可以添加一个延时检查或者依赖 loadChatMessages 内部的事件来确保 allBranches 可用
+          }
+          // 如果没有 initialBranchId，则 loadChatMessages 的默认行为应该已经处理了分支选择
+
         } else {
           // 当chatRecordId为null时清空聊天区域
           this.messageListForShow = [];
@@ -940,7 +970,7 @@ export default {
     },
 
     async startPolling(messageId) {
-      const POLLING_TIMEOUT = 30000; // 5秒超时
+      const POLLING_TIMEOUT = 30000; // 30秒超时
       let pollingStartTime = Date.now();
 
       const processBatch = async () => {
@@ -1079,11 +1109,12 @@ export default {
       }
     },
 
-    // 处理action171_push类型数据的方法
+    // 处理push类型动作的方法
     handleActionPush(problemId) {
       if (problemId) {
+        console.log()
         // 跳转到题目页面，并带上currentBranchId和chatId参数
-        this.$router.push(`/oj/problem/${problemId}?branchId=${this.currentBranch.branchId}&chatId=${this.chatRecordId}`);
+        this.$router.push(`/oj/problem/${problemId}?branchId=${this.currentBranch.branchId}&chatId=${this.chatRecordId}&interviewerId=${this.currentInterviewer.interviewerId}`);
       }
     },
 

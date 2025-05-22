@@ -14,6 +14,8 @@ public interface MilvusDatabaseRepository extends MongoRepository<MilvusDatabase
 
     MilvusDatabase findMilvusDatabaseByKnowledgeBaseIdAndUserId(String knowledgeBaseId,Long userId);
 
+    MilvusDatabase findMilvusDatabaseByKnowledgeBaseId(String knowledgebaseId);
+
     @Query("{'fileList.milvusFileId': ?0}")
     MilvusDatabase findByMilvusFileId(String milvusFileId);
 }

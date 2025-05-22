@@ -1,7 +1,7 @@
 <template>
   <div class="problem-detail">
     <!-- 返回按钮 -->
-    <div class="return-button-container" v-if="chatId && branchId">
+    <div class="return-button-container" v-if="chatId && branchId && interviewerId">
       <el-button type="primary" icon="el-icon-back" @click="returnToChat">返回聊天</el-button>
     </div>
     <el-card class="problem-header">
@@ -321,6 +321,7 @@ export default {
       // 聊天相关参数
       chatId: null,
       branchId: null,
+      interviewerId: null,
       problem: {
         problemCode: '',
         title: '',
@@ -413,6 +414,7 @@ export default {
     const query = this.$route.query
     if (query.chatId) this.chatId = query.chatId
     if (query.branchId) this.branchId = query.branchId
+    if (query.interviewerId) this.interviewerId = query.interviewerId
     
     this.loadMonaco()
   },
@@ -428,19 +430,22 @@ export default {
         // 构建基本返回参数
         const params = {
           chatId: this.chatId,
-          branchId: this.branchId
+          branchId: this.branchId,
+          interviewerId: this.interviewerId
         }
-        
-        // 如果有评测结果或AI评测结果，存入Redis
-        if ((this.judgeResult || (this.aiReviewResult && this.aiReviewResult !== '正在分析代码，请稍候...')) && 
-            this.chatId && this.branchId) {
+    
+        // 只要有chatId和branchId就存入Redis
+        if (this.chatId && this.branchId) {
           
           // 构建要存储的数据
           const redisData = {}
           
           // 添加评测结果
+          // 初始化judgeResult对象
+          redisData.judgeResult = {}
           if (this.judgeResult) {
             redisData.judgeResult = {
+              difficulty: this.problem.difficulty,
               status: this.judgeResult.status,
               time: this.judgeResult.time,
               memory: this.judgeResult.memory,
@@ -449,7 +454,8 @@ export default {
             }
           }
           
-          // 添加AI评测结果
+          // 初始化aiReviewResult对象
+          redisData.aiReviewResult = {}
           if (this.aiReviewResult && this.aiReviewResult !== '正在分析代码，请稍候...') {
             redisData.aiReviewResult = this.aiReviewResult
           }

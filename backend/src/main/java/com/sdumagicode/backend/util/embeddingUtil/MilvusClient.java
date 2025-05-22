@@ -328,6 +328,9 @@ public void batchInsertMilvus(List<KnowledgeRecord> records, Long userId, String
     // 使用并行流处理embedding获取
     List<CompletableFuture<Void>> futures = records.stream()
             .map(record -> CompletableFuture.runAsync(() -> {
+                if(record.getChunkText() == null || record.getChunkText().isEmpty()){
+                    return;
+                }
                 List<List<Float>> embeddings = embeddingClient.getEmbedding(record.getChunkText());
                 // 将多个embedding拼接成一个长向量
                 List<Float> concatenated = embeddings.stream()

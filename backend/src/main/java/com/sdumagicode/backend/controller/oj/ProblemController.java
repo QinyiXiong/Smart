@@ -193,8 +193,8 @@ public GlobalResult<List<ProblemDTO>> getAllProblemsByDifficulty(
             // 构建Redis键名
             String redisKey = "problem_results:" + chatId + ":" + branchId;
             
-            // 将数据保存到Redis，有效期设置为24小时
-            redisService.set(redisKey, data, 24 * 60 * 60);
+            // 将数据保存到Redis，有效期设置为60分钟
+            redisService.set(redisKey, data, 60 * 60);
             
             return GlobalResultGenerator.genSuccessResult("保存成功");
         } catch (Exception e) {

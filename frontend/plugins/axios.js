@@ -1,6 +1,6 @@
-import {Message} from 'element-ui'
+import { Message } from 'element-ui'
 
-export default function ({app, $axios, store, redirect}) {
+export default function ({ app, $axios, store, redirect }) {
 
   function generateReqKey(config) {
     const { method, url, params, data } = config;

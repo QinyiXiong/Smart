@@ -1,8 +1,8 @@
 export default {
-    // 获取token
-    getToken() {
-      return localStorage.getItem('auth._token.local') || '';
-    },
+  // 获取token
+  getToken() {
+    return localStorage.getItem('auth._token.local') || '';
+  },
 
   // 检查token是否过期
   isTokenExpired() {
@@ -19,17 +19,17 @@ export default {
     if (token == "false") return true;
   },
 
-    // 清除token
-    clearToken() {
-      localStorage.removeItem('auth._token.local');
-      localStorage.removeItem('refreshToken');
-    },
+  // 清除token
+  clearToken() {
+    localStorage.removeItem('auth._token.local');
+    localStorage.removeItem('refreshToken');
+  },
 
-    // 保存token (用于登录成功后)
-    saveToken(token, refreshToken) {
-      localStorage.setItem('auth._token.local', token);
-      if (refreshToken) {
-        localStorage.setItem('refreshToken', refreshToken);
-      }
+  // 保存token (用于登录成功后)
+  saveToken(token, refreshToken) {
+    localStorage.setItem('auth._token.local', token);
+    if (refreshToken) {
+      localStorage.setItem('refreshToken', refreshToken);
     }
-  };
+  }
+};
