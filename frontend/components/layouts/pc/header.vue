@@ -2,7 +2,7 @@
   <el-row :gutter="20" justify="space-between" type="flex">
     <el-col :md="4" :span="4" :xs="8">
       <a class="navbar-brand" href="/" rel="nofollow">
-        <img alt="logo" class="navbar-brand-img" src="@/assets/logo.svg">
+        <img alt="logo" class="navbar-brand-img" src="@/assets/little-logo.svg">
       </a>
     </el-col>
     <el-col :md="14" :span="10" :xs="0" style="max-height: 58px;overflow: hidden">
@@ -390,12 +390,14 @@ export default {
 }
 
 .navbar-brand-img {
-  height: 120px;
+  height: 45px;
   /* line-height: 3rem;
   vertical-align: top; */
   object-fit: cover;
   width: auto;
-  margin-top: -30px;
+  margin-top: 10px;
+  margin-left: 40px;
+  outline:none;
 }
 
 .search-result-box {
