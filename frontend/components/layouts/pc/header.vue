@@ -8,36 +8,66 @@
     <el-col :md="14" :span="10" :xs="0" style="max-height: 58px;overflow: hidden">
       <el-menu :default-active="activeMenu" @select="handleSelectMenu" mode="horizontal"
                style="margin-top: -2px;border: 0;">
-        <!-- <el-menu-item index="index">论坛</el-menu-item> -->
-        <!-- <el-menu-item index="topic">专栏</el-menu-item> -->
-        <!-- <el-menu-item index="portfolios">作品集</el-menu-item> -->
-        <!-- <el-menu-item index="products">产品</el-menu-item>
-        <el-menu-item index="open-data">开放数据</el-menu-item> -->
 
        <!-- 模拟面试官主菜单 -->
-       <el-submenu index="interview">
-        <template slot="title">模拟面试官</template>
-        <el-menu-item index="interview-simulate">模拟面试</el-menu-item>
-        <el-menu-item index="interview-officer">我的面试官</el-menu-item>
-        <el-menu-item index="milvus-database">知识库管理</el-menu-item>
-        <el-menu-item index="interview-record">面试记录</el-menu-item>
+       <el-submenu index="interview" class="modern-submenu">
+        <template slot="title">
+          <i class="el-icon-user" style="margin-right: 6px;"></i>
+          模拟面试官
+        </template>
+        <el-menu-item index="interview-simulate" class="modern-menu-item">
+          <i class="el-icon-video-camera" style="margin-right: 8px;"></i>
+          模拟面试
+        </el-menu-item>
+        <el-menu-item index="interview-officer" class="modern-menu-item">
+          <i class="el-icon-user-solid" style="margin-right: 8px;"></i>
+          我的面试官
+        </el-menu-item>
+        <el-menu-item index="milvus-database" class="modern-menu-item">
+          <i class="el-icon-data-board" style="margin-right: 8px;"></i>
+          知识库管理
+        </el-menu-item>
+        <el-menu-item index="interview-record" class="modern-menu-item">
+          <i class="el-icon-document" style="margin-right: 8px;"></i>
+          面试记录
+        </el-menu-item>
       </el-submenu>
+      
       <!-- OJ主菜单 -->
-      <el-submenu index="oj">
-        <template slot="title">OJ题库</template>
-        <el-menu-item index="oj">题目列表</el-menu-item>
-        <el-menu-item index="oj-add">添加题目</el-menu-item>
+      <el-submenu index="oj" class="modern-submenu">
+        <template slot="title">
+          <i class="el-icon-cpu" style="margin-right: 6px;"></i>
+          OJ题库
+        </template>
+        <el-menu-item index="oj" class="modern-menu-item">
+          <i class="el-icon-tickets" style="margin-right: 8px;"></i>
+          题目列表
+        </el-menu-item>
+        <el-menu-item index="oj-add" class="modern-menu-item">
+          <i class="el-icon-circle-plus" style="margin-right: 8px;"></i>
+          添加题目
+        </el-menu-item>
       </el-submenu>
+      
       <!-- 社区主菜单 -->
-      <el-submenu index="community">
-        <template slot="title">社区</template>
-        <el-menu-item index="hot-posts">热门</el-menu-item>
-        <el-menu-item index="my-follow">我的关注</el-menu-item>
-        <el-menu-item index="portfolios">作品集</el-menu-item>
+      <el-submenu index="community" class="modern-submenu">
+        <template slot="title">
+          <i class="el-icon-s-comment" style="margin-right: 6px;"></i>
+          社区
+        </template>
+        <el-menu-item index="hot-posts" class="modern-menu-item">
+          <i class="el-icon-hot-water" style="margin-right: 8px;"></i>
+          热门
+        </el-menu-item>
+        <el-menu-item index="my-follow" class="modern-menu-item">
+          <i class="el-icon-star-on" style="margin-right: 8px;"></i>
+          我的关注
+        </el-menu-item>
+        <el-menu-item index="portfolios" class="modern-menu-item">
+          <i class="el-icon-collection" style="margin-right: 8px;"></i>
+          作品集
+        </el-menu-item>
       </el-submenu>
-
-
-
 
       </el-menu>
     </el-col>
@@ -50,114 +80,150 @@
             placement="bottom"
             trigger="click"
             v-model="showPopover"
-            width="400">
-            <el-input @keyup.enter.native="querySearchAsync" name="searchInput" placeholder="搜索文章,作品集,用户"
-                      v-model="queryString">
-              <el-button @click="querySearchAsync" slot="append">
-                <svg height="24" style="fill: rgba(0, 0, 0, 1);" viewBox="0 0 24 24" width="24"
-                     xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M10 18a7.952 7.952 0 0 0 4.897-1.688l4.396 4.396 1.414-1.414-4.396-4.396A7.952 7.952 0 0 0 18 10c0-4.411-3.589-8-8-8s-8 3.589-8 8 3.589 8 8 8zm0-14c3.309 0 6 2.691 6 6s-2.691 6-6 6-6-2.691-6-6 2.691-6 6-6z"></path>
-                  <path
-                    d="M11.412 8.586c.379.38.588.882.588 1.414h2a3.977 3.977 0 0 0-1.174-2.828c-1.514-1.512-4.139-1.512-5.652 0l1.412 1.416c.76-.758 2.07-.756 2.826-.002z"></path>
-                </svg>
-              </el-button>
-            </el-input>
-            <el-button circle size="small" slot="reference" style="background-color: transparent">
-              <svg height="14" style="fill: rgba(0, 0, 0, 1);" viewBox="0 0 24 24" width="14"
-                   xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M10 18a7.952 7.952 0 0 0 4.897-1.688l4.396 4.396 1.414-1.414-4.396-4.396A7.952 7.952 0 0 0 18 10c0-4.411-3.589-8-8-8s-8 3.589-8 8 3.589 8 8 8zm0-14c3.309 0 6 2.691 6 6s-2.691 6-6 6-6-2.691-6-6 2.691-6 6-6z"></path>
-                <path
-                  d="M11.412 8.586c.379.38.588.882.588 1.414h2a3.977 3.977 0 0 0-1.174-2.828c-1.514-1.512-4.139-1.512-5.652 0l1.412 1.416c.76-.758 2.07-.756 2.826-.002z"></path>
-              </svg>
+            width="420"
+            popper-class="modern-search-popover">
+            <div class="modern-search-container">
+              <div class="search-wrapper">
+                <el-input 
+                  @keyup.enter.native="querySearchAsync" 
+                  name="searchInput" 
+                  placeholder="搜索文章, 作品集, 用户..."
+                  v-model="queryString"
+                  class="modern-search-input"
+                  prefix-icon="el-icon-search">
+                </el-input>
+                <el-button @click="querySearchAsync" class="modern-search-btn" type="primary">
+                  <i class="el-icon-search"></i>
+                  搜索
+                </el-button>
+              </div>
+            </div>
+            <el-button circle size="small" slot="reference" class="modern-icon-btn">
+              <i class="el-icon-search"></i>
             </el-button>
+
           </el-popover>
 
           <el-link :underline="false" href="/portfolio/post" rel="nofollow"
-                   style="padding-left: 10px;padding-right: 10px;">创建专栏
+                   class="modern-nav-link">
+            <i class="el-icon-edit-outline" style="margin-right: 4px;"></i>
+            创建专栏
           </el-link>
+          
           <el-link :underline="false" href="/article/post" rel="nofollow"
-                   style="padding-left: 10px;padding-right: 10px;">发帖
+                   class="modern-nav-link">
+            <i class="el-icon-document-add" style="margin-right: 4px;"></i>
+            发帖
           </el-link>
-          <el-link :underline="false" rel="nofollow" style="padding-left: 10px;padding-right: 10px;">
-            <el-dropdown @command="handleCommand" trigger="click">
+          
+          <el-link :underline="false" rel="nofollow" class="modern-nav-link">
+            <el-dropdown @command="handleCommand" trigger="click" class="modern-dropdown">
               <el-badge :value="notificationNumbers" class="item">
-                <el-link :underline="false" rel="nofollow" style="font-size: 1.4rem;">
-                  <svg height="24" style="fill: rgba(0, 0, 0, 1);" viewBox="0 0 24 24" width="24"
-                       xmlns="http://www.w3.org/2000/svg">
-                    <path
-                      d="M19 13.586V10c0-3.217-2.185-5.927-5.145-6.742C13.562 2.52 12.846 2 12 2s-1.562.52-1.855 1.258C7.185 4.074 5 6.783 5 10v3.586l-1.707 1.707A.996.996 0 0 0 3 16v2a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1v-2a.996.996 0 0 0-.293-.707L19 13.586zM19 17H5v-.586l1.707-1.707A.996.996 0 0 0 7 14v-4c0-2.757 2.243-5 5-5s5 2.243 5 5v4c0 .266.105.52.293.707L19 16.414V17zm-7 5a2.98 2.98 0 0 0 2.818-2H9.182A2.98 2.98 0 0 0 12 22z"></path>
-                  </svg>
-                </el-link>
+                <el-button circle size="small" class="modern-icon-btn">
+                  <i class="el-icon-bell"></i>
+                </el-button>
               </el-badge>
-              <el-dropdown-menu slot="dropdown">
-                <el-dropdown-item :key="notification.idNotification" command="notification"
-                                  v-for="notification in notifications">{{ notification.dataSummary }}
-                </el-dropdown-item>
-                <el-dropdown-item command="notification">查看所有消息</el-dropdown-item>
+              <el-dropdown-menu slot="dropdown" class="modern-notification-dropdown">
+                <div class="notification-header">
+                  <i class="el-icon-bell" style="margin-right: 8px;"></i>
+                  <span>通知消息</span>
+                </div>
+                <div class="notification-list">
+                  <el-dropdown-item 
+                    :key="notification.idNotification" 
+                    command="notification"
+                    v-for="notification in notifications"
+                    class="modern-notification-item">
+                    <div class="notification-content">
+                      <i class="el-icon-message" style="margin-right: 8px; color: #409EFF;"></i>
+                      <span>{{ notification.dataSummary }}</span>
+                    </div>
+                  </el-dropdown-item>
+                  <el-dropdown-item command="notification" class="view-all-item">
+                    <i class="el-icon-more" style="margin-right: 8px;"></i>
+                    查看所有消息
+                  </el-dropdown-item>
+                </div>
               </el-dropdown-menu>
             </el-dropdown>
           </el-link>
           <el-link :underline="false" rel="nofollow" style="margin-left: 10px;">
-            <el-dropdown @command="handleCommand" trigger="click">
-              <el-avatar :src="user.avatarUrl" size="small" v-if="user.avatarUrl"></el-avatar>
-              <el-avatar size="small" src="https://static.rymcu.com/article/1578475481946.png" v-else></el-avatar>
-              <el-dropdown-menu slot="dropdown">
-                <el-dropdown-item style="align-items: center;">
-                  <el-avatar :src="user.avatarUrl" class="mr-3" size="small" style="margin-top: 1rem;"
-                             v-if="user.avatarUrl"></el-avatar>
-                  <el-avatar class="mr-3" size="small" src="https://static.rymcu.com/article/1578475481946.png"
-                             style="margin-top: 1rem;"
-                             v-else></el-avatar>
-                  <el-link :underline="false" rel="nofollow" style="margin-left: 10px;margin-bottom: 1rem;">
-                    {{ user.nickname }}
-                  </el-link>
-                </el-dropdown-item>
-                <el-dropdown-item command="user">个人中心</el-dropdown-item>
-                <!-- <el-dropdown-item command="answer" v-if="$auth.user.bankAccount">每日一题</el-dropdown-item>
-                <el-dropdown-item command="answer" v-else :disabled="true">每日一题<small>(开通钱包账号激活)</small></el-dropdown-item> -->
-                <el-dropdown-item command="drafts" divided>我的草稿</el-dropdown-item>
-                <!-- <el-dropdown-item command="wallet">我的钱包</el-dropdown-item> -->
-                <!-- <el-dropdown-item command="yuumi">Yuumi(ChatGPT)</el-dropdown-item> -->
-                <el-dropdown-item command="user-info" divided>设置</el-dropdown-item>
-                <el-dropdown-item command="admin-dashboard" v-if="hasPermissions">系统管理</el-dropdown-item>
-                <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+            <el-dropdown @command="handleCommand" trigger="click" class="modern-dropdown">
+              <div class="user-avatar-container">
+                <el-avatar :src="user.avatarUrl" size="small" v-if="user.avatarUrl"></el-avatar>
+                <el-avatar size="small" src="https://static.rymcu.com/article/1578475481946.png" v-else></el-avatar>
+              </div>
+              <el-dropdown-menu slot="dropdown" class="modern-user-dropdown">
+                <div class="user-info-header">
+                  <el-avatar :src="user.avatarUrl" size="medium" v-if="user.avatarUrl"></el-avatar>
+                  <el-avatar size="medium" src="https://static.rymcu.com/article/1578475481946.png" v-else></el-avatar>
+                  <div class="user-details">
+                    <span class="username">{{ user.nickname }}</span>
+                    <span class="user-status">在线</span>
+                  </div>
+                </div>
+                <div class="user-menu-list">
+                  <el-dropdown-item command="user" class="modern-dropdown-item">
+                    <i class="el-icon-user" style="margin-right: 8px;"></i>
+                    个人中心
+                  </el-dropdown-item>
+                  <el-dropdown-item command="drafts" class="modern-dropdown-item">
+                    <i class="el-icon-document" style="margin-right: 8px;"></i>
+                    我的草稿
+                  </el-dropdown-item>
+                  <el-dropdown-item command="user-info" class="modern-dropdown-item">
+                    <i class="el-icon-setting" style="margin-right: 8px;"></i>
+                    设置
+                  </el-dropdown-item>
+                  <el-dropdown-item command="admin-dashboard" v-if="hasPermissions" class="modern-dropdown-item">
+                    <i class="el-icon-s-tools" style="margin-right: 8px;"></i>
+                    系统管理
+                  </el-dropdown-item>
+                  <el-dropdown-item command="logout" class="modern-dropdown-item logout-item">
+                    <i class="el-icon-switch-button" style="margin-right: 8px;"></i>
+                    退出登录
+                  </el-dropdown-item>
+                </div>
               </el-dropdown-menu>
             </el-dropdown>
           </el-link>
         </el-col>
+        
         <el-col style="text-align: right;" v-else>
           <el-popover
             @show="handleShowPopover"
             placement="bottom"
             trigger="click"
             v-model="showPopover"
-            width="400">
-            <el-input @keyup.enter.native="querySearchAsync" name="searchInput" placeholder="搜索文章,作品集,用户"
-                      v-model="queryString">
-              <el-button @click="querySearchAsync" slot="append">
-                <svg height="24" style="fill: rgba(0, 0, 0, 1);" viewBox="0 0 24 24" width="24"
-                     xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M10 18a7.952 7.952 0 0 0 4.897-1.688l4.396 4.396 1.414-1.414-4.396-4.396A7.952 7.952 0 0 0 18 10c0-4.411-3.589-8-8-8s-8 3.589-8 8 3.589 8 8 8zm0-14c3.309 0 6 2.691 6 6s-2.691 6-6 6-6-2.691-6-6 2.691-6 6-6z"></path>
-                  <path
-                    d="M11.412 8.586c.379.38.588.882.588 1.414h2a3.977 3.977 0 0 0-1.174-2.828c-1.514-1.512-4.139-1.512-5.652 0l1.412 1.416c.76-.758 2.07-.756 2.826-.002z"></path>
-                </svg>
-              </el-button>
-            </el-input>
-            <el-button circle size="small" slot="reference">
-              <svg height="14" style="fill: rgba(0, 0, 0, 1);" viewBox="0 0 24 24" width="14"
-                   xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M10 18a7.952 7.952 0 0 0 4.897-1.688l4.396 4.396 1.414-1.414-4.396-4.396A7.952 7.952 0 0 0 18 10c0-4.411-3.589-8-8-8s-8 3.589-8 8 3.589 8 8 8zm0-14c3.309 0 6 2.691 6 6s-2.691 6-6 6-6-2.691-6-6 2.691-6 6-6z"></path>
-                <path
-                  d="M11.412 8.586c.379.38.588.882.588 1.414h2a3.977 3.977 0 0 0-1.174-2.828c-1.514-1.512-4.139-1.512-5.652 0l1.412 1.416c.76-.758 2.07-.756 2.826-.002z"></path>
-              </svg>
+            width="420"
+            popper-class="modern-search-popover">
+            <div class="modern-search-container">
+              <el-input 
+                @keyup.enter.native="querySearchAsync" 
+                name="searchInput" 
+                placeholder="搜索文章, 作品集, 用户..."
+                v-model="queryString"
+                class="modern-search-input"
+                prefix-icon="el-icon-search">
+                <el-button @click="querySearchAsync" slot="append" class="modern-search-btn">
+                  搜索
+                </el-button>
+              </el-input>
+            </div>
+            <el-button circle size="small" slot="reference" class="modern-icon-btn">
+              <i class="el-icon-search"></i>
             </el-button>
           </el-popover>
-          <el-link :underline="false" @click="login" rel="nofollow" style="margin-left: 10px;">登录</el-link>
-          <el-link :underline="false" href="/register" rel="nofollow" style="margin-left: 10px;">注册</el-link>
+          
+          <el-link :underline="false" @click="login" rel="nofollow" class="modern-auth-link">
+            <i class="el-icon-user" style="margin-right: 4px;"></i>
+            登录
+          </el-link>
+          
+          <el-link :underline="false" href="/register" rel="nofollow" class="modern-auth-link">
+            <i class="el-icon-user-solid" style="margin-right: 4px;"></i>
+            注册
+          </el-link>
         </el-col>
       </client-only>
     </el-col>
@@ -380,7 +446,6 @@ export default {
 .navbar-brand {
   color: inherit;
   margin-right: 1rem;
-
   font-size: 1.25rem;
   white-space: nowrap;
   font-weight: 600;
@@ -391,29 +456,345 @@ export default {
 
 .navbar-brand-img {
   height: 45px;
-  /* line-height: 3rem;
-  vertical-align: top; */
   object-fit: cover;
   width: auto;
   margin-top: 10px;
-  margin-left: 40px;
-  outline:none;
-}
-
-.search-result-box {
-  min-width: 20vw !important;
-}
-
-.search-result-type {
-  padding-right: 5px;
+  margin-left: 50px;
+  outline: none;
 }
 
 .el-menu {
   background-color: transparent !important;
 }
 
-.icon_sun {
+/* 现代化菜单样式 - 增加字体大小和间距 */
+.modern-submenu >>> .el-submenu__title {
+  font-weight: 600;
+  color: #333;
+  font-size: 16px;
+  padding: 0 24px;
+  transition: all 0.3s ease;
+  height: 60px;
+  line-height: 60px;
+}
+
+.modern-submenu >>> .el-submenu__title:hover {
+  color: #409EFF;
+  background-color: rgba(64, 158, 255, 0.05);
+}
+
+/* 下拉菜单容器增加间距 */
+.modern-submenu >>> .el-menu--popup {
+  padding: 12px 0;
+  min-width: 200px;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12) !important;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.modern-menu-item {
+  font-weight: 500;
+  font-size: 15px;
+  transition: all 0.3s ease;
+  padding: 0 20px !important;
+  height: 48px !important;
+  line-height: 48px !important;
+  margin: 4px 8px !important;
+  border-radius: 8px;
+}
+
+.modern-menu-item:hover {
+  background-color: rgba(64, 158, 255, 0.08) !important;
+  color: #409EFF !important;
+  transform: translateX(4px);
+}
+
+/* 现代化搜索弹出框 */
+.modern-search-container {
+  padding: 20px;
+  background: #f5f7fa;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.search-wrapper {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.modern-search-input {
+  flex: 1;
+}
+
+.modern-search-input >>> .el-input__inner {
+  border-radius: 25px;
+  border: 2px solid #e4e7ed;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  padding-left: 45px;
+  height: 40px;
+}
+
+.modern-search-input >>> .el-input__inner:focus {
+  border-color: #409EFF;
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.1);
+}
+
+.modern-search-btn {
+  border-radius: 20px !important;
+  padding: 10px 20px !important;
+  font-weight: 500;
+  background: rgba(64, 158, 255, 0.1);
+  border: 1px solid rgba(64, 158, 255, 0.2);
+  color: #409EFF;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.modern-search-btn:hover {
+  background: #409EFF;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+}
+
+/* 现代化图标按钮 */
+.modern-icon-btn {
+  background: rgba(64, 158, 255, 0.1);
+  border: 1px solid rgba(64, 158, 255, 0.2);
+  color: #409EFF;
+  transition: all 0.3s ease;
+}
+
+.modern-icon-btn:hover {
+  background: #409EFF;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+}
+
+/* 现代化导航链接 */
+.modern-nav-link {
+  padding: 5px 18px;
+  border-radius: 20px;
+  margin: 0 6px;
+  
+  color: #606266;
+  font-weight: 500;
+  font-size: 15px;
+  transition: all 0.3s ease;
+}
+
+.modern-nav-link:hover {
+  background: rgba(64, 158, 255, 0.1);
+  color: #409EFF;
+  transform: translateY(-1px);
+}
+
+.modern-auth-link {
+  padding: 10px 18px;
+  border-radius: 20px;
+  margin: 0 6px;
+  color: #606266;
+  font-weight: 500;
+  font-size: 15px;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+
+.modern-auth-link:hover {
+  background: linear-gradient(135deg, #409EFF 0%, #667eea 100%);
+  color: white;
+  border-color: #409EFF;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+}
+
+/* 现代化用户头像容器 */
+.user-avatar-container {
   cursor: pointer;
-  margin: 0 5px;
+  padding: 4px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.user-avatar-container:hover {
+  border-color: #409EFF;
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.1);
+}
+
+/* 现代化通知下拉框 - 增加间距和字体 */
+.modern-notification-dropdown {
+  min-width: 320px;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+  border: none;
+  overflow: hidden;
+  padding: 0;
+}
+
+.notification-header {
+  padding:16px 24px;
+  background: linear-gradient(135deg, #7cb7ffb9 0%, #99aaff 100%);
+  color: white;
+  font-weight: 600;
+  font-size: 17px;
+  margin: 0;
+}
+
+.notification-list {
+  background: white;
+  padding: 8px 0;
+}
+
+.modern-notification-item {
+  padding: 16px 24px;
+  transition: all 0.3s ease;
+  border-bottom: 1px solid #f5f7fa;
+  margin: 2px 8px;
+  border-radius: 8px;
+}
+
+.modern-notification-item:hover {
+  background: rgba(64, 158, 255, 0.05);
+  transform: translateX(4px);
+}
+
+.notification-content {
+  display: flex;
+  align-items: center;
+  font-size: 15px;
+  color: #606266;
+}
+
+.view-all-item {
+  padding: 8px 24px;
+  background: #f8f9fa;
+  color: #409EFF;
+  font-weight: 600;
+  font-size: 15px;
+  text-align: center;
+  transition: all 0.3s ease;
+  margin: 0px;
+  border-top: 1px solid #ebeef5;
+  border-radius: 8px;
+}
+
+.view-all-item:hover {
+  background: rgba(64, 158, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+/* 现代化用户下拉框 - 增加间距和字体 */
+.modern-user-dropdown {
+  min-width: 280px;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+  border: none;
+  overflow: hidden;
+  padding: 0;
+}
+
+.user-info-header {
+  padding: 24px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  display: flex;
+  align-items: center;
+  margin: 0;
+}
+
+.user-menu-list {
+  background: white;
+  padding: 8px 0;
+}
+
+.user-details {
+  margin-left: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.username {
+  font-size: 17px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 6px;
+}
+
+.user-status {
+  font-size: 13px;
+  color: #67c23a;
+  font-weight: 500;
+}
+
+.modern-dropdown-item {
+  padding: 16px 24px;
+  transition: all 0.3s ease;
+  color: #606266;
+  font-size: 15px;
+  font-weight: 500;
+  margin: 2px 8px;
+  border-radius: 8px;
+}
+
+.modern-dropdown-item:hover {
+  background: rgba(64, 158, 255, 0.05);
+  color: #409EFF;
+  transform: translateX(4px);
+}
+
+.logout-item {
+  color: #f56c6c;
+  border-top: 1px solid #ebeef5;
+  margin-top: 8px;
+  padding-top: 16px;
+}
+
+.logout-item:hover {
+  background: rgba(245, 108, 108, 0.05);
+  color: #f56c6c;
+}
+
+</style>
+
+<style>
+.modern-search-popover {
+  border-radius: 12px !important;
+  border: none !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15) !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.modern-search-popover .el-popover__reference-wrapper {
+  display: inline-block;
+}
+
+/* 增加子菜单项间距 */
+.el-menu--popup .el-menu-item {
+  margin: 2px 4px !important;
+  border-radius: 8px !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  padding: 0 10px !important;
+  height: 48px !important;
+  line-height: 48px !important;
+}
+
+.el-menu--popup .el-menu-item:hover {
+  background-color: rgba(64, 158, 255, 0.08) !important;
+  color: #409EFF !important;
+  transform: translateX(4px) !important;
+}
+
+/* 主菜单标题样式增强 */
+.el-submenu .el-submenu__title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  padding: 0 24px !important;
+  height: 60px !important;
+  line-height: 60px !important;
 }
 </style>
