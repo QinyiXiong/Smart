@@ -12,10 +12,27 @@
         <div class="library-list">
           <el-scrollbar style="height:100%">
             <el-menu :default-active="activeLibrary" @select="handleSelect">
-              <el-menu-item v-for="item in libraries" :key="item.knowledgeBaseId" :index="item.knowledgeBaseId">
-                <span>{{ item.databaseName }}</span>
-                <el-button type="text" icon="el-icon-delete" class="delete-btn"
-                  @click.stop="deleteLibrary(item.knowledgeBaseId)"></el-button>
+              <el-menu-item v-for="item in libraries" :key="item.knowledgeBaseId" :index="item.knowledgeBaseId"
+                style="display: flex; justify-content: space-between; align-items: center">
+                <span>{{ item.databaseName.length > 10 ? item.databaseName.substring(0, 10) + '...' : item.databaseName }}</span>
+                <el-popover
+                  placement="right"
+                  width="110"
+                  trigger="hover"
+                  :popper-class="'library-popover'"
+                >
+                  <div class="action-menu">
+                    <div class="action-item" @click.stop="renameLibrary(item.knowledgeBaseId)">
+                      <i class="el-icon-edit"></i>
+                      <span>重命名</span>
+                    </div>
+                    <div class="action-item delete" @click.stop="deleteLibrary(item.knowledgeBaseId)">
+                      <i class="el-icon-delete"></i>
+                      <span>删除</span>
+                    </div>
+                  </div>
+                  <el-button slot="reference" type="text" icon="el-icon-more" class="more-btn"></el-button>
+                </el-popover>
               </el-menu-item>
             </el-menu>
           </el-scrollbar>
@@ -29,7 +46,7 @@
       <div class="right-panel">
         <div v-if="activeLibrary" class="detail-container">
           <div class="detail-header">
-            <h2>{{ currentLibrary.databaseName || '未命名知识库' }}</h2>
+            <h2>{{ currentLibrary.databaseName>10 ?currentLibrary.databaseName.substring(0.,10)+'...':currentLibrary.databaseName || '未命名知识库' }}</h2>
             <el-button type="primary" icon="el-icon-upload" @click="showUploadDialog">
               上传文件
             </el-button>
@@ -215,6 +232,37 @@ export default {
         console.error('创建知识库异常:', error)
         this.$message.error('创建知识库异常: ' + error.message)
       }
+    },
+
+    // 重命名知识库
+    renameLibrary(id) {
+      this.$prompt('请输入新的知识库名称', '重命名', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        inputPattern: /\S+/,
+        inputErrorMessage: '名称不能为空'
+      }).then(async ({ value }) => {
+        try {
+          // 找到对应的知识库
+          const library = this.libraries.find(item => item.knowledgeBaseId === id);
+          if (library) {
+            const res = await this.$axios.put(`/api/MilvusDatabase/${id}`, {
+              ...library,
+              databaseName: value
+            });
+            
+            if (res.code === 0) {
+              this.$message.success('重命名成功');
+              this.fetchLibraries();
+            } else {
+              this.$message.error('重命名失败: ' + (res.message || '未知错误'));
+            }
+          }
+        } catch (error) {
+          console.error('重命名知识库异常:', error);
+          this.$message.error('重命名失败: ' + error.message);
+        }
+      }).catch(() => {});
     },
 
     // 删除知识库
@@ -419,9 +467,6 @@ export default {
   color: #606266;
   transition: all 0.3s;
   position: relative;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
 
 .el-menu-item:hover {
@@ -434,9 +479,15 @@ export default {
   background-color: #ecf5ff;
 }
 
-.delete-btn {
-  color: #f56c6c;
-  font-size: 14px;
+.more-btn {
+  color: #909399;
+  font-size: 16px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.el-menu-item:hover .more-btn {
+  opacity: 1;
 }
 
 .divider {
@@ -641,5 +692,44 @@ export default {
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
+}
+
+/* 操作菜单样式 - 从interviewer.vue复制 */
+.action-menu {
+  padding: 4px 0;
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #606266;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 8px;
+  margin: 0 4px;
+}
+
+.action-item:hover {
+  background-color: #f5f7fa;
+}
+
+.action-item.delete:hover {
+  color: #f56c6c;
+}
+
+.action-item i {
+  margin-right: 8px;
+  font-size: 14px;
+}
+
+/* 自定义弹窗样式 */
+.library-popover {
+  padding: 0;
+  min-width: 110px;
+  border-radius: 22px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
 }
 </style>

@@ -545,7 +545,8 @@ export default {
         // 如果删除的是当前激活的记录，则清空activeChatRecord和相关数据
         if (this.activeChatRecord === chatId.toString()) {
           this.activeChatRecord = null
-          this.currentInterviewer = null
+          // 不要重置currentInterviewer，否则会导致新建面试对话按钮消失
+          // this.currentInterviewer = null
           this.valuationData = null
           if (this.radarChart) {
             this.radarChart.dispose()
