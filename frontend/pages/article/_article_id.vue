@@ -210,7 +210,7 @@ export default {
   },
   head() {
     return {
-      title: this.article.articleTitle || 'RYMCU - 嵌入式知识学习交流平台',
+      title: this.article.articleTitle || 'SDU_MagiCode 模拟面试平台',
       meta: [
         {
           name: 'keywords',

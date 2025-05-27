@@ -12,6 +12,7 @@ import com.sdumagicode.backend.mapper.ValuationMapper;
 import com.sdumagicode.backend.mapper.mongoRepo.BranchRepository;
 import com.sdumagicode.backend.mapper.mongoRepo.ValuationRecordRepository;
 import com.sdumagicode.backend.service.ChatService;
+import com.sdumagicode.backend.service.InterviewerService;
 import com.sdumagicode.backend.util.UserUtils;
 import com.sdumagicode.backend.util.chatUtil.ChatUtil;
 import com.sdumagicode.backend.util.chatUtil.FileUploadUtil;
@@ -31,6 +32,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -63,6 +65,9 @@ public class ChatServiceImpl implements ChatService {
 
     @Autowired
     InterviewerPromptGenerator interviewerPromptGenerator;
+
+    @Autowired
+    InterviewerService interviewerService;
 
     @Override
     public List<ChatRecords> getChatRecords(ChatRecords chatRecords) {
@@ -129,6 +134,40 @@ public class ChatServiceImpl implements ChatService {
             return true;
         } catch (Exception e) {
             throw new ServiceException("删除聊天记录时发生错误: " + e.getMessage());
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean batchDeleteChatRecords(List<Long> chatIds) {
+        try {
+            if (chatIds == null || chatIds.isEmpty()) {
+                return true;
+            }
+            
+            for (Long chatId : chatIds) {
+                // 先删除对应的branch
+                List<Branch> branches = branchRepository.findByChatId(chatId);
+                if (branches != null && !branches.isEmpty()) {
+                    branchRepository.deleteAll(branches);
+                }
+                
+                // 再删除对应的valuationRecord
+                ValuationRecord byChatId = valuationRecordRepository.findByChatId(chatId);
+                if(byChatId != null && byChatId.getValuationRanks() != null && !byChatId.getValuationRanks().isEmpty()){
+                    valuationRecordRepository.delete(byChatId);
+                }
+                
+                // 最后删除聊天记录本身
+                int result = chatMapper.deleteChatRecord(chatId);
+                if (result <= 0) {
+                    throw new ServiceException("批量删除聊天记录失败，ID: " + chatId);
+                }
+            }
+            
+            return true;
+        } catch (Exception e) {
+            throw new ServiceException("批量删除聊天记录时发生错误: " + e.getMessage());
         }
     }
 
@@ -394,6 +433,60 @@ public class ChatServiceImpl implements ChatService {
         int result = chatMapper.updateChatRecord(existingRecord);
 
         return result > 0;
+    }
+
+    @Override
+    public ChatRecords deepCopy(Long sourceChatId, Long userId) {
+        ChatRecords sourceChatRecords = chatMapper.selectById(sourceChatId);
+        if(sourceChatRecords == null){
+            throw new ServiceException("无效ID");
+        }
+        String interviewerId = sourceChatRecords.getInterviewerId();
+        Interviewer sourceInterviewer = interviewerService.deepCopy(interviewerId, userId);
+
+        ChatRecords chatRecords = new ChatRecords();
+        chatRecords.setInterviewerId(sourceInterviewer.getInterviewerId());
+        chatRecords.setTopic("用户分享的话题: "+sourceChatRecords.getTopic());
+        chatRecords.setCreatedAt(LocalDateTime.now());
+        chatRecords.setUpdatedAt(LocalDateTime.now());
+        chatRecords.setUserId(userId);
+        ChatRecords save = chatMapper.insertChatRecord(chatRecords);
+
+        List<Branch> sourceBranches = branchRepository.findByChatId(chatRecords.getChatId());
+        List<Branch> collect = sourceBranches.stream().map((item) -> {
+            Branch branch = branchDeepCopy(item, userId, save.getChatId());
+            return branch;
+        }).collect(Collectors.toList());
+        branchRepository.saveAll(collect);
+        return save;
+    }
+
+    /**
+     *
+     * @param sourceBranch 待复制的branch
+     * @param userId 要复制到的userId
+     * @return
+     */
+    public Branch branchDeepCopy(Branch sourceBranch,Long userId,Long chatId){
+        Branch branch = new Branch();
+        String uuid = UUID.randomUUID().toString();
+        branch.setBranchId(uuid);
+        branch.setIndex(sourceBranch.getIndex());
+        branch.setChatId(chatId);
+        branch.setUserId(userId);
+        branch.setParentBranchIndex(sourceBranch.getParentBranchIndex());
+        branch.setChildren(sourceBranch.getChildren());
+
+
+
+        List<MessageLocal> messageLocals = sourceBranch.getMessageLocals();
+        List<MessageLocal> messageLocalList = messageLocals.stream().map((item) -> {
+            item.setBranchId(uuid);
+            return item;
+        }).collect(Collectors.toList());
+        branch.setMessageLocals(messageLocalList);
+        //暂时不保存,之后保存整个list
+        return branch;
     }
 
 }

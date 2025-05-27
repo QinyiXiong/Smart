@@ -13,6 +13,7 @@ import java.util.List;
 /**
  * @author ronger
  */
+@org.apache.ibatis.annotations.Mapper
 public interface ArticleMapper extends Mapper<Article> {
 
     /**

@@ -6,15 +6,18 @@ import com.sdumagicode.backend.core.exception.ContentNotExistException;
 import com.sdumagicode.backend.core.exception.UltraViresException;
 import com.sdumagicode.backend.core.service.AbstractService;
 
-import com.sdumagicode.backend.entity.Article;
-import com.sdumagicode.backend.entity.ArticleContent;
-import com.sdumagicode.backend.entity.Tag;
-import com.sdumagicode.backend.entity.User;
+import com.sdumagicode.backend.dto.chat.ChatRecordsDto;
+import com.sdumagicode.backend.entity.*;
+import com.sdumagicode.backend.entity.chat.ChatRecords;
+import com.sdumagicode.backend.entity.chat.Interviewer;
+import com.sdumagicode.backend.entity.chat.Branch;
 import com.sdumagicode.backend.handler.event.ArticleDeleteEvent;
 import com.sdumagicode.backend.handler.event.ArticleEvent;
 import com.sdumagicode.backend.handler.event.ArticleStatusEvent;
 import com.sdumagicode.backend.mapper.ArticleMapper;
-
+import com.sdumagicode.backend.mapper.ChatMapper;
+import com.sdumagicode.backend.mapper.ShareReferenceMapper;
+import com.sdumagicode.backend.mapper.mongoRepo.BranchRepository;
 import com.sdumagicode.backend.service.*;
 import com.sdumagicode.backend.util.Html2TextUtil;
 import com.sdumagicode.backend.util.Utils;
@@ -23,6 +26,7 @@ import com.sdumagicode.backend.dto.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -31,9 +35,12 @@ import tk.mybatis.mapper.entity.Condition;
 
 import javax.annotation.Resource;
 import java.io.UnsupportedEncodingException;
+import java.lang.ref.Reference;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 /**
  * @author ronger
@@ -55,6 +62,11 @@ public class ArticleServiceImpl extends AbstractService<Article> implements Arti
     @Resource
     private BankAccountService bankAccountService;
 
+    @Autowired
+    InterviewerService interviewerService;
+    @Autowired
+    ChatService chatService;
+
     @Value("${resource.domain}")
     private String domain;
 
@@ -64,6 +76,15 @@ public class ArticleServiceImpl extends AbstractService<Article> implements Arti
 
     @Resource
     private ApplicationEventPublisher applicationEventPublisher;
+
+    @Autowired
+    ShareReferenceMapper shareReferenceMapper;
+
+    @Autowired
+    ChatMapper chatMapper;
+
+    @Autowired
+    BranchRepository branchRepository;
 
     @Override
     public List<ArticleDTO> findArticles(ArticleSearchDTO searchDTO) {
@@ -106,6 +127,13 @@ public class ArticleServiceImpl extends AbstractService<Article> implements Arti
         return list;
     }
 
+    /**
+     *
+     * @param article 相较于原来增加了List<ChatRecordDto>和List<interviewer>,里面在保存时只有对应的chatId和interviewerId为必要
+     * @param user
+     * @return
+     * @throws UnsupportedEncodingException
+     */
     @Override
     @Transactional(rollbackFor = {UnsupportedEncodingException.class})
     public Long postArticle(ArticleDTO article, User user) throws UnsupportedEncodingException {
@@ -136,6 +164,49 @@ public class ArticleServiceImpl extends AbstractService<Article> implements Arti
             newArticle.setArticleStatus(article.getArticleStatus());
             articleMapper.insertSelective(newArticle);
             articleMapper.insertArticleContent(newArticle.getIdArticle(), articleContent, articleContentHtml);
+            /**
+             * 针对分享相关内容的逻辑
+             */
+            //绑定分享内容相关表
+            List<ChatRecordsDto> chatRecordsList = article.getChatRecordsList();
+            List<Interviewer> interviewerList = article.getInterviewerList();
+            
+            if (chatRecordsList != null && !chatRecordsList.isEmpty() || 
+                interviewerList != null && !interviewerList.isEmpty()) {
+                
+                List<ShareReference> shareReferenceList = new ArrayList<>();
+                
+                if (chatRecordsList != null && !chatRecordsList.isEmpty()) {
+                    List<ShareReference> chatShareList = chatRecordsList.stream().map((item) -> {
+                        ShareReference shareReference = new ShareReference();
+                        shareReference.setArticle(newArticle);
+                        shareReference.setType(0);
+                        //制作快照
+                        ChatRecords chatRecords = chatService.deepCopy(item.getChatId(), 2L);
+                        shareReference.setChatId(chatRecords.getChatId());
+                        return shareReference;
+                    }).collect(Collectors.toList());
+                    shareReferenceList.addAll(chatShareList);
+                }
+                
+                if (interviewerList != null && !interviewerList.isEmpty()) {
+                    List<ShareReference> interviewerShareList = interviewerList.stream().map((item) -> {
+                        ShareReference shareReference = new ShareReference();
+                        shareReference.setArticle(newArticle);
+                        shareReference.setType(1);
+                        //制作快照
+                        Interviewer interviewer = interviewerService.deepCopy(item.getInterviewerId(), 2L);
+                        shareReference.setInterviewerId(interviewer.getInterviewerId());
+                        return shareReference;
+                    }).collect(Collectors.toList());
+                    shareReferenceList.addAll(interviewerShareList);
+                }
+                
+                if (!shareReferenceList.isEmpty()) {
+                    shareReferenceMapper.batchInsertShareReferences(shareReferenceList);
+                }
+            }
+
         } else {
             newArticle = articleMapper.selectByPrimaryKey(idArticle);
             // 如果文章之前状态为草稿则应视为新发布文章
@@ -147,6 +218,78 @@ public class ArticleServiceImpl extends AbstractService<Article> implements Arti
             newArticle.setArticleStatus(article.getArticleStatus());
             newArticle.setUpdatedTime(new Date());
             articleMapper.updateArticleContent(newArticle.getIdArticle(), articleContent, articleContentHtml);
+            /**
+             * 针对分享相关内容的逻辑
+             */
+            // 更新分享内容相关表
+            List<ChatRecordsDto> chatRecordsList = article.getChatRecordsList();
+            List<Interviewer> interviewerList = article.getInterviewerList();
+
+            //先删除相关快照
+            List<ShareReference> shareReferences = shareReferenceMapper.selectShareReferencesByArticleId(newArticle.getIdArticle());
+            if (shareReferences != null && !shareReferences.isEmpty()) {
+                // 收集需要删除的聊天记录ID和面试官ID
+                List<Long> chatIds = new ArrayList<>();
+                List<String> interviewerIds = new ArrayList<>();
+                
+                for (ShareReference reference : shareReferences) {
+                    if (reference.getType() == 0 && reference.getChatId() != null) {
+                        chatIds.add(reference.getChatId());
+                    } else if (reference.getType() == 1 && reference.getInterviewerId() != null) {
+                        interviewerIds.add(reference.getInterviewerId());
+                    }
+                }
+                
+                // 批量删除聊天记录和面试官
+                if (!chatIds.isEmpty()) {
+                    chatService.batchDeleteChatRecords(chatIds);
+                }
+                
+                if (!interviewerIds.isEmpty()) {
+                    interviewerService.batchDeleteInterviewers(interviewerIds);
+                }
+            }
+            
+            // 再删除原有的关联关系
+            shareReferenceMapper.deleteByArticleId(newArticle.getIdArticle());
+            
+            
+            // 重新添加新的关联关系
+            if (chatRecordsList != null && !chatRecordsList.isEmpty() ||
+                    interviewerList != null && !interviewerList.isEmpty()) {
+
+                List<ShareReference> shareReferenceList = new ArrayList<>();
+
+                if (chatRecordsList != null && !chatRecordsList.isEmpty()) {
+                    List<ShareReference> chatShareList = chatRecordsList.stream().map((item) -> {
+                        ShareReference shareReference = new ShareReference();
+                        shareReference.setArticle(newArticle);
+                        shareReference.setType(0);
+                        //制作快照
+                        ChatRecords chatRecords = chatService.deepCopy(item.getChatId(), 2L);
+                        shareReference.setChatId(chatRecords.getChatId());
+                        return shareReference;
+                    }).collect(Collectors.toList());
+                    shareReferenceList.addAll(chatShareList);
+                }
+
+                if (interviewerList != null && !interviewerList.isEmpty()) {
+                    List<ShareReference> interviewerShareList = interviewerList.stream().map((item) -> {
+                        ShareReference shareReference = new ShareReference();
+                        shareReference.setArticle(newArticle);
+                        shareReference.setType(1);
+                        //制作快照
+                        Interviewer interviewer = interviewerService.deepCopy(item.getInterviewerId(), 2L);
+                        shareReference.setInterviewerId(interviewer.getInterviewerId());
+                        return shareReference;
+                    }).collect(Collectors.toList());
+                    shareReferenceList.addAll(interviewerShareList);
+                }
+
+                if (!shareReferenceList.isEmpty()) {
+                    shareReferenceMapper.batchInsertShareReferences(shareReferenceList);
+                }
+            }
         }
         Long newArticleId = newArticle.getIdArticle();
         // 更新文章链接
@@ -202,6 +345,34 @@ public class ArticleServiceImpl extends AbstractService<Article> implements Arti
         articleMapper.deleteTagArticle(id);
         // 删除文章内容表
         articleMapper.deleteArticleContent(id);
+        
+        // 删除相关快照
+        List<ShareReference> shareReferences = shareReferenceMapper.selectShareReferencesByArticleId(id);
+        if (shareReferences != null && !shareReferences.isEmpty()) {
+            // 收集需要删除的聊天记录ID和面试官ID
+            List<Long> chatIds = new ArrayList<>();
+            List<String> interviewerIds = new ArrayList<>();
+            
+            for (ShareReference reference : shareReferences) {
+                if (reference.getType() == 0 && reference.getChatId() != null) {
+                    chatIds.add(reference.getChatId());
+                } else if (reference.getType() == 1 && reference.getInterviewerId() != null) {
+                    interviewerIds.add(reference.getInterviewerId());
+                }
+            }
+            
+            // 批量删除聊天记录和面试官
+            if (!chatIds.isEmpty()) {
+                chatService.batchDeleteChatRecords(chatIds);
+            }
+            
+            if (!interviewerIds.isEmpty()) {
+                interviewerService.batchDeleteInterviewers(interviewerIds);
+            }
+        }
+        
+        // 删除文章与聊天记录、面试官的关联关系
+        shareReferenceMapper.deleteByArticleId(id);
         // 删除相关未读消息
         notificationService.deleteUnreadNotification(id, NotificationConstant.PostArticle);
     }
@@ -293,6 +464,12 @@ public class ArticleServiceImpl extends AbstractService<Article> implements Arti
         Integer articleEdit = 2;
         Author author = genAuthor(article);
         article.setArticleAuthor(author);
+
+        List<Interviewer> interviewers = genInterviewer(article);
+        List<ChatRecordsDto> chatRecordsDtos = genChatRecords(article);
+        article.setChatRecordsList(chatRecordsDtos);
+        article.setInterviewerList(interviewers);
+
         article.setTimeAgo(Utils.getTimeAgo(article.getUpdatedTime()));
         List<ArticleTagDTO> tags = articleMapper.selectTags(article.getIdArticle());
         article.setTags(tags);
@@ -329,6 +506,77 @@ public class ArticleServiceImpl extends AbstractService<Article> implements Arti
         author.setIdUser(article.getArticleAuthorId());
         author.setUserAccount(user.getAccount());
         return author;
+    }
+
+    private List<ChatRecordsDto> genChatRecords(ArticleDTO articleDTO){
+        List<ChatRecordsDto> chatRecordsList = articleDTO.getChatRecordsList();
+        
+        if (chatRecordsList == null || chatRecordsList.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        return chatRecordsList.stream().map(dto -> {
+            Long chatId = dto.getChatId();
+            if (chatId == null) {
+                return null;
+            }
+            
+            // 通过chatId查询完整的聊天记录
+            ChatRecords chatRecord = chatMapper.selectById(chatId);
+            if (chatRecord == null) {
+                return null;
+            }
+            
+            // 创建并填充ChatRecordsDto
+            ChatRecordsDto fullDto = new ChatRecordsDto();
+            // 复制基本聊天记录属性
+            fullDto.setChatId(chatRecord.getChatId());
+            fullDto.setUserId(chatRecord.getUserId());
+            fullDto.setInterviewerId(chatRecord.getInterviewerId());
+            fullDto.setCreatedAt(chatRecord.getCreatedAt());
+            fullDto.setUpdatedAt(chatRecord.getUpdatedAt());
+            fullDto.setTopic(chatRecord.getTopic());
+            
+            // 获取面试官信息
+            if (chatRecord.getInterviewerId() != null) {
+                Interviewer interviewer = interviewerService.findInterviewerById(chatRecord.getInterviewerId());
+                fullDto.setInterviewer(interviewer);
+            }
+            
+            // 获取分支信息
+            List<Branch> branches = branchRepository.findByChatId(chatId);
+            fullDto.setBranchList(branches);
+            
+            return fullDto;
+        }).filter(Objects::nonNull).collect(Collectors.toList());
+    }
+
+    /**
+     * 包装面试官列表，根据ID获取完整面试官信息
+     * @param articleDTO 文章DTO
+     * @return 包装后的面试官列表
+     */
+    private List<Interviewer> genInterviewer(ArticleDTO articleDTO) {
+        List<Interviewer> interviewerList = articleDTO.getInterviewerList();
+        
+        if (interviewerList == null || interviewerList.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        return interviewerList.stream().map(interviewer -> {
+            String interviewerId = interviewer.getInterviewerId();
+            if (interviewerId == null || interviewerId.isEmpty()) {
+                return null;
+            }
+            
+            // 通过面试官ID查询完整的面试官信息
+            Interviewer fullInterviewer = interviewerService.findInterviewerById(interviewerId);
+            if (fullInterviewer == null) {
+                return null;
+            }
+            
+            return fullInterviewer;
+        }).filter(Objects::nonNull).collect(Collectors.toList());
     }
 
     private String checkTags(String articleTags) {

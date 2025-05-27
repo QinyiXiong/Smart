@@ -5,11 +5,14 @@ import com.alibaba.dashscope.exception.ApiException;
 import com.alibaba.dashscope.exception.InputRequiredException;
 import com.alibaba.dashscope.exception.NoApiKeyException;
 import io.reactivex.Flowable;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.ArrayList;
 import java.util.List;
 
 
+@SpringBootTest
 public class ChatTest {
     public static void appCall()
             throws ApiException, NoApiKeyException, InputRequiredException {
@@ -40,6 +43,7 @@ public class ChatTest {
         });
 
     }
+
 
     public static void main(String[] args) {
         try {

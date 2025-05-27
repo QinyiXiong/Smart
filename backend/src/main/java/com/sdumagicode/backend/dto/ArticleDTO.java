@@ -1,6 +1,9 @@
 package com.sdumagicode.backend.dto;
 
 import com.alibaba.fastjson.annotation.JSONField;
+import com.sdumagicode.backend.dto.chat.ChatRecordsDto;
+import com.sdumagicode.backend.entity.chat.ChatRecords;
+import com.sdumagicode.backend.entity.chat.Interviewer;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -109,4 +112,14 @@ public class ArticleDTO {
     private Integer articleSponsorCount;
 
     private Boolean canSponsor;
+
+    /**
+     * ai面试官和面试记录分享
+     */
+    /**
+     * 带面试官的面试记录
+     */
+    private List<ChatRecordsDto> chatRecordsList;
+
+    private List<Interviewer> interviewerList;
 }

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sdumagicode.backend.mapper.ShareReferenceMapper">
+    <resultMap id="BaseResultMap" type="com.sdumagicode.backend.entity.ShareReference">
+        <!--
+          WARNING - @mbg.generated
+        -->
+        <id column="id" jdbcType="BIGINT" property="idShare"/>
+        <result column="type" property="type"/>
+        <result column="chat_id" property="chatId"/>
+        <result column="interviewer_id" property="interviewerId"/>
+        <result column="article_id" property="article.idArticle"/>
+    </resultMap>
+    
+    <select id="selectShareReferencesByArticleId" resultMap="BaseResultMap">
+        select * from forest_article_ai_share where article_id = #{articleId}
+    </select>
+    
+    <delete id="deleteShareReferenceById">
+        delete from forest_article_ai_share where id = #{idShare}
+    </delete>
+    
+    <insert id="insertShareReference">
+        insert into forest_article_ai_share (type, chat_id, interviewer_id, article_id)
+        values (#{type}, #{chatId}, #{interviewerId}, #{articleId})
+    </insert>
+    
+    <insert id="insertShareReferenceByObject">
+        insert into forest_article_ai_share (type, chat_id, interviewer_id, article_id)
+        values (#{shareReference.type}, #{shareReference.chatId}, #{shareReference.interviewerId}, #{shareReference.article.idArticle})
+    </insert>
+    
+    <insert id="batchInsertShareReferences">
+        insert into forest_article_ai_share (type, chat_id, interviewer_id, article_id)
+        values 
+        <foreach collection="list" item="item" separator=",">
+            (#{item.type}, #{item.chatId}, #{item.interviewerId}, #{item.article.idArticle})
+        </foreach>
+    </insert>
+    
+    <delete id="deleteByArticleId">
+        delete from forest_article_ai_share where article_id = #{articleId}
+    </delete>
+</mapper> 

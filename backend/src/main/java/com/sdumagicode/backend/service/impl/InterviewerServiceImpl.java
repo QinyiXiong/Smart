@@ -1,17 +1,21 @@
 package com.sdumagicode.backend.service.impl;
 
+import com.sdumagicode.backend.core.exception.ServiceException;
 import com.sdumagicode.backend.entity.chat.AiSettingContent;
 import com.sdumagicode.backend.entity.chat.AiSettings;
 import com.sdumagicode.backend.entity.chat.Interviewer;
+import com.sdumagicode.backend.entity.milvus.MilvusDatabase;
 import com.sdumagicode.backend.mapper.AiSettingMapper;
 import com.sdumagicode.backend.mapper.mongoRepo.InterviewerRepository;
 import com.sdumagicode.backend.service.InterviewerService;
+import com.sdumagicode.backend.service.MilvusService;
 import com.sdumagicode.backend.util.UserUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -21,6 +25,8 @@ public class InterviewerServiceImpl implements InterviewerService {
     InterviewerRepository interviewerRepository;
     @Autowired
     AiSettingMapper aiSettingMapper;
+    @Autowired
+    MilvusService milvusService;
 
     @Override
     public boolean saveOrUpdateInterviewer(Interviewer interviewer) {
@@ -38,6 +44,22 @@ public class InterviewerServiceImpl implements InterviewerService {
     }
 
     @Override
+    public boolean batchDeleteInterviewers(List<String> interviewerIds) {
+        if (interviewerIds == null || interviewerIds.isEmpty()) {
+            return true;
+        }
+        
+        try {
+            for (String interviewerId : interviewerIds) {
+                interviewerRepository.deleteById(interviewerId);
+            }
+            return true;
+        } catch (Exception e) {
+            throw new ServiceException("批量删除面试官时发生错误: " + e.getMessage());
+        }
+    }
+
+    @Override
     public List<Interviewer> findInterviewers() {
         Long idUser = UserUtils.getCurrentUserByToken().getIdUser();
         List<Interviewer> allByUserId = interviewerRepository.findAllByUserId(idUser);
@@ -52,6 +74,43 @@ public class InterviewerServiceImpl implements InterviewerService {
     public List<AiSettings> getAllAiSettings() {
         List<AiSettings> aiSettings = aiSettingMapper.selectAll();
         return aiSettings;
+    }
+
+    @Override
+    public Interviewer findInterviewerById(String interviewerId) {
+        Optional<Interviewer> byId = interviewerRepository.findById(interviewerId);
+        if(!byId.isPresent()){
+            throw new ServiceException("面试官不存在");
+
+        }
+
+        return byId.get();
+    }
+
+    /**
+     *
+     * @param interviewerId 复制的源interviewerId
+     * @param userId 要复制到的userId
+     * @return
+     */
+    @Override
+    public Interviewer deepCopy(String interviewerId, Long userId) {
+        Interviewer interviewer = new Interviewer();
+        Optional<Interviewer> byId = interviewerRepository.findById(interviewerId);
+        if(!byId.isPresent()){
+            throw new ServiceException("id无效");
+        }
+        Interviewer sourceInterviewer = byId.get();
+        //创建一份知识库的复制
+        MilvusDatabase milvusDatabase = milvusService.deepCopy(sourceInterviewer.getKnowledgeBaseId(), userId);
+        interviewer.setKnowledgeBaseId(milvusDatabase.getKnowledgeBaseId());
+        interviewer.setUserId(userId);
+        interviewer.setName("用户分享的面试官: "+sourceInterviewer.getName());
+        interviewer.setCustomPrompt(sourceInterviewer.getCustomPrompt());
+        interviewer.setSettingsList(sourceInterviewer.getSettingsList());
+        Interviewer save = interviewerRepository.save(interviewer);
+        return save;
+
     }
 
     Interviewer createDefaultInterviewer(Long userId){

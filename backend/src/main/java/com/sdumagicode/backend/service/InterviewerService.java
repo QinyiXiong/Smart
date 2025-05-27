@@ -10,7 +10,18 @@ public interface InterviewerService {
 
     public boolean deleteInterviewer(String interviewerId);
 
+    /**
+     * 批量删除面试官
+     * @param interviewerIds 面试官ID列表
+     * @return 是否删除成功
+     */
+    public boolean batchDeleteInterviewers(List<String> interviewerIds);
+
     public List<Interviewer> findInterviewers();
 
     public List<AiSettings> getAllAiSettings();
+
+    public Interviewer findInterviewerById(String interviewerId);
+
+    public Interviewer deepCopy(String interviewerId,Long userId);
 }

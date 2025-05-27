@@ -14,6 +14,8 @@ public interface BranchRepository extends MongoRepository<Branch, String> {
      * @return 该聊天下的所有分支列表
      */
     List<Branch> findByChatId(Long chatId);
+
+    Branch findBranchByBranchId(String branchId);
     
 
 

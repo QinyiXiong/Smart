@@ -22,6 +22,8 @@ public interface MilvusService {
 
     public MilvusDatabase deepCopyForUser(String knowledgeBaseId);
 
+    public MilvusDatabase deepCopy(String knowledgeBaseId,Long userId);
+
     public MilvusDatabase deepCopyForSnapshot(String knowledgeBaseId);
 
 }

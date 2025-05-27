@@ -64,4 +64,13 @@ public interface ChatService {
          */
         boolean updateChatTopic(Long chatId, String newTopic);
 
+        public ChatRecords deepCopy(Long chatId,Long userId);
+
+        /**
+         * 批量删除聊天记录
+         * @param chatIds 聊天记录ID列表
+         * @return 是否删除成功
+         */
+        public boolean batchDeleteChatRecords(List<Long> chatIds);
+
 }

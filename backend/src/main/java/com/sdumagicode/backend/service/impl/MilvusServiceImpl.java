@@ -194,8 +194,60 @@ public class MilvusServiceImpl implements MilvusService {
             throw new ServiceException("未找到对应知识库");
 
         }
-        //Long userId = UserUtils.getCurrentUserByToken().getIdUser();
-        Long userId = 65002L;
+        Long userId = UserUtils.getCurrentUserByToken().getIdUser();
+        //Long userId = 65002L;
+
+        MilvusDatabase milvusDatabase = new MilvusDatabase();
+        milvusDatabase.setDatabaseName("用户分享的数据库: "+milvusDatabaseByKnowledgeBaseId.getDatabaseName());
+        milvusDatabase.setUserId(userId);
+        milvusDatabase.setDescription(milvusDatabase.getDescription());
+
+        List<MilvusFile> fileList = milvusDatabaseByKnowledgeBaseId.getFileList();
+
+
+
+        MilvusDatabase save = milvusDatabaseRepository.save(milvusDatabase);
+
+        //创建对应的milvus数据库
+        milvusClient.createCollection(userId, save.getKnowledgeBaseId());
+        //插入对应数据
+        List<MilvusFile> collect = fileList.stream().map((file) -> {
+            //原本的chatrecord中没有存储文本内容,重新通过fileInfo获取文件内容进行解析
+            FileInfo fileInfo = file.getFileInfo();
+            String text = fileAnalysisService.analyzeFile(fileInfo).getText();
+            List<String> splitedDocuments = milvusClient.splitDocument(text);
+            List<KnowledgeRecord> knowledgeRecords = IntStream.range(0, splitedDocuments.size())
+                    .mapToObj(chunkIndex -> {
+                        KnowledgeRecord knowledgeRecord = new KnowledgeRecord();
+                        knowledgeRecord.setRecordId(snowflakeIdGenerator.nextId());
+                        knowledgeRecord.setFileId(fileInfo.getFileId());
+                        knowledgeRecord.setChunkText(splitedDocuments.get(chunkIndex));
+                        knowledgeRecord.setChunkIndex(chunkIndex);
+                        knowledgeRecord.setFileName(fileInfo.getFileName());
+
+//                        milvusClient.insertMilvus(knowledgeRecord, userId, knowledgeBaseId);
+                        return knowledgeRecord;
+                    })
+                    .collect(Collectors.toList());
+            milvusClient.batchInsertMilvus(knowledgeRecords, userId, save.getKnowledgeBaseId());
+            file.setKnowledgeRecords(knowledgeRecords);
+            return file;
+        }).collect(Collectors.toList());
+        save.setFileList(collect);
+        milvusDatabaseRepository.save(save);
+        return save;
+
+
+    }
+
+    @Override
+    public MilvusDatabase deepCopy(String knowledgeBaseId, Long userId) {
+        MilvusDatabase milvusDatabaseByKnowledgeBaseId = milvusDatabaseRepository.findMilvusDatabaseByKnowledgeBaseId(knowledgeBaseId);
+        if(milvusDatabaseByKnowledgeBaseId == null){
+            throw new ServiceException("未找到对应知识库");
+
+        }
+
 
         MilvusDatabase milvusDatabase = new MilvusDatabase();
         milvusDatabase.setDatabaseName("来自用户分享的: "+milvusDatabaseByKnowledgeBaseId.getDatabaseName());

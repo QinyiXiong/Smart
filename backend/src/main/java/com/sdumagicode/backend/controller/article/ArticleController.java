@@ -3,22 +3,18 @@ package com.sdumagicode.backend.controller.article;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.sdumagicode.backend.core.exception.BusinessException;
+import com.sdumagicode.backend.core.exception.ServiceException;
 import com.sdumagicode.backend.core.result.GlobalResult;
 import com.sdumagicode.backend.core.result.GlobalResultGenerator;
 import com.sdumagicode.backend.core.service.security.annotation.AuthorshipInterceptor;
 import com.sdumagicode.backend.dto.ArticleDTO;
 import com.sdumagicode.backend.dto.CommentDTO;
-import com.sdumagicode.backend.entity.Article;
-import com.sdumagicode.backend.entity.ArticleThumbsUp;
-import com.sdumagicode.backend.entity.Sponsor;
-import com.sdumagicode.backend.entity.User;
+import com.sdumagicode.backend.entity.*;
 import com.sdumagicode.backend.enumerate.Module;
-import com.sdumagicode.backend.service.ArticleService;
-import com.sdumagicode.backend.service.ArticleThumbsUpService;
-import com.sdumagicode.backend.service.CommentService;
-import com.sdumagicode.backend.service.SponsorService;
+import com.sdumagicode.backend.service.*;
 import com.sdumagicode.backend.util.UserUtils;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -41,6 +37,12 @@ public class ArticleController {
     private ArticleThumbsUpService articleThumbsUpService;
     @Resource
     private SponsorService sponsorService;
+
+    @Autowired
+    ChatService chatService;
+
+    @Autowired
+    InterviewerService interviewerService;
 
     @GetMapping("/detail/{idArticle}")
     public GlobalResult<ArticleDTO> detail(@PathVariable Long idArticle, @RequestParam(defaultValue = "2") Integer type) {
@@ -124,6 +126,26 @@ public class ArticleController {
         sponsor.setSponsor(user.getIdUser());
         Boolean flag = sponsorService.sponsorship(sponsor);
         return GlobalResultGenerator.genSuccessResult(flag);
+    }
+
+    @PostMapping("/referenceShare")
+    public GlobalResult referenceShare(@RequestBody ShareReference shareReference){
+        Integer type = shareReference.getType();
+        Long idUser = UserUtils.getCurrentUserByToken().getIdUser();
+        switch (type){
+            case 0:{
+                chatService.deepCopy(shareReference.getChatId(),idUser);
+                break;
+            }
+            case 1:{
+                interviewerService.deepCopy(shareReference.getInterviewerId(),idUser);
+                break;
+            }
+            default:
+                throw new ServiceException("分享异常");
+        }
+
+        return GlobalResultGenerator.genSuccessResult("获取分享内容成功");
     }
 
 }

@@ -23,7 +23,7 @@ public interface ChatMapper extends BaseMapper<ChatRecords> {
         @Insert("INSERT INTO interview_chat_records (user_id, interviewer_id, created_at, updated_at, topic) " +
                         "VALUES (#{userId}, #{interviewerId}, #{createdAt}, #{updatedAt}, #{topic})")
         @Options(useGeneratedKeys = true, keyProperty = "chatId", keyColumn = "chat_id")
-        int insertChatRecord(ChatRecords chatRecords);
+        ChatRecords insertChatRecord(ChatRecords chatRecords);
 
         @Update("UPDATE interview_chat_records SET " +
                         "user_id = #{userId}, " +
