@@ -72,11 +72,11 @@ public class PortfolioServiceImpl extends AbstractService<Portfolio> implements 
     @Transactional(rollbackFor = Exception.class)
     public Portfolio postPortfolio(Portfolio portfolio) {
         boolean isUpdate = portfolio.getIdPortfolio() != null && portfolio.getIdPortfolio() > 0;
-        String headImgUrl = "";
-        if (FileDataType.BASE64.equals(portfolio.getHeadImgType())) {
-            headImgUrl = UploadController.uploadBase64File(portfolio.getHeadImgUrl(), FilePath.PORTFOLIO);
-            portfolio.setHeadImgUrl(headImgUrl);
-        }
+         String headImgUrl = portfolio.getHeadImgUrl();
+        // if (FileDataType.BASE64.equals(portfolio.getHeadImgType())) {
+        //     headImgUrl = UploadController.uploadBase64File(portfolio.getHeadImgUrl(), FilePath.PORTFOLIO);
+        //     portfolio.setHeadImgUrl(headImgUrl);
+        // }
         if (isUpdate) {
             Portfolio oldPortfolio = portfolioMapper.selectByPrimaryKey(portfolio.getIdPortfolio());
             oldPortfolio.setUpdatedTime(new Date());

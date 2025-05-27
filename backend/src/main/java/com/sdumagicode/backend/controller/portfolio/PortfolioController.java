@@ -16,6 +16,7 @@ import com.sdumagicode.backend.util.UserUtils;
 import com.sdumagicode.backend.util.PhotoUploadUtil;
 import org.apache.commons.io.IOUtils;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.web.bind.annotation.*;
 import org.apache.commons.io.FileUtils;
@@ -27,8 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.util.Base64;
+import com.sdumagicode.backend.util.OSSUpload;
 
 import javax.annotation.Resource;
 
@@ -52,6 +52,9 @@ public class PortfolioController {
         return GlobalResultGenerator.genSuccessResult(portfolioService.findPortfolioDTOById(idPortfolio, type));
     }
 
+    @Autowired
+    private OSSUpload ossUpload;
+
     @GetMapping("/image/{idPortfolio}/base64")
     public GlobalResult<String> getPortfolioImageAsBase64(@PathVariable Long idPortfolio, @RequestParam(defaultValue = "0") Integer type) throws IOException {
         // Get the portfolio DTO which contains the image path
@@ -60,39 +63,30 @@ public class PortfolioController {
         if (portfolioDTO == null || portfolioDTO.getHeadImgUrl() == null) {
             throw new FileNotFoundException("Portfolio or image not found");
         }
-        String path = portfolioDTO.getHeadImgUrl().replace("src/main/resources/", "");
-        String extension = path.substring(path.lastIndexOf(".") + 1);
-        // 3. 确定MIME类型
-        String mimeType;
-        switch (extension) {
-            case "png":  mimeType = "image/png"; break;
-            case "jpg":
-            case "jpeg": mimeType = "image/jpeg"; break;
-            case "gif":  mimeType = "image/gif"; break;
-            case "svg":  mimeType = "image/svg+xml"; break;
-            case "webp": mimeType = "image/webp"; break;
-            default:     mimeType = "application/octet-stream";
-        }
-        ClassPathResource resource = new ClassPathResource(path);
-        // Read file content and encode as base64
-        try (InputStream inputStream = resource.getInputStream()) {
-            byte[] fileContent = IOUtils.toByteArray(inputStream);
-            String base64 = Base64.getEncoder().encodeToString(fileContent);
-            String res = "data:" + mimeType + ";base64," + base64;
-            GlobalResult<String> result = GlobalResultGenerator.genSuccessResult("success");
-            result.setData(res);
-            return result;
-        } catch (IOException e) {
-            throw new RuntimeException("加载图片失败: " + path, e);
-        }
+        
+        GlobalResult<String> result = GlobalResultGenerator.genSuccessResult("success");
+        result.setData(portfolioDTO.getHeadImgUrl());
+        return result;
     }
 
 
+    // 专栏用户上传图片接口
     @PostMapping("/post")
     @RequiresPermissions(value = "user")
     public GlobalResult<Portfolio> add(@RequestBody Portfolio portfolio) {
         User user = UserUtils.getCurrentUserByToken();
         portfolio.setPortfolioAuthorId(user.getIdUser());
+        
+        // 如果有图片，上传到OSS
+        if (portfolio.getHeadImgUrl() != null && portfolio.getHeadImgUrl().startsWith("data:image/")) {
+            try {
+                String ossUrl = ossUpload.uploadBase64ToOSS(portfolio.getHeadImgUrl(), "portfolios/");
+                portfolio.setHeadImgUrl(ossUrl);
+            } catch (Exception e) {
+                throw new RuntimeException("上传图片到OSS失败: " + e.getMessage(), e);
+            }
+        }
+        
         portfolio = portfolioService.postPortfolio(portfolio);
         return GlobalResultGenerator.genSuccessResult(portfolio);
     }
@@ -105,6 +99,17 @@ public class PortfolioController {
         }
         User user = UserUtils.getCurrentUserByToken();
         portfolio.setPortfolioAuthorId(user.getIdUser());
+        
+        // 如果有新的图片，上传到OSS
+        if (portfolio.getHeadImgUrl() != null && portfolio.getHeadImgUrl().startsWith("data:image/")) {
+            try {
+                String ossUrl = ossUpload.uploadBase64ToOSS(portfolio.getHeadImgUrl(), "portfolios/");
+                portfolio.setHeadImgUrl(ossUrl);
+            } catch (Exception e) {
+                throw new RuntimeException("上传图片到OSS失败: " + e.getMessage(), e);
+            }
+        }
+        
         portfolio = portfolioService.postPortfolio(portfolio);
         return GlobalResultGenerator.genSuccessResult(portfolio);
     }
