@@ -186,7 +186,7 @@ export default {
       this._fetchingImage = true;
       try {
         const response = await this.$axios.$get(
-          `/api/portfolio/image/${this.portfolio.idPortfolio}/base64`,
+          `/api/portfolio/images/${this.portfolio.idPortfolio}/base64`,
           { responseType: 'text' }
         );
         this.imgUrl = response;

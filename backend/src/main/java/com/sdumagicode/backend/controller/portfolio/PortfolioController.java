@@ -28,6 +28,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import com.sdumagicode.backend.util.OSSUpload;
 
 import javax.annotation.Resource;
@@ -67,6 +69,25 @@ public class PortfolioController {
         GlobalResult<String> result = GlobalResultGenerator.genSuccessResult("success");
         result.setData(portfolioDTO.getHeadImgUrl());
         return result;
+    }
+
+    @PostMapping("/images/urls")
+    public GlobalResult<List<String>> getPortfolioImagesUrls(@RequestBody List<Long> portfolioIds, @RequestParam(defaultValue = "0") Integer type) {
+        List<String> urls = new ArrayList<>();
+        
+        for (Long idPortfolio : portfolioIds) {
+            try {
+                PortfolioDTO portfolioDTO = portfolioService.findPortfolioDTOById(idPortfolio, type);
+                if (portfolioDTO != null && portfolioDTO.getHeadImgUrl() != null) {
+                    urls.add(portfolioDTO.getHeadImgUrl());
+                }
+            } catch (Exception e) {
+                // 如果单个作品集获取失败，继续处理其他作品集
+                continue;
+            }
+        }
+
+        return GlobalResultGenerator.genSuccessResult(urls);
     }
 
 

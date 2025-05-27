@@ -71,42 +71,66 @@ export default {
     },
     currentChange(page) {
       this.$emit('currentChange', page);
+      // 切换页面后刷新图片
+      // this.$nextTick(() => {
+      //   this.fetchImageUrls();
+      // });
     },
-    async fetchImageAsBase64(id) {
+    async fetchImageUrls() {
+      if (!this.portfolios.list || !Array.isArray(this.portfolios.list)) return;
+
       try {
-        const response = await this.$axios.$get(
-          `/api/portfolio/image/${id}/base64`,
-          { responseType: 'text' }
+        const portfolioIds = this.portfolios.list.map(portfolio => portfolio.idPortfolio);
+        const response = await this.$axios.$post(
+          '/api/portfolio/images/urls',
+          portfolioIds,
+          { params: { type: 0 } }
         );
-        // 如果是多个图片，应该更新数组
-        this.imgList.push({
-          id: id,
-          url: response
-        });
-        console.log(this.imgList)
-        // 如果只需要显示一个图片，则用这个
-        // this.imgUrl = response;
+        // console.log('获取的图片URL列表:', response);
+        if (response) {
+          // 将返回的URL数组转换为{id: portfolioId, url: imageUrl}格式
+          this.imgList = portfolioIds.map((id, index) => ({
+            id: id,
+            url: response[index] || ''
+          }));
+          // console.log('获取的图片URL列表:', this.imgList);
+        }
       } catch (error) {
-        console.error('获取Base64图片失败:', error);
-      } finally {
-        this._fetchingImage = false;
+        console.error('获取图片URL列表失败:', error);
       }
     },
+
     // 根据 portfolio.idPortfolio 获取对应的图片URL
     getImageUrl(portfolioId) {
       const found = this.imgList.find(item => item.id === portfolioId);
       return found ? found.url : '';
+    },
+  },
+  // 修改 mounted 钩子
+  mounted() {
+    if (this.portfolios.list && Array.isArray(this.portfolios.list)) {
+      this.fetchImageUrls();
+      // 设置定时器，每30秒刷新一次图片
+      this.refreshTimer = setInterval(() => {
+        this.fetchImageUrls();
+      }, 30000);
     }
   },
-  mounted() {
-    console.log(this.portfolios.list);
-    // 使用 for...of 遍历数组
-    if (this.portfolios.list && Array.isArray(this.portfolios.list)) {
-      for (const portfolio of this.portfolios.list) {
-        this.fetchImageAsBase64(portfolio.idPortfolio);
-      }
+  watch: {
+    'portfolios.list': {
+      handler(newList) {
+        if (newList && Array.isArray(newList)) {
+          this.fetchImageUrls();
+        }
+      },
+      immediate: true
     }
-    console.log(this.imgList.length); // 查看图片数量
+  },
+  beforeDestroy() {
+    // 组件销毁前清除定时器
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+    }
   },
   computed: {
     // 提取imgList中的所有URL用于预览
