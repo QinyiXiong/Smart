@@ -105,7 +105,12 @@ public class InterviewerServiceImpl implements InterviewerService {
         MilvusDatabase milvusDatabase = milvusService.deepCopy(sourceInterviewer.getKnowledgeBaseId(), userId);
         interviewer.setKnowledgeBaseId(milvusDatabase.getKnowledgeBaseId());
         interviewer.setUserId(userId);
-        interviewer.setName("用户分享的面试官: "+sourceInterviewer.getName());
+        if(userId == 2L){
+            interviewer.setName(sourceInterviewer.getName());
+        }else{
+            interviewer.setName("用户分享的面试官: "+sourceInterviewer.getName());
+        }
+
         interviewer.setCustomPrompt(sourceInterviewer.getCustomPrompt());
         interviewer.setSettingsList(sourceInterviewer.getSettingsList());
         Interviewer save = interviewerRepository.save(interviewer);

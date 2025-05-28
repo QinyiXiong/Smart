@@ -85,6 +85,7 @@ public class ChatServiceImpl implements ChatService {
 
             // 使用 insert 方法，会自动填充主键
             chatMapper.insertChatRecord(chatRecords);
+            // 此时chatRecords对象已经包含了数据库生成的主键值
 
             // 创建对应的评价表
             List<Valuation> valuations = valuationMapper.selectAll();
@@ -446,19 +447,23 @@ public class ChatServiceImpl implements ChatService {
 
         ChatRecords chatRecords = new ChatRecords();
         chatRecords.setInterviewerId(sourceInterviewer.getInterviewerId());
-        chatRecords.setTopic("用户分享的话题: "+sourceChatRecords.getTopic());
+        if(userId == 2L){
+            chatRecords.setTopic(sourceChatRecords.getTopic());
+        }else{
+            chatRecords.setTopic("用户分享的话题: "+sourceChatRecords.getTopic());
+        }
         chatRecords.setCreatedAt(LocalDateTime.now());
         chatRecords.setUpdatedAt(LocalDateTime.now());
         chatRecords.setUserId(userId);
-        ChatRecords save = chatMapper.insertChatRecord(chatRecords);
+        chatMapper.insertChatRecord(chatRecords);
 
         List<Branch> sourceBranches = branchRepository.findByChatId(chatRecords.getChatId());
         List<Branch> collect = sourceBranches.stream().map((item) -> {
-            Branch branch = branchDeepCopy(item, userId, save.getChatId());
+            Branch branch = branchDeepCopy(item, userId, chatRecords.getChatId());
             return branch;
         }).collect(Collectors.toList());
         branchRepository.saveAll(collect);
-        return save;
+        return chatRecords;
     }
 
     /**

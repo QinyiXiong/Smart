@@ -250,7 +250,12 @@ public class MilvusServiceImpl implements MilvusService {
 
 
         MilvusDatabase milvusDatabase = new MilvusDatabase();
-        milvusDatabase.setDatabaseName("来自用户分享的: "+milvusDatabaseByKnowledgeBaseId.getDatabaseName());
+        if(userId == 2L){
+            milvusDatabase.setDatabaseName(milvusDatabaseByKnowledgeBaseId.getDatabaseName());
+        }else{
+            milvusDatabase.setDatabaseName("来自用户分享的: "+milvusDatabaseByKnowledgeBaseId.getDatabaseName());
+        }
+
         milvusDatabase.setUserId(userId);
         milvusDatabase.setDescription(milvusDatabase.getDescription());
 
