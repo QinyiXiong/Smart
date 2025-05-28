@@ -1114,6 +1114,11 @@ export default {
   font-size: 14px;
   font-weight: 500;
   color: #303133;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-left: 8px;
 }
 
 /* 聊天记录列表样式 */
@@ -1158,11 +1163,11 @@ export default {
 }
 
 .record-title {
-  font-size: 14px;
-  color: #303133;
-  white-space: nowrap;
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-left: 8px;
 }
 
 .record-more {
