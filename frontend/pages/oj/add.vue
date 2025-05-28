@@ -221,6 +221,12 @@ export default {
         sampleOutput: '',
         hints: '',
         source: '',
+        submit_count: 0,
+        accept_count: 0,
+        acceptance_rate: 0,
+        creator_id: null,
+        created_time: null,
+        updated_time: null,
         visible: 1
       },
       testCases: [],
@@ -233,11 +239,11 @@ export default {
       rules: {
         problemCode: [
           { required: true, message: '请输入题目编号', trigger: 'blur' },
-          { pattern: /^P\d{4}$/, message: '题目编号格式为P+4位数字', trigger: 'blur' }
+          { pattern: /^P\d{5}$/, message: '题目编号格式为P+5位数字', trigger: 'blur' }
         ],
         title: [
           { required: true, message: '请输入题目标题', trigger: 'blur' },
-          { min: 2, max: 100, message: '标题长度在2-100个字符之间', trigger: 'blur' }
+          { min: 2, max: 255, message: '标题长度在2-255个字符之间', trigger: 'blur' }
         ],
         difficulty: [
           { required: true, message: '请选择题目难度', trigger: 'change' }
@@ -262,6 +268,9 @@ export default {
         tags: [
           { required: true, message: '请至少选择一个标签', trigger: 'change' },
           { type: 'array', min: 1, message: '请至少选择一个标签', trigger: 'change' }
+        ],
+        source: [
+          { max: 255, message: '来源长度不能超过255个字符', trigger: 'blur' }
         ]
       }
     }
@@ -310,6 +319,21 @@ export default {
           input: testCase.input.replace(/\n/g, '\\n'),
           output: testCase.output.replace(/\n/g, '\\n')
         }));
+
+        // 设置系统计算字段的初始值
+        this.problemForm.submit_count = 0;
+        this.problemForm.accept_count = 0;
+        this.problemForm.acceptance_rate = 0;
+        
+        // 设置创建时间和更新时间
+        const now = new Date().toISOString();
+        this.problemForm.created_time = now;
+        this.problemForm.updated_time = now;
+        
+        // 如果有用户信息，设置creator_id
+        if (this.$store.state.user && this.$store.state.user.id) {
+          this.problemForm.creator_id = this.$store.state.user.id;
+        }
 
         const formData = {
           ...this.problemForm,

@@ -43,9 +43,21 @@
           <el-col :span="8" v-for="(stat, type) in statistics" :key="type">
             <el-card shadow="hover" :class="['stat-card', `stat-${type}`]">
               <div class="stat-content">
-                <div class="stat-title">{{ stat.title }}</div>
-                <div class="stat-value">{{ stat.value }}</div>
-                <div class="stat-rate">通过率: {{ stat.rate }}%</div>
+                <div class="stat-icon">
+                  <i :class="getStatIcon(type)"></i>
+                </div>
+                <div class="stat-info">
+                  <div class="stat-title">{{ stat.title }}</div>
+                  <div class="stat-value">{{ stat.value }}</div>
+                  <el-progress 
+                    :percentage="stat.rate" 
+                    :color="getStatColor(type)" 
+                    :show-text="false"
+                    :stroke-width="4"
+                    class="stat-progress"
+                  ></el-progress>
+                  <div class="stat-rate">{{ getRateLabel(type) }}: {{ stat.rate }}%</div>
+                </div>
               </div>
             </el-card>
           </el-col>
@@ -207,6 +219,30 @@ export default {
       if (rate >= 40) return '#E6A23C';
       return '#F56C6C';
     },
+    getStatIcon(type) {
+      switch(type) {
+        case 'total': return 'el-icon-s-grid';
+        case 'solved': return 'el-icon-check';
+        case 'attempted': return 'el-icon-s-promotion';
+        default: return 'el-icon-data-line';
+      }
+    },
+    getStatColor(type) {
+      switch(type) {
+        case 'total': return '#409EFF';
+        case 'solved': return '#67C23A';
+        case 'attempted': return '#E6A23C';
+        default: return '#909399';
+      }
+    },
+    getRateLabel(type) {
+      switch(type) {
+        case 'total': return '通过率';
+        case 'solved': return '完成率';
+        case 'attempted': return '尝试率';
+        default: return '比率';
+      }
+    },
     async fetchProblems() {
       this.loading = true;
       try {
@@ -259,17 +295,30 @@ export default {
           this.availableTags = res.data;
         }
       } catch (error) {
+        console.error('获取标签列表失败:', error);
         this.$message.error('获取标签列表失败');
       }
     },
     async fetchStatistics() {
       try {
         const res = await this.$axios.get('/api/problems/statistics');
-        if (res.code === 0) {
+        console.log('统计信息响应:', res);
+        if (res && res.data) {
           this.statistics = res.data;
         }
       } catch (error) {
+        console.error('获取统计信息失败:', error);
         this.$message.error('获取统计信息失败');
+      }
+    },
+    getRateLabel(type) {
+      switch(type) {
+        case 'solved':
+          return '通过率';
+        case 'attempted':
+          return '尝试率';
+        default:
+          return '完成率';
       }
     },
     handleView(row) {
@@ -321,34 +370,84 @@ export default {
 }
 
 .stat-card {
-  text-align: center;
-  transition: transform 0.3s;
+  transition: transform 0.3s, box-shadow 0.3s;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .stat-card:hover {
   transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
 }
 
 .stat-content {
   padding: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16px;
+  font-size: 24px;
+}
+
+.stat-total .stat-icon {
+  background-color: rgba(64, 158, 255, 0.1);
+  color: #409EFF;
+}
+
+.stat-solved .stat-icon {
+  background-color: rgba(103, 194, 58, 0.1);
+  color: #67C23A;
+}
+
+.stat-attempted .stat-icon {
+  background-color: rgba(230, 162, 60, 0.1);
+  color: #E6A23C;
+}
+
+.stat-info {
+  flex: 1;
 }
 
 .stat-title {
   font-size: 14px;
-  color: #909399;
+  color: #606266;
   margin-bottom: 8px;
+  font-weight: 500;
 }
 
 .stat-value {
   font-size: 24px;
   font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.stat-total .stat-value {
   color: #409EFF;
+}
+
+.stat-solved .stat-value {
+  color: #67C23A;
+}
+
+.stat-attempted .stat-value {
+  color: #E6A23C;
+}
+
+.stat-progress {
+  margin-bottom: 4px;
 }
 
 .stat-rate {
   font-size: 12px;
-  color: #67C23A;
-  margin-top: 4px;
+  color: #909399;
 }
 
 .problem-code {

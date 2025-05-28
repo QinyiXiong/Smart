@@ -14,6 +14,7 @@ import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -160,6 +161,126 @@ public GlobalResult<List<ProblemDTO>> getAllProblemsByDifficulty(
     }
     
     /**
+     * 删除题目
+     * 
+     * @param id 题目ID
+     * @return 删除结果
+     */
+    @DeleteMapping("/{id}")
+    @RequiresPermissions(value = "user")
+    public GlobalResult<Void> deleteProblem(@PathVariable Long id) {
+        try {
+            // 参数验证
+            if (id == null) {
+                return GlobalResultGenerator.genErrorResult("题目ID不能为空");
+            }
+            
+            // 调用服务层删除题目
+            problemService.deleteProblem(id);
+            return GlobalResultGenerator.genSuccessResult("删除成功");
+        } catch (Exception e) {
+            return GlobalResultGenerator.genErrorResult("删除题目失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 添加题目
+     * 
+     * @param problem 题目信息
+     * @return 添加结果
+     */
+    @PostMapping
+    @RequiresPermissions(value = "user")
+    public GlobalResult<Long> addProblem(@RequestBody ProblemDTO problem) {
+        try {
+            // 参数验证
+            if (problem.getTitle() == null || problem.getTitle().isEmpty()) {
+                return GlobalResultGenerator.genErrorResult("题目标题不能为空");
+            }
+            if (problem.getDifficulty() == null || problem.getDifficulty().isEmpty()) {
+                return GlobalResultGenerator.genErrorResult("题目难度不能为空");
+            }
+            if (problem.getDescription() == null || problem.getDescription().isEmpty()) {
+                return GlobalResultGenerator.genErrorResult("题目描述不能为空");
+            }
+            if (problem.getInputDescription() == null || problem.getInputDescription().isEmpty()) {
+                return GlobalResultGenerator.genErrorResult("输入描述不能为空");
+            }
+            if (problem.getOutputDescription() == null || problem.getOutputDescription().isEmpty()) {
+                return GlobalResultGenerator.genErrorResult("输出描述不能为空");
+            }
+            
+            // 设置默认值
+            if (problem.getSubmitCount() == null) {
+                problem.setSubmitCount(0);
+            }
+            if (problem.getAcceptCount() == null) {
+                problem.setAcceptCount(0);
+            }
+            if (problem.getAcceptanceRate() == null) {
+                problem.setAcceptanceRate(0.0);
+            }
+            if (problem.getVisible() == null) {
+                problem.setVisible(1);
+            }
+            
+            // 设置创建时间和更新时间
+            LocalDateTime now = LocalDateTime.now();
+            problem.setCreatedTime(now);
+            problem.setUpdatedTime(now);
+            
+            // 调用服务层添加题目
+            Long problemId = problemService.postProblem(problem);
+            return GlobalResultGenerator.genSuccessResult(problemId);
+        } catch (Exception e) {
+            return GlobalResultGenerator.genErrorResult("添加题目失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 更新题目
+     * 
+     * @param id 题目ID
+     * @param problem 题目信息
+     * @return 更新结果
+     */
+    @PutMapping("/{id}")
+    @RequiresPermissions(value = "user")
+    public GlobalResult<Void> updateProblem(@PathVariable Long id, @RequestBody ProblemDTO problem) {
+        try {
+            // 参数验证
+            if (id == null) {
+                return GlobalResultGenerator.genErrorResult("题目ID不能为空");
+            }
+            if (problem.getTitle() == null || problem.getTitle().isEmpty()) {
+                return GlobalResultGenerator.genErrorResult("题目标题不能为空");
+            }
+            if (problem.getDifficulty() == null || problem.getDifficulty().isEmpty()) {
+                return GlobalResultGenerator.genErrorResult("题目难度不能为空");
+            }
+            if (problem.getDescription() == null || problem.getDescription().isEmpty()) {
+                return GlobalResultGenerator.genErrorResult("题目描述不能为空");
+            }
+            if (problem.getInputDescription() == null || problem.getInputDescription().isEmpty()) {
+                return GlobalResultGenerator.genErrorResult("输入描述不能为空");
+            }
+            if (problem.getOutputDescription() == null || problem.getOutputDescription().isEmpty()) {
+                return GlobalResultGenerator.genErrorResult("输出描述不能为空");
+            }
+            
+            // 设置ID和更新时间
+            problem.setId(id);
+            problem.setUpdatedTime(LocalDateTime.now());
+            
+            // 调用服务层更新题目
+            problemService.updateProblem(problem);
+            return GlobalResultGenerator.genSuccessResult("更新成功");
+        } catch (Exception e) {
+            return GlobalResultGenerator.genErrorResult("更新题目失败: " + e.getMessage());
+        }
+    }
+    
+    /**
      * 保存题目评测结果和AI评价结果到Redis
      *
      * @param requestBody 包含chatId、branchId和data的请求体
@@ -199,6 +320,41 @@ public GlobalResult<List<ProblemDTO>> getAllProblemsByDifficulty(
             return GlobalResultGenerator.genSuccessResult("保存成功");
         } catch (Exception e) {
             return GlobalResultGenerator.genErrorResult("保存结果失败: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * 从Redis获取题目评测结果和AI评价结果
+     *
+     * @param chatId 聊天ID
+     * @param branchId 分支ID
+     * @return 评测结果和AI评价结果
+     */
+    @GetMapping("/get-results")
+    public GlobalResult<Map<String, Object>> getResults(
+            @RequestParam("chatId") String chatId,
+            @RequestParam("branchId") String branchId) {
+        try {
+            // 参数验证
+            if (chatId == null || chatId.isEmpty() || branchId == null || branchId.isEmpty()) {
+                return GlobalResultGenerator.genErrorResult("参数不完整，需要提供chatId和branchId");
+            }
+            
+            // 构建Redis键名
+            String redisKey = "problem_results:" + chatId + ":" + branchId;
+            
+            // 从Redis获取数据
+            // 从Redis获取数据并使用FastJSON反序列化为Map
+            String jsonStr = (String) redisService.get(redisKey);
+            Map<String, Object> data = com.alibaba.fastjson.JSON.parseObject(jsonStr);
+            
+            if (data == null) {
+                return GlobalResultGenerator.genErrorResult("未找到相关结果数据");
+            }
+            
+            return GlobalResultGenerator.genSuccessResult(data);
+        } catch (Exception e) {
+            return GlobalResultGenerator.genErrorResult("获取结果失败: " + e.getMessage());
         }
     }
 }

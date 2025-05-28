@@ -3,24 +3,30 @@ package com.sdumagicode.backend.service.impl;
 import com.github.pagehelper.PageHelper;
 import com.sdumagicode.backend.core.service.AbstractService;
 import com.sdumagicode.backend.dto.ProblemDTO;
+import com.sdumagicode.backend.entity.CodeSubmission;
 import com.sdumagicode.backend.entity.Problem;
+import com.sdumagicode.backend.mapper.CodeSubmissionMapper;
 import com.sdumagicode.backend.mapper.ProblemMapper;
 import com.sdumagicode.backend.service.ProblemService;
 import com.sdumagicode.backend.util.BeanCopierUtil;
+import com.sdumagicode.backend.util.UserUtils;
 import org.apache.ibatis.exceptions.TooManyResultsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import tk.mybatis.mapper.entity.Condition;
+import tk.mybatis.mapper.entity.Example;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.HashMap;
 
 /**
  * 题目服务实现类
@@ -392,6 +398,8 @@ public class ProblemServiceImpl extends AbstractService<Problem> implements Prob
         Condition condition = new Condition(Problem.class);
         // 创建一个Criteria对象，然后添加所有条件
         tk.mybatis.mapper.entity.Example.Criteria criteria = condition.createCriteria();
+        // 只查询可见的题目
+        criteria.andEqualTo("visible", 1);
         if (difficulty != null) {
             criteria.andEqualTo("difficulty", difficulty);
         }
@@ -400,6 +408,7 @@ public class ProblemServiceImpl extends AbstractService<Problem> implements Prob
         }
         
         int count = problemMapper.selectCountByCondition(condition);
+        logger.info("从数据库查询题目总数: {}", count);
         
         // 将结果存入缓存
         redisTemplate.opsForValue().set(cacheKey, count, CACHE_EXPIRE_TIME, TimeUnit.MINUTES);
@@ -447,61 +456,84 @@ public class ProblemServiceImpl extends AbstractService<Problem> implements Prob
         return tags;
     }
 
+    @Resource
+    private CodeSubmissionMapper codeSubmissionMapper;
+    
     @Override
     public Map<String, Object> getStatistics() {
-        // 尝试从缓存获取
-        Map<String, Object> cachedStats = (Map<String, Object>) redisTemplate.opsForValue().get(CACHE_PROBLEMS_STATISTICS);
-        if (cachedStats != null) {
-            logger.info("从缓存获取统计信息");
-            return cachedStats;
-        }
+        // 直接从数据库查询，不使用缓存
+        logger.info("从数据库查询统计信息");
         
-        // 缓存未命中，从数据库查询
-        List<Map<String, Object>> stats = problemMapper.getAcceptanceStatistics();
         Map<String, Object> result = new HashMap<>();
         
-        int totalProblems = 0;
-        int totalSolved = 0;
-        int totalAttempted = 0;
-        double avgAcceptanceRate = 0.0;
-        
-        // 计算总数和已解决数
-        for (Map<String, Object> stat : stats) {
-            int total = ((Number) stat.get("total")).intValue();
-            int solved = ((Number) stat.get("solved")).intValue();
-            double avgRate = ((Number) stat.get("avg_rate")).doubleValue();
-            
-            totalProblems += total;
-            totalSolved += solved;
-            // 累加每个难度的平均通过率，后面再取平均
-            avgAcceptanceRate += avgRate * total; // 根据题目数量加权
+        // 获取当前登录用户ID
+        Long userId = null;
+        try {
+            userId = UserUtils.getCurrentUserByToken().getIdUser();
+            logger.info("当前用户ID: {}", userId);
+        } catch (Exception e) {
+            logger.warn("获取当前用户ID失败，将返回全局统计数据", e);
         }
         
-        // 计算总体平均通过率
-        avgAcceptanceRate = totalProblems > 0 ? avgAcceptanceRate / totalProblems : 0;
+        // 直接查询可见题目总数
+        Condition condition = new Condition(Problem.class);
+        condition.createCriteria().andEqualTo("visible", 1);
+        int totalProblems = problemMapper.selectCountByCondition(condition);
+        logger.info("可见题目总数: {}", totalProblems);
+        
+        // 获取用户提交记录
+        int acceptedProblems = 0;
+        int totalAttempted = 0;
+        
+        if (userId != null) {
+            // 查询用户提交记录
+            // 使用Example查询用户的所有提交记录
+            Example example = new Example(CodeSubmission.class);
+            example.selectProperties("problemId", "status");
+            example.setDistinct(true);
+            Example.Criteria criteria = example.createCriteria();
+            criteria.andEqualTo("userId", userId);
+            
+            List<CodeSubmission> submissions = codeSubmissionMapper.selectByExample(example);
+            logger.info("用户提交记录数: {}", submissions.size());
+            
+            // 统计已尝试和已通过的题目数量
+            Set<Long> attemptedProblemIds = new HashSet<>();
+            Set<Long> acceptedProblemIds = new HashSet<>();
+            
+            for (CodeSubmission submission : submissions) {
+                attemptedProblemIds.add(submission.getProblemId());
+                if ("accepted".equals(submission.getStatus())) {
+                    acceptedProblemIds.add(submission.getProblemId());
+                }
+            }
+            
+            acceptedProblems = acceptedProblemIds.size();
+            totalAttempted = attemptedProblemIds.size();
+            logger.info("用户已解决题目数: {}, 尝试过的题目数: {}", acceptedProblems, totalAttempted);
+        }
         
         // 构造前端需要的数据结构
         Map<String, Object> totalStat = new HashMap<>();
         totalStat.put("title", "总题数");
         totalStat.put("value", totalProblems);
-        totalStat.put("rate", Math.round(avgAcceptanceRate)); // 使用加权平均通过率
+        totalStat.put("rate", 100); // 总题数的比率为100%
         
         Map<String, Object> solvedStat = new HashMap<>();
         solvedStat.put("title", "已解决");
-        solvedStat.put("value", totalSolved);
-        solvedStat.put("rate", totalProblems > 0 ? Math.round((double) totalSolved / totalProblems * 100) : 0);
+        solvedStat.put("value", acceptedProblems);
+        solvedStat.put("rate", totalProblems > 0 ? Math.round((double) acceptedProblems / totalProblems * 100) : 0);
         
         Map<String, Object> attemptedStat = new HashMap<>();
         attemptedStat.put("title", "尝试过");
-        attemptedStat.put("value", totalSolved); // 使用已解决数作为尝试过的数量
-        attemptedStat.put("rate", totalProblems > 0 ? Math.round((double) totalSolved / totalProblems * 100) : 0);
+        attemptedStat.put("value", totalAttempted);
+        attemptedStat.put("rate", totalProblems > 0 ? Math.round((double) totalAttempted / totalProblems * 100) : 0);
         
         result.put("total", totalStat);
         result.put("solved", solvedStat);
         result.put("attempted", attemptedStat);
         
-        // 将结果存入缓存
-        redisTemplate.opsForValue().set(CACHE_PROBLEMS_STATISTICS, result, CACHE_EXPIRE_TIME, TimeUnit.MINUTES);
+        // 不再将结果存入缓存，每次都从数据库获取最新数据
         
         return result;
     }
