@@ -62,12 +62,28 @@ public class InterviewerServiceImpl implements InterviewerService {
     @Override
     public List<Interviewer> findInterviewers() {
         Long idUser = UserUtils.getCurrentUserByToken().getIdUser();
+        // 查询当前用户的面试官
         List<Interviewer> allByUserId = interviewerRepository.findAllByUserId(idUser);
+        // 查询没有用户ID的面试官
+        List<Interviewer> publicInterviewers = interviewerRepository.findAllByUserIdIsNull();
+        
+        // 合并两个列表
+        List<Interviewer> result = new ArrayList<>();
+        if (allByUserId != null) {
+            result.addAll(allByUserId);
+        }
+        if (publicInterviewers != null) {
+            result.addAll(publicInterviewers);
+        }
+        
+        // 如果用户没有面试官，创建默认面试官
         if (allByUserId == null || allByUserId.isEmpty()){
             Interviewer defaultInterviewer = createDefaultInterviewer(idUser);
             interviewerRepository.save(defaultInterviewer);
+            result.add(defaultInterviewer);
         }
-        return allByUserId;
+        
+        return result;
     }
 
     @Override

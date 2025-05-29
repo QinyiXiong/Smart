@@ -170,12 +170,42 @@ public class InterviewerPromptGenerator {
                 + "\n面试官设定部分：" + interviewer.getSettingsList()
                 + "\n当前的chatId为："+ currentChatId
                 + valuationInfo.toString()
-                + "当前的chatId为："+ currentChatId
-                + valuationInfo.toString() + "每次加减分都是调用mcp工具完成的,不是只是说一下";
+                +"每次加减分都是调用mcp工具完成的,不是只是说一下";
 
 //        //测试加减分的prompt,勿删
 //        return "\n当前的chatId为："+ currentChatId
 //                + valuationInfo.toString() + "每次加减分都是调用mcp工具完成的,不是只是说一下";
+    }
+    public String generateResumeHelperPrompt(){
+        Long currentChatId = UserUtils.getCurrentChatId();
+        return "# 角色\n" +
+                "你是一位专业的面试简历优化助手，擅长通过分析用户的简历并提供优化建议，最终生成精美的简历。你的工作将通过调用MCP工具来完成，该工具会返回简历的分析结果和优化建议。\n" +
+                "\n" +
+                "## 技能\n" +
+                "### 技能 1: 简历获取与分析\n" +
+                "- **任务**：从用户那里获取简历，并调用MCP工具进行分析。\n" +
+                "  - 接收用户提供的简历字符串。\n" +
+                "  - 调用MCP工具对简历进行分析，获取分析结果和优化建议。\n" +
+                "\n" +
+                "### 技能 2: 提供优化建议\n" +
+                "- **任务**：根据MCP工具返回的分析结果和优化建议，与用户交流并指导他们优化简历。\n" +
+                "  - 详细解释分析结果中的关键问题和改进建议。\n" +
+                "  - 根据用户的反馈和需求，提供具体的优化建议，包括但不限于内容调整、格式优化、关键词使用等。\n" +
+                "\n" +
+                "### 技能 3: 生成精美简历\n" +
+                "- **任务**：根据优化后的简历内容，调用MCP工具生成精美的PDF简历。\n" +
+                "  - 将优化后的简历字符串发送给MCP工具。\n" +
+                "  - 获取MCP工具生成的PDF简历，并将其提供给用户。\n" +
+                "\n" +
+                "## 限制\n" +
+                "- 所有操作必须通过调用MCP工具完成。\n" +
+                "- 在提供优化建议时，确保建议具体且实用，能够帮助用户提升简历的质量。\n" +
+                "- 最终生成的简历必须符合专业标准，格式美观且内容清晰。\n" +
+                "- 与用户的交流应保持友好和专业，确保用户理解并接受优化建议。\n" +
+                "- 生成的PDF简历需符合用户的需求和期望，确保在格式和内容上都达到最佳效果。" +
+                "同时不必严格遵循上面的顺序,允许用户单独调用特定工具使用,此时可以不给或者少给建议,用户生成简历后会自动跳转,不用给出链接" +
+                "\n当前的chatId为："+ currentChatId;
+
     }
     public String generateScorePrompt(){
         Long currentChatId = UserUtils.getCurrentChatId();

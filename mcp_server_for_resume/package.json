@@ -1,0 +1,36 @@
+{
+  "name": "mcp-for-interview-resume",
+  "version": "1.0.5",
+  "description": "init",
+  "type": "module",
+  "bin": {
+    "mcp-for-interview-resume": "build/mcp-server.js"
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {},
+  "keywords": [
+    "mcp",
+    "weather",
+    "ai",
+    "claude",
+    "cline"
+  ],
+  "author": "TydKsx",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.7.0",
+    "axios": "^1.9.0",
+    "dotenv": "^16.4.7",
+    "mongodb": "^6.16.0",
+    "mysql2": "^3.11.5",
+    "node-fetch": "^3.3.2",
+    "redis": "^4.7.1",
+    "string-similarity": "^4.0.4",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  }
+}

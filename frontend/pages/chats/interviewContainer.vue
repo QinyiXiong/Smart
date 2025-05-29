@@ -126,7 +126,7 @@
       />
       
       <!-- 右侧评估tresultult区域 -->
-      <div class="valuation-area" v-if="activeChatRecord && valuationData">
+      <div class="valuation-area" v-if="activeChatRecord && valuationData && currentInterviewer && currentInterviewer.userId">
         <div class="valuation-header">
           <h3>面试评估结果</h3>
         </div>
@@ -299,14 +299,21 @@ export default {
                   console.warn('chatArea组件未找到，无法调用handleActionPush方法');
                 }
               }
+              console.log(actionObj)
+              // 处理简历跳转动作
+              if (actionObj.action === 'resume' && actionObj.url) {
+                console.log(1)
+                // 跳转到外部链接
+                window.open(actionObj.url, '_blank');
+              }
               
             } catch (parseError) {
               console.error('解析action数据失败:', parseError);
             }
           }
           
-          // 如果有评估变化，调用新的处理方法
-          if (valuationChanges.length > 0) {
+          // 如果有评估变化且当前面试官存在userId，调用处理方法
+          if (valuationChanges.length > 0 && this.currentInterviewer && this.currentInterviewer.userId) {
             await this.handleValuationUpdate(valuationChanges);
           }
         }
@@ -321,6 +328,11 @@ export default {
     },
 
     async handleValuationUpdate(valuationChanges) {
+      // 如果当前面试官不存在或者没有userId，则不处理评估变化
+      if (!this.currentInterviewer || !this.currentInterviewer.userId) {
+        return;
+      }
+      
       // 保存当前评估数据的副本（如果存在）
       const originalValuationData = this.valuationData ? JSON.parse(JSON.stringify(this.valuationData)) : null;
 
@@ -579,12 +591,15 @@ export default {
           }
           this.activeChatRecord = chatId;
           
-          // 强制重新获取评估数据并初始化雷达图
-          this.fetchValuationData(chatId).then(() => {
-            if (valuationArea) {
-              valuationArea.style.opacity = 1;
-            }
-          });
+          // 只有当currentInterviewer和userId存在时才获取评估数据
+          if (this.currentInterviewer && this.currentInterviewer.userId) {
+            // 强制重新获取评估数据并初始化雷达图
+            this.fetchValuationData(chatId).then(() => {
+              if (valuationArea) {
+                valuationArea.style.opacity = 1;
+              }
+            });
+          }
         }, 300);
       });
     },
@@ -630,6 +645,13 @@ export default {
     
     // 获取面试评估数据
     async fetchValuationData(chatId) {
+      // 如果当前面试官不存在或者没有userId，则不获取评估数据
+      if (!this.currentInterviewer || !this.currentInterviewer.userId) {
+        this.valuationData = null;
+        this.showSkeleton = false;
+        return;
+      }
+      
       try {
         // 显示骨架屏
         this.showSkeleton = true;

@@ -970,7 +970,7 @@ export default {
     },
 
     async startPolling(messageId) {
-      const POLLING_TIMEOUT = 30000; // 30秒超时
+      const POLLING_TIMEOUT = 60000; // 30秒超时
       let pollingStartTime = Date.now();
 
       const processBatch = async () => {

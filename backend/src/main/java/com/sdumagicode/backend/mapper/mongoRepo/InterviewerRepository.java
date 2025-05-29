@@ -8,4 +8,6 @@ import java.util.List;
 public interface InterviewerRepository extends MongoRepository<Interviewer,String> {
 
     List<Interviewer> findAllByUserId(Long userId);
+    
+    List<Interviewer> findAllByUserIdIsNull();
 }
