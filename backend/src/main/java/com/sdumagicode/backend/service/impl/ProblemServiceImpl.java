@@ -486,27 +486,33 @@ public class ProblemServiceImpl extends AbstractService<Problem> implements Prob
         int totalAttempted = 0;
         
         if (userId != null) {
-            // 查询用户提交记录
-            // 使用Example查询用户的所有提交记录
-            Example example = new Example(CodeSubmission.class);
-            example.selectProperties("problemId", "status");
-            example.setDistinct(true);
-            Example.Criteria criteria = example.createCriteria();
-            criteria.andEqualTo("userId", userId);
-            
-            List<CodeSubmission> submissions = codeSubmissionMapper.selectByExample(example);
-            logger.info("用户提交记录数: {}", submissions.size());
-            
-            // 统计已尝试和已通过的题目数量
-            Set<Long> attemptedProblemIds = new HashSet<>();
-            Set<Long> acceptedProblemIds = new HashSet<>();
-            
-            for (CodeSubmission submission : submissions) {
-                attemptedProblemIds.add(submission.getProblemId());
-                if ("accepted".equals(submission.getStatus())) {
-                    acceptedProblemIds.add(submission.getProblemId());
-                }
-            }
+            // 创建查询条件（不再使用distinct）
+Example example = new Example(CodeSubmission.class);
+example.selectProperties("problemId", "status");
+Example.Criteria criteria = example.createCriteria();
+criteria.andEqualTo("userId", userId);
+
+List<CodeSubmission> submissions = codeSubmissionMapper.selectByExample(example);
+logger.info("用户提交记录数: {}", submissions.size());
+
+// 统计已尝试和已通过的题目数量
+Set<Long> attemptedProblemIds = new HashSet<>();
+Set<Long> acceptedProblemIds = new HashSet<>();
+
+// 使用常量定义状态值，避免硬编码
+final String ACCEPTED_STATUS = "accepted";
+
+for (CodeSubmission submission : submissions) {
+    Long problemId = submission.getProblemId();
+        
+    // 所有提交过的题目ID（自动去重）
+    attemptedProblemIds.add(problemId);
+    
+    // 仅添加ACCEPTED状态的题目ID（自动去重）
+    if (ACCEPTED_STATUS.equalsIgnoreCase(submission.getStatus())) {
+        acceptedProblemIds.add(problemId);
+    }
+}
             
             acceptedProblems = acceptedProblemIds.size();
             totalAttempted = attemptedProblemIds.size();

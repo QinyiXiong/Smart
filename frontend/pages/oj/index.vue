@@ -318,7 +318,7 @@ export default {
         case 'attempted':
           return '尝试率';
         default:
-          return '完成率';
+          return '可见率';
       }
     },
     handleView(row) {
