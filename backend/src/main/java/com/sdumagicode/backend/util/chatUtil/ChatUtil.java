@@ -33,6 +33,9 @@ public class ChatUtil {
     @Value("${scorer.app.id}")
     private String APP_ID_SCORER;
 
+    @Value("${resume.app.id}")
+    private String APP_ID_RESUME;
+
     @Value("${openai.api.key}")
     private String apiKey;
 
@@ -62,6 +65,8 @@ public class ChatUtil {
             appId = APP_ID_INTERVIEWER;
         }else if(appType == AppType.CODER){
             appId = APP_ID_CODER;
+        }else if(appType == AppType.RESUME){
+            appId = APP_ID_RESUME;
         }
         // 构建参数
         ApplicationParam param = ApplicationParam.builder()
@@ -183,6 +188,6 @@ public class ChatUtil {
      * 应用类型枚举
      */
     public enum AppType {
-        INTERVIEWER, CODER
+        INTERVIEWER, CODER, RESUME,
     }
 }

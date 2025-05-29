@@ -233,6 +233,33 @@ public class ChatServiceImpl implements ChatService {
                 UserUtils.clearCurrentChatId();
             }
             UserUtils.setCurrentChatId(byId.get().getChatId());
+
+            //面试简历优化模式
+            if(interviewer.getUserId() == null){
+                String prompt = interviewerPromptGenerator.generateResumeHelperPrompt();
+                Flowable<ApplicationResult> aiStream = chatUtil.streamCall(
+                        messageList,
+                        prompt,
+                        ChatUtil.AppType.RESUME);
+
+
+                aiStream.blockingSubscribe(data -> {
+                            ChatOutput chatOutput = new ChatOutput(data.getOutput());
+                            // System.out.println("content: " + chatOutput.getText());
+                            // 添加验证信息和标识信息
+                            chatOutput.setUserId(userId);
+                            chatOutput.setMessageId(messageId);
+                            System.out.println(chatOutput);
+                            outputConsumer.accept(chatOutput);
+                        }
+
+                );
+                return;
+            }
+
+
+
+
             String ragContent = "";
             // 1. RAG搜索
             if(interviewer.getKnowledgeBaseId() != null){

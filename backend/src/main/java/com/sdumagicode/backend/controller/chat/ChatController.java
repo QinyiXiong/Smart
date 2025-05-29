@@ -305,6 +305,8 @@ public class ChatController {
                 }
             }
         }
+
+       
         return GlobalResultGenerator.genSuccessResult(actions);
     }
 
