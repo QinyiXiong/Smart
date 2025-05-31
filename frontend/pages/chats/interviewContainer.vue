@@ -37,22 +37,41 @@
 
       <!-- AI面试官列表 -->
       <div class="ai-interviewer-section" v-show="activeTab === 'interviewer'">
-        <el-scrollbar class="no-horizontal-scroll" style="height:100%">
-          <div class="interviewer-list">
-            <div
-              class="interviewer-list"
-              v-for="interviewer in aiList"
-              :key="interviewer.interviewerId"
-              :class="['interviewer-item', { 'active': activeInterviewer === interviewer.interviewerId }]"
-              @click="handleInterviewerSelect(interviewer.interviewerId)"
-            >
-              <div class="interviewer-avatar">
-                <i class="el-icon-user-solid"></i>
+        <!-- 简历优化助手 - 单独区域 -->
+        <el-scrollbar class="no-horizontal-scroll" style="height:calc(100% - 130px)">
+          <div class="interviewer-container">
+            <!-- 普通面试官列表 -->
+            <div class="interviewer-list" >
+              <div
+                class="interviewer-list"
+                v-for="interviewer in regularInterviewers"
+                :key="interviewer.interviewerId"
+                :class="['interviewer-item', { 'active': activeInterviewer === interviewer.interviewerId }]"
+                @click="handleInterviewerSelect(interviewer.interviewerId)"
+              >
+                <div class="interviewer-avatar">
+                  <i class="el-icon-user-solid"></i>
+                </div>
+                <div class="interviewer-name">{{ interviewer.name }}</div>
               </div>
-              <div class="interviewer-name">{{ interviewer.name }}</div>
             </div>
           </div>
         </el-scrollbar>
+
+        <div class="resume-assistant-container" v-if="resumeAssistant">
+          <div class="resume-assistant-divider">
+            <span class="divider-text">简历优化</span>
+          </div>
+          <div
+            :class="['interviewer-item', 'resume-assistant-item', { 'active': activeInterviewer === resumeAssistant.interviewerId }]"
+            @click="handleInterviewerSelect(resumeAssistant.interviewerId)"
+          >
+            <div class="interviewer-avatar resume-avatar">
+              <i class="el-icon-document"></i>
+            </div>
+            <div class="interviewer-name">{{ resumeAssistant.name }}</div>
+          </div>
+        </div>
       </div>
 
       <!-- 聊天记录列表 -->
@@ -198,6 +217,16 @@ export default {
       isSidebarCollapsed: false,
       showSkeleton: false,
       branchId: null,
+    }
+  },
+  computed: {
+    // 普通面试官（排除简历优化助手）
+    regularInterviewers() {
+      return this.aiList.filter(interviewer => interviewer.name !== '简历优化助手');
+    },
+    // 简历优化助手
+    resumeAssistant() {
+      return this.aiList.find(interviewer => interviewer.name === '简历优化助手');
     }
   },
   watch: {
@@ -1320,6 +1349,138 @@ export default {
   /* 如果不需要横向排列则移除 */
   width: 100%;
   box-sizing: border-box;
+}
+
+
+/* 面试官容器样式调整 */
+.interviewer-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* 普通面试官列表区域 */
+.interviewer-list {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+/* 简历优化助手容器 */
+.resume-assistant-container {
+  margin-top: auto;
+  border-top: 1px solid #ebeef5;
+  background-color: #fafbfc;
+  padding: 10px;
+}
+
+/* 简历优化助手分隔线 */
+.resume-assistant-divider {
+  text-align: center;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.resume-assistant-divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: #e4e7ed;
+  z-index: 1;
+}
+
+.divider-text {
+  background-color: #fafbfc;
+  padding: 0 12px;
+  font-size: 12px;
+  color: #909399;
+  font-weight: 500;
+  position: relative;
+  z-index: 2;
+}
+
+/* 简历优化助手项目样式 */
+.resume-assistant-item {
+  background-color: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+  margin: 0;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.resume-assistant-item:hover {
+  background-color: #f0f9ff;
+  border-color: #b3d8ff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
+}
+
+.resume-assistant-item.active {
+  background-color: #ecf5ff;
+  border-color: #409eff;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.2);
+}
+
+/* 简历优化助手头像特殊样式 */
+.resume-avatar {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.resume-avatar i {
+  color: #fff;
+  font-size: 18px;
+}
+
+/* 简历优化助手名称样式 */
+.resume-assistant-item .interviewer-name {
+  color: #303133;
+  font-weight: 600;
+  position: relative;
+}
+
+
+
+/* 折叠状态下的样式调整 */
+.left-sidebar.collapsed .resume-assistant-container {
+  padding: 8px 0;
+  border-top: none;
+  background-color: transparent;
+}
+
+.left-sidebar.collapsed .resume-assistant-divider {
+  display: none;
+}
+
+.left-sidebar.collapsed .resume-assistant-item {
+  border: none;
+  background-color: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  margin: 8px 0;
+}
+
+.left-sidebar.collapsed .resume-assistant-item:hover {
+  background-color: #f5f7fa;
+  transform: none;
+}
+
+.left-sidebar.collapsed .resume-assistant-item .interviewer-name::after {
+  display: none;
+}
+
+/* 响应式调整 */
+@media (max-height: 600px) {
+  .resume-assistant-container {
+    padding: 12px;
+  }
+  
+  .resume-assistant-divider {
+    margin-bottom: 8px;
+  }
 }
 </style>
 
