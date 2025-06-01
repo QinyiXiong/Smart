@@ -13,6 +13,42 @@
               </span>
               {{ article.articleTitle }}
             </h1>
+            <!-- 面试官和面试记录卡片 -->
+            <el-row :gutter="20" style="margin: 20px 0;">
+              <!-- 面试官卡片列表 -->
+              <el-col :span="24" v-for="(interviewer, index) in article.interviewerList" :key="'interviewer-' + index">
+                <el-card shadow="hover" :style="{ marginBottom: '20px' }">
+                  <el-row type="flex" align="middle">
+                    <el-col :span="4">
+                      <el-avatar :size="64" :src="interviewer.avatarUrl || 'https://static.rymcu.com/article/1578475481946.png'"></el-avatar>
+                    </el-col>
+                    <el-col :span="16">
+                      <h3>{{ interviewer.name || '暂无面试官名称' }}</h3>
+                      <p>{{ interviewer.title || '暂无面试官信息' }}</p>
+                    </el-col>
+                    <el-col :span="4" style="text-align: right;">
+                      <el-button type="primary" size="small" @click="getInterviewer(interviewer.id)">获取面试官</el-button>
+                    </el-col>
+                  </el-row>
+                </el-card>
+              </el-col>
+              <!-- 面试记录卡片列表 -->
+              <el-col :span="24" v-for="(interview, index) in article.chatRecordsList" :key="'interview-' + index">
+                <el-card shadow="hover" :style="{ marginBottom: '20px' }">
+                  <el-row>
+                    <el-col :span="24">
+                      <h4>面试记录 #{{ index + 1 }}</h4>
+                      <p class="interview-desc">{{ interview.description || '暂无面试记录描述' }}</p>
+                      <p class="interviewer-name">面试官：{{ interview.interviewerName || '暂无面试官' }}</p>
+                    </el-col>
+                    <el-col :span="24" style="text-align: right; margin-top: 10px;">
+                      <el-button size="small" @click="viewInterviewDetail(interview.id)">查看详情</el-button>
+                      <el-button type="primary" size="small" @click="getInterview(interview.id)">获取面试记录</el-button>
+                    </el-col>
+                  </el-row>
+                </el-card>
+              </el-col>
+            </el-row>
             <el-row class="pt-5">
               <el-col :xs="3" :sm="1" :xl="1">
                 <el-avatar v-if="article.articleAuthorAvatarUrl" :src="article.articleAuthorAvatarUrl"></el-avatar>
@@ -161,12 +197,12 @@
 
 <script>
 import Vue from 'vue';
-import {mapState} from 'vuex';
+import { mapState } from 'vuex';
 import ShareBox from '~/components/widget/share';
 import PortfoliosWidget from '~/components/widget/portfolios';
 import EditTags from '~/components/widget/tags';
 import 'vditor/dist/css/content-theme/light.css';
-import {buymeacoffee} from "simple-icons"
+import { buymeacoffee } from "simple-icons"
 import apiConfig from '~/config/api.config';
 
 export default {
@@ -176,15 +212,15 @@ export default {
     PortfoliosWidget,
     EditTags
   },
-  validate({params, store}) {
+  validate({ params, store }) {
     return params.article_id && !isNaN(Number(params.article_id))
   },
   fetch() {
-    let {store, params, error} = this.$nuxt.context
+    let { store, params, error } = this.$nuxt.context
     return Promise.all([
       store
         .dispatch('article/fetchDetail', params)
-        .catch(err => error({statusCode: 404}))
+        .catch(err => error({ statusCode: 404 }))
     ])
   },
   computed: {
@@ -331,7 +367,7 @@ export default {
         _ts.gotoLogin();
       }
     },
-   setPreference() {
+    setPreference() {
       let _ts = this;
       _ts.$axios.$patch("/api/admin/article/update-perfect", {
         idArticle: _ts.article.idArticle,
@@ -366,7 +402,7 @@ export default {
       }).then(function (res) {
         if (res) {
           _ts.$message.success("点赞成功");
-          _ts.$store.dispatch('article/updateThumbsUpCount', {thumbsUpNumber: res})
+          _ts.$store.dispatch('article/updateThumbsUpCount', { thumbsUpNumber: res })
         }
       })
     },
@@ -378,10 +414,46 @@ export default {
       }).then(function (res) {
         if (res) {
           _ts.$message.success('赞赏成功');
-          _ts.$store.dispatch('article/updateSponsorCount', {sponsorNumber: 1})
+          _ts.$store.dispatch('article/updateSponsorCount', { sponsorNumber: 1 })
         }
       })
     },
+    // 获取分享的面试官信息
+    async getInterviewer(interviewerId) {
+      try {
+        await this.$axios.$post(`/api/article/${this.article.idArticle}/interviewer/${interviewerId}/get`)
+        this.$message.success('获取面试官成功')
+        // 刷新文章数据
+        await this.getArticle()
+      } catch (err) {
+        this.$message.error(err.response?.data?.message || '获取面试官失败')
+      }
+    },
+
+    // 获取面试记录
+    async getInterview(interviewId) {
+      try {
+        await this.$axios.$post(`/api/article/${this.article.idArticle}/interview/${interviewId}/get`)
+        this.$message.success('获取面试记录成功')
+        // 刷新文章数据
+        await this.getArticle()
+      } catch (err) {
+        this.$message.error(err.response?.data?.message || '获取面试记录失败')
+      }
+    },
+
+    // 查看面试详情
+    viewInterviewDetail(interviewId) {
+      this.$router.push({
+        path: `/interview/${interviewId}/detail`
+      })
+    },
+
+    // 刷新文章数据
+    async getArticle() {
+      await this.$store.dispatch('article/fetchDetail', this.$route.params)
+    },
+
     isFollower(idUser) {
       return this.$store.getters["follow/isFollower"](idUser)
     }
@@ -400,7 +472,7 @@ export default {
         "style": "github"
       }, previewElement, apiConfig.VDITOR);
       Vue.VditorPreview.mathRender(previewElement, {
-        math: {"engine": "KaTeX", "inlineDigit": false, "macros": {}}, cdn: apiConfig.VDITOR
+        math: { "engine": "KaTeX", "inlineDigit": false, "macros": {} }, cdn: apiConfig.VDITOR
       });
       Vue.VditorPreview.mermaidRender(previewElement, apiConfig.VDITOR);
       Vue.VditorPreview.graphvizRender(previewElement, apiConfig.VDITOR);
@@ -417,13 +489,23 @@ export default {
       });
       _ts.$set(_ts, 'isPerfect', _ts.article.articlePerfect === '1')
     })
+    console.log(_ts.article);
   }
 
 }
 </script>
 
-<style lang="less">
-@import "~vditor/src/assets/less/index.less";
+<style lang="css">
+.interview-desc {
+  margin: 10px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.interviewer-name {
+  color: #999;
+  font-size: 12px;
+}
 
 .article__wrapper {
   max-width: 980px;
@@ -432,5 +514,31 @@ export default {
   padding-left: 1rem;
   padding-right: 1rem;
   box-sizing: border-box;
+}
+
+.interview-stat {
+  padding: 10px;
+  text-align: center;
+
+  h4 {
+    color: #606266;
+    font-size: 14px;
+    margin: 0 0 5px 0;
+  }
+
+  p {
+    color: #303133;
+    font-size: 16px;
+    margin: 0;
+    word-break: break-all;
+  }
+}
+
+.clearfix {
+  &:after {
+    content: '';
+    display: table;
+    clear: both;
+  }
 }
 </style>
