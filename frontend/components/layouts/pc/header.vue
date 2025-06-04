@@ -72,7 +72,7 @@
       </el-menu>
     </el-col>
 
-    <el-col :md="10" :span="10" :xs="16" style="margin-top: 12px">
+    <el-col :md="10" :span="10" :xs="16" style="margin-top: 12px; position: relative;">
       <client-only>
         <el-col style="text-align: right;" v-if="loggedIn">
           <el-popover
@@ -667,7 +667,7 @@ export default {
   align-items: center;
   font-size: 15px;
   color: #606266;
-}
+  }
 
 .view-all-item {
   padding: 8px 24px;
@@ -796,5 +796,51 @@ export default {
   padding: 0 24px !important;
   height: 60px !important;
   line-height: 60px !important;
+}
+
+/* 响应式布局调整 */
+@media screen and (max-width: 768px) {
+  .modern-nav-link, .modern-auth-link {
+    padding: 5px 10px;
+    margin: 0 3px;
+    font-size: 14px;
+  }
+  
+  .modern-icon-btn {
+    margin-right: 5px;
+  }
+  
+  .el-col[style*="text-align: right"] {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+}
+
+/* 超小屏幕适配 */
+@media screen and (max-width: 576px) {
+  .navbar-brand-img {
+    margin-left: 10px;
+  }
+  
+  .modern-nav-link, .modern-auth-link {
+    padding: 5px 8px;
+    margin: 0 2px;
+    font-size: 13px;
+  }
+  
+  .el-col[style*="text-align: right"] {
+    position: fixed;
+    top: 0;
+    right: 0;
+    padding: 10px;
+    background: white;
+    z-index: 1000;
+  }
+  
+  .modern-icon-btn {
+    transform: scale(0.9);
+  }
 }
 </style>
