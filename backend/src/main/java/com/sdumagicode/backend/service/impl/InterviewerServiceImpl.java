@@ -118,8 +118,10 @@ public class InterviewerServiceImpl implements InterviewerService {
         }
         Interviewer sourceInterviewer = byId.get();
         //创建一份知识库的复制
-        MilvusDatabase milvusDatabase = milvusService.deepCopy(sourceInterviewer.getKnowledgeBaseId(), userId);
-        interviewer.setKnowledgeBaseId(milvusDatabase.getKnowledgeBaseId());
+        if(sourceInterviewer.getKnowledgeBaseId() != null && !sourceInterviewer.getKnowledgeBaseId().isEmpty()){
+            MilvusDatabase milvusDatabase = milvusService.deepCopy(sourceInterviewer.getKnowledgeBaseId(), userId);
+            interviewer.setKnowledgeBaseId(milvusDatabase.getKnowledgeBaseId());
+        }
         interviewer.setUserId(userId);
         if(userId == 2L){
             interviewer.setName(sourceInterviewer.getName());

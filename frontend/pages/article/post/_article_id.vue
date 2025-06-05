@@ -355,7 +355,7 @@ export default {
               settingsList: null
             },
             branch: null,
-            chatId: id,
+            chatId: Number(id),
             userId: null,
             interviewerId: interview ? interview.interviewerId : null,
             createdAt: null,
@@ -422,7 +422,7 @@ export default {
               settingsList: null
             },
             branch: null,
-            chatId: id,
+            chatId: Number(id),
             userId: null,
             interviewerId: interview ? interview.interviewerId : null,
             createdAt: null,

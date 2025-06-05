@@ -19,19 +19,23 @@
             </div>
           </el-card>
         </div>
-        
+
         <div class="message-content-wrapper">
           <div class="message-content">
             <div v-if="!message.editing">
               <!-- AI消息加载状态 -->
-              <div v-if="message.role === 'assistant' && isAiThinking && !isAiMcp && message.content.text === ''" 
-                   class="thinking-indicator">
-                <div class="blue-spinner"><div class="spinner"></div></div>
+              <div v-if="message.role === 'assistant' && isAiThinking && !isAiMcp && message.content.text === ''"
+                class="thinking-indicator">
+                <div class="blue-spinner">
+                  <div class="spinner"></div>
+                </div>
                 <span>思考中...</span>
               </div>
-              <div v-if="message.role === 'assistant' && isAiMcp && message.content.text === ''" 
-                   class="thinking-indicator">
-                <div class="blue-spinner"><div class="spinner"></div></div>
+              <div v-if="message.role === 'assistant' && isAiMcp && message.content.text === ''"
+                class="thinking-indicator">
+                <div class="blue-spinner">
+                  <div class="spinner"></div>
+                </div>
                 <span>工具调用中...</span>
               </div>
               <div v-else class="message-text" v-html="renderMarkdown(message.content.text, message.role)"></div>
@@ -104,11 +108,12 @@
       </div>
 
       <div class="input-tools">
-        <el-button type="text" icon="el-icon-upload" @click="showUploadDialog" title="上传文件">
-          <span class="button-text">上传文件</span>
+        <el-button type="text" icon="el-icon-upload" @click="showUploadDialog" title="上传文件" :disabled="!chatRecordId">
+          <span class="button-text" :class="{ 'disabled-text': !chatRecordId }">上传文件</span>
         </el-button>
-        <el-button type="text" icon="el-icon-microphone" @click="startVoiceInput" title="语音输入">
-          <span class="button-text">语音输入</span>
+        <el-button type="text" icon="el-icon-microphone" @click="startVoiceInput" title="语音输入"
+          :disabled="!chatRecordId">
+          <span class="button-text" :class="{ 'disabled-text': !chatRecordId }">语音输入</span>
         </el-button>
       </div>
 
@@ -116,7 +121,8 @@
         <el-input type="textarea" :rows="3" placeholder="请输入您的问题..." v-model="inputMessage"
           @keyup.enter.native="handleKeyEnter" class="message-input"></el-input>
         <el-button type="primary" @click="sendMessageWithPolling()"
-          :disabled="(!inputMessage.trim() && processedFiles.length === 0) || isLoading" class="send-button">
+          :disabled="(!inputMessage.trim() && processedFiles.length === 0) || isLoading || !chatRecordId"
+          class="send-button">
           <i class="el-icon-s-promotion"></i>
           <span v-if="!isLoading">发送</span>
           <span v-else>发送中...</span>
@@ -232,7 +238,7 @@ export default {
               this.initialBranchId = null; // 重置 initialBranchId，避免重复处理
               this.$emit('branch-loaded'); // 发出事件通知父组件
               await this.sendMessageWithPolling("用户已返回");
-              
+
             } else {
               console.warn(`Branch with id ${this.initialBranchId} not found after loading messages.`);
               // 如果找不到分支，可以考虑回退到默认行为或显示提示
@@ -260,8 +266,13 @@ export default {
     renderMarkdown(text, role) {
       if (role === 'assistant') {
         const rendered = this.md.render(text || '');
-        // 添加样式类名
-        return `<div class="markdown-body">${rendered}</div>`;
+        // 直接替换标签，添加内联样式
+        const styledContent = rendered
+          .replace(/<ul>/g, '<ul style="margin: 0px 0; padding-left: 20px;padding-top:0px;padding-bottom:0px;">')
+          .replace(/<ol>/g, '<ol style="margin: 0px 0; padding-left: 20px;padding-top:0px;padding-bottom:0px;">')
+          .replace(/<li>/g, '<li style="margin: 0px 0; padding: 0; line-height: 1.0;">')
+          .replace(/<p>/g, '<p style="margin: 0px 0;padding-top:0px;padding-bottom:0px;">');
+        return `<div class="markdown-body">${styledContent}</div>`;
       }
       return text;
     },
@@ -302,7 +313,7 @@ export default {
         case 'aac':
         case 'm4a':
           return 'el-icon-headset';
-        
+
         // 视频文件
         case 'mp4':
         case 'avi':
@@ -312,7 +323,7 @@ export default {
         case 'flv':
         case 'webm':
           return 'el-icon-video-camera';
-        
+
         // 文档文件
         case 'pdf':
           return 'el-icon-document';
@@ -330,7 +341,7 @@ export default {
         case 'md':
         case 'rtf':
           return 'el-icon-document-text';
-        
+
         // 图片文件
         case 'jpg':
         case 'jpeg':
@@ -342,7 +353,7 @@ export default {
         case 'tiff':
         case 'ico':
           return 'el-icon-picture';
-        
+
         // 压缩文件
         case 'zip':
         case 'rar':
@@ -350,7 +361,7 @@ export default {
         case 'tar':
         case 'gz':
           return 'el-icon-folder-checked';
-        
+
         // 代码文件
         case 'js':
         case 'ts':
@@ -373,7 +384,7 @@ export default {
         case 'go':
         case 'sql':
           return 'el-icon-tickets';
-        
+
         // 默认图标
         default:
           return 'el-icon-document';
@@ -1006,7 +1017,7 @@ export default {
               if (msg.finish === "stop") {
                 shouldStop = true;
               }
-              
+
               // 解析AI思考过程
               if (msg.thoughts) {
                 try {
@@ -1014,7 +1025,7 @@ export default {
                   const thoughtMatch = msg.thoughts.match(/thought=(.*?),\s*actionType=(.*?),/);
                   if (thoughtMatch) {
                     const [_, thoughts, actionType] = thoughtMatch;
-                    
+
                     // 如果是mcp类型的action,设置isAiMcp为true
                     if (actionType === 'mcp') {
                       this.isAiMcp = true;
@@ -1382,11 +1393,11 @@ export default {
         analyser.fftSize = 2048;
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
-        
+
         // 创建音频源
         const source = audioContext.createMediaStreamSource(stream);
         source.connect(analyser);
-        
+
         // 创建停止录音按钮
         const h = this.$createElement;
         this.recordingMessageBox = this.$msgbox({
@@ -1398,7 +1409,7 @@ export default {
               h('span', { class: 'recording-timer', ref: 'timer' }, '00:00')
             ]),
             // 添加波形图canvas
-            h('canvas', { 
+            h('canvas', {
               style: 'width: 100%; height: 80px; background-color: #f5f5f5; margin-top: 10px;',
               class: 'waveform-canvas',
               ref: 'waveformCanvas'
@@ -1428,7 +1439,7 @@ export default {
             done();
           }
         });
-        
+
         // 在下一个事件循环中获取canvas元素并开始绘制波形
         this.$nextTick(() => {
           const canvas = document.querySelector('.waveform-canvas');
@@ -1436,21 +1447,21 @@ export default {
             const canvasCtx = canvas.getContext('2d');
             const width = canvas.width;
             const height = canvas.height;
-            
+
             // 创建波形数据缓冲区，用于存储历史波形数据
             const waveformHistory = [];
             // 设置要显示的数据点数量
             const displayPoints = 100;
             // 每次从分析器获取的数据中抽样的点数
             const samplePoints = 10;
-            
+
             // 绘制波形函数 - 从右向左推进（使用垂直线条）
             const drawWaveform = () => {
               this.animationFrame = requestAnimationFrame(drawWaveform);
-              
+
               // 获取音频数据
               analyser.getByteTimeDomainData(dataArray);
-              
+
               // 计算当前音频数据的平均振幅
               let sum = 0;
               for (let i = 0; i < bufferLength; i++) {
@@ -1459,41 +1470,41 @@ export default {
                 sum += Math.abs(amplitude);
               }
               const averageAmplitude = sum / bufferLength;
-              
+
               // 将平均振幅添加到历史记录的开头（新数据在左侧）
-               waveformHistory.unshift(averageAmplitude);
-               
-               // 如果历史记录过长，则移除最早的数据点（右侧）
-               while (waveformHistory.length > displayPoints) {
-                 waveformHistory.pop();
-               }
-              
+              waveformHistory.unshift(averageAmplitude);
+
+              // 如果历史记录过长，则移除最早的数据点（右侧）
+              while (waveformHistory.length > displayPoints) {
+                waveformHistory.pop();
+              }
+
               // 清除画布
               canvasCtx.fillStyle = '#f5f5f5';
               canvasCtx.fillRect(0, 0, width, height);
-              
+
               // 设置线条样式
               canvasCtx.lineWidth = 2;
               canvasCtx.strokeStyle = '#409EFF';
-              
+
               // 计算每个线条的宽度
               const barWidth = width / displayPoints;
               const barSpacing = 2; // 线条之间的间距
               const actualBarWidth = barWidth - barSpacing;
-              
+
               // 绘制垂直线条（从左向右）
-               for (let i = 0; i < waveformHistory.length; i++) {
-                 // 计算x坐标，使最新的数据在最左侧
-                 const x = i * barWidth;
-                
+              for (let i = 0; i < waveformHistory.length; i++) {
+                // 计算x坐标，使最新的数据在最左侧
+                const x = i * barWidth;
+
                 // 计算线条高度（基于振幅）
                 const amplitude = waveformHistory[i];
                 const barHeight = Math.max(2, amplitude * height * 0.8); // 最小高度为2像素
-                
+
                 // 计算线条的起点和终点（垂直居中）
                 const startY = (height - barHeight) / 2;
                 const endY = startY + barHeight;
-                
+
                 // 绘制垂直线条
                 canvasCtx.beginPath();
                 canvasCtx.moveTo(x, startY);
@@ -1501,7 +1512,7 @@ export default {
                 canvasCtx.stroke();
               }
             };
-            
+
             // 开始绘制波形
             drawWaveform();
           }
@@ -1560,10 +1571,36 @@ export default {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
 }
+<<<<<<< HEAD
+=======
+
+.thinking-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #909399;
+}
+
+.el-icon-loading {
+  animation: rotating 2s linear infinite;
+}
+
+@keyframes rotating {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+>>>>>>> 858f56d711fc7c1bdb4fb1c3da0980d19f60dec7
 .right-chat-area {
   flex: 1;
   display: flex;
@@ -2105,6 +2142,7 @@ export default {
   font-weight: bold;
   color: #409eff;
 }
+
 /* 蓝色转圈加载器 */
 .blue-spinner {
   display: inline-block;
@@ -2130,6 +2168,7 @@ export default {
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
@@ -2153,6 +2192,7 @@ export default {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
