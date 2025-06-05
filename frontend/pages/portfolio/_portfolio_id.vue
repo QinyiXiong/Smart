@@ -36,9 +36,9 @@
             <el-col style="margin-bottom: .5rem;font-size: 14px;" v-html="portfolio.portfolioDescription"></el-col>
           </el-col>
           <el-col :span="22">
-            <el-col v-if="isAuthor" style="margin-top: .5rem;text-align: right;">
+            <!-- <el-col v-if="isAuthor" style="margin-top: .5rem;text-align: right;">
               <el-button @click="managerPortfolio(portfolio.idPortfolio)" plain>管理</el-button>
-            </el-col>
+            </el-col> -->
           </el-col>
         </el-col>
       </el-card>
@@ -186,7 +186,7 @@ export default {
       this._fetchingImage = true;
       try {
         const response = await this.$axios.$get(
-          `/api/portfolio/images/${this.portfolio.idPortfolio}/base64`,
+          `/api/portfolio/image/${this.portfolio.idPortfolio}/base64`,
           { responseType: 'text' }
         );
         this.imgUrl = response;
