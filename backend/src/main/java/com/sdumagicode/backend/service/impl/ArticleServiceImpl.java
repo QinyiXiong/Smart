@@ -509,14 +509,18 @@ public class ArticleServiceImpl extends AbstractService<Article> implements Arti
     }
 
     private List<ChatRecordsDto> genChatRecords(ArticleDTO articleDTO){
-        List<ChatRecordsDto> chatRecordsList = articleDTO.getChatRecordsList();
+        // 从ShareReferenceMapper获取文章关联的聊天记录ID
+        List<ShareReference> chatReferences = shareReferenceMapper.selectShareReferencesByArticleId(articleDTO.getIdArticle())
+                .stream()
+                .filter(ref -> ref.getType() != null && ref.getType() == 0 && ref.getChatId() != null)
+                .collect(Collectors.toList());
         
-        if (chatRecordsList == null || chatRecordsList.isEmpty()) {
+        if (chatReferences.isEmpty()) {
             return new ArrayList<>();
         }
 
-        return chatRecordsList.stream().map(dto -> {
-            Long chatId = dto.getChatId();
+        return chatReferences.stream().map(reference -> {
+            Long chatId = reference.getChatId();
             if (chatId == null) {
                 return null;
             }
@@ -557,14 +561,18 @@ public class ArticleServiceImpl extends AbstractService<Article> implements Arti
      * @return 包装后的面试官列表
      */
     private List<Interviewer> genInterviewer(ArticleDTO articleDTO) {
-        List<Interviewer> interviewerList = articleDTO.getInterviewerList();
+        // 从ShareReferenceMapper获取文章关联的面试官ID
+        List<ShareReference> interviewerReferences = shareReferenceMapper.selectShareReferencesByArticleId(articleDTO.getIdArticle())
+                .stream()
+                .filter(ref -> ref.getType() != null && ref.getType() == 1 && ref.getInterviewerId() != null)
+                .collect(Collectors.toList());
         
-        if (interviewerList == null || interviewerList.isEmpty()) {
+        if (interviewerReferences.isEmpty()) {
             return new ArrayList<>();
         }
         
-        return interviewerList.stream().map(interviewer -> {
-            String interviewerId = interviewer.getInterviewerId();
+        return interviewerReferences.stream().map(reference -> {
+            String interviewerId = reference.getInterviewerId();
             if (interviewerId == null || interviewerId.isEmpty()) {
                 return null;
             }
