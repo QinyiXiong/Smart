@@ -22,6 +22,7 @@ export default {
     BASE: apiConfig.BASE,
     HOST_URL: apiConfig.SOCKET
   },
+  loading: false,
   cache: {
     max: 100,
     maxAge: 1000 * 60 * 15
@@ -46,7 +47,8 @@ export default {
   ** Global CSS
   */
   css: [
-    'element-ui/lib/theme-chalk/index.css'
+    'element-ui/lib/theme-chalk/index.css',
+    '~/assets/css/global.css'
   ],
   /*
   ** Plugins to load before mounting the App

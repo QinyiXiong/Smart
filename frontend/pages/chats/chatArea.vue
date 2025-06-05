@@ -1564,25 +1564,6 @@ export default {
     transform: rotate(360deg);
   }
 }
-.thinking-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #909399;
-}
-
-.el-icon-loading {
-  animation: rotating 2s linear infinite;
-}
-
-@keyframes rotating {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
 .right-chat-area {
   flex: 1;
   display: flex;
@@ -1609,6 +1590,29 @@ export default {
   padding: 20px;
   overflow-y: auto;
   background-color: #f9fafc;
+  /* 美化滚动条样式 */
+  scrollbar-width: thin;  /* Firefox */
+  scrollbar-color: rgba(144, 147, 153, 0.3) transparent;  /* Firefox */
+}
+
+/* WebKit浏览器的滚动条样式 (Chrome, Edge, Safari) */
+.chat-messages::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background: rgba(144, 147, 153, 0.3);
+  border-radius: 10px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background: rgba(144, 147, 153, 0.5);
 }
 
 .message {
@@ -1994,6 +1998,28 @@ export default {
   margin: 0;
   max-height: 200px;
   overflow-y: auto;
+  /* 美化滚动条样式 */
+  scrollbar-width: thin;  /* Firefox */
+  scrollbar-color: rgba(144, 147, 153, 0.3) transparent;  /* Firefox */
+}
+
+.selected-files ul::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.selected-files ul::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 10px;
+}
+
+.selected-files ul::-webkit-scrollbar-thumb {
+  background: rgba(144, 147, 153, 0.3);
+  border-radius: 10px;
+}
+
+.selected-files ul::-webkit-scrollbar-thumb:hover {
+  background: rgba(144, 147, 153, 0.5);
 }
 
 .selected-files li {
