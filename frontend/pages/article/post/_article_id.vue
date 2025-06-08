@@ -100,31 +100,41 @@
                   <el-badge :value="selectedInterviewers.length" :hidden="selectedInterviewers.length === 0" class="item-badge">
                   </el-badge>
                 </div>
-                <el-select
-                  v-model="selectedInterviewers"
-                  multiple
-                  filterable
-                  placeholder="选择相关面试官..."
-                  :loading="interviewersLoading"
-                  class="enhanced-select interviewer-select"
-                  size="large">
-                  <el-option
-                    v-for="item in interviewersList"
-                    :key="item.interviewerId"
-                    :label="item.name"
-                    :value="item.interviewerId"
-                    class="interviewer-option">
-                    <div class="option-content">
-                      <div class="option-avatar">
-                        <i class="el-icon-user-solid"></i>
+                <div class="interviewer-list-container">
+                  <div class="search-box">
+                    <el-input
+                      v-model="interviewerSearchQuery"
+                      placeholder="搜索面试官..."
+                      prefix-icon="el-icon-search"
+                      clearable
+                      size="small">
+                    </el-input>
+                  </div>
+                  <el-scrollbar class="list-scrollbar">
+                    <div class="list-container" v-loading="interviewersLoading">
+                      <div 
+                        v-for="item in filteredInterviewers" 
+                        :key="item.interviewerId"
+                        class="list-item"
+                        :class="{ 'is-selected': selectedInterviewers.includes(item.interviewerId) }"
+                        @click="toggleInterviewer(item.interviewerId)">
+                        <div class="item-avatar">
+                          <i class="el-icon-user-solid"></i>
+                        </div>
+                        <div class="item-info">
+                          <span class="item-name">{{ item.name }}</span>
+                        </div>
+                        <div class="item-action" v-if="selectedInterviewers.includes(item.interviewerId)">
+                          <i class="el-icon-check"></i>
+                        </div>
                       </div>
-                      <div class="option-info">
-                        <span class="option-name">{{ item.name }}</span>
-                        <span class="option-id">ID: {{ item.interviewerId }}</span>
+                      <div v-if="filteredInterviewers.length === 0 && !interviewersLoading" class="empty-list">
+                        <i class="el-icon-warning-outline"></i>
+                        <span>{{ interviewerSearchQuery ? '未找到匹配的面试官' : '暂无面试官数据' }}</span>
                       </div>
                     </div>
-                  </el-option>
-                </el-select>
+                  </el-scrollbar>
+                </div>
                 <div class="selected-items" v-if="selectedInterviewers.length > 0">
                   <el-tag
                     v-for="interviewerId in selectedInterviewers"
@@ -150,31 +160,41 @@
                   <el-badge :value="selectedInterviews.length" :hidden="selectedInterviews.length === 0" class="item-badge">
                   </el-badge>
                 </div>
-                <el-select
-                  v-model="selectedInterviews"
-                  multiple
-                  filterable
-                  placeholder="选择相关面试记录..."
-                  :loading="interviewsLoading"
-                  class="enhanced-select interview-select"
-                  size="large">
-                  <el-option
-                    v-for="item in interviewsList"
-                    :key="item.chatId"
-                    :label="item.topic"
-                    :value="item.chatId"
-                    class="interview-option">
-                    <div class="option-content">
-                      <div class="option-avatar record-avatar">
-                        <i class="el-icon-chat-dot-round"></i>
+                <div class="interview-list-container">
+                  <div class="search-box">
+                    <el-input
+                      v-model="interviewSearchQuery"
+                      placeholder="搜索面试记录..."
+                      prefix-icon="el-icon-search"
+                      clearable
+                      size="small">
+                    </el-input>
+                  </div>
+                  <el-scrollbar class="list-scrollbar">
+                    <div class="list-container" v-loading="interviewsLoading">
+                      <div 
+                        v-for="item in filteredInterviews" 
+                        :key="item.chatId"
+                        class="list-item"
+                        :class="{ 'is-selected': selectedInterviews.includes(item.chatId) }"
+                        @click="toggleInterview(item.chatId)">
+                        <div class="item-avatar interview-avatar">
+                          <i class="el-icon-chat-dot-round"></i>
+                        </div>
+                        <div class="item-info">
+                          <span class="item-name">{{ item.topic }}</span>
+                        </div>
+                        <div class="item-action" v-if="selectedInterviews.includes(item.chatId)">
+                          <i class="el-icon-check"></i>
+                        </div>
                       </div>
-                      <div class="option-info">
-                        <span class="option-name">{{ item.topic }}</span>
-                        <span class="option-id">记录ID: {{ item.chatId }}</span>
+                      <div v-if="filteredInterviews.length === 0 && !interviewsLoading" class="empty-list">
+                        <i class="el-icon-warning-outline"></i>
+                        <span>{{ interviewSearchQuery ? '未找到匹配的面试记录' : '暂无面试记录数据' }}</span>
                       </div>
                     </div>
-                  </el-option>
-                </el-select>
+                  </el-scrollbar>
+                </div>
                 <div class="selected-items" v-if="selectedInterviews.length > 0">
                   <el-tag
                     v-for="chatId in selectedInterviews"
@@ -322,6 +342,26 @@ export default {
         }
       }
       return this.$auth.hasScope('blog_admin') || this.$auth.hasScope('admin');
+    },
+    // 过滤面试官列表
+    filteredInterviewers() {
+      if (!this.interviewerSearchQuery) {
+        return this.interviewersList;
+      }
+      const query = this.interviewerSearchQuery.toLowerCase();
+      return this.interviewersList.filter(item => 
+        item.name.toLowerCase().includes(query)
+      );
+    },
+    // 过滤面试记录列表
+    filteredInterviews() {
+      if (!this.interviewSearchQuery) {
+        return this.interviewsList;
+      }
+      const query = this.interviewSearchQuery.toLowerCase();
+      return this.interviewsList.filter(item => 
+        item.topic.toLowerCase().includes(query)
+      );
     }
   },
   data() {
@@ -348,10 +388,12 @@ export default {
       selectedInterviewers: [],
       interviewersList: [],
       interviewersLoading: false,
+      interviewerSearchQuery: '', // 面试官搜索关键词
       // 面试记录相关数据
       selectedInterviews: [],
       interviewsList: [],
-      interviewsLoading: false
+      interviewsLoading: false,
+      interviewSearchQuery: '' // 面试记录搜索关键词
     }
   },
   methods: {
@@ -474,6 +516,24 @@ export default {
         this.selectedInterviews.splice(index, 1);
       }
     },
+    // 切换面试官选择状态
+    toggleInterviewer(interviewerId) {
+      const index = this.selectedInterviewers.indexOf(interviewerId);
+      if (index > -1) {
+        this.selectedInterviewers.splice(index, 1);
+      } else {
+        this.selectedInterviewers.push(interviewerId);
+      }
+    },
+    // 切换面试记录选择状态
+    toggleInterview(chatId) {
+      const index = this.selectedInterviews.indexOf(chatId);
+      if (index > -1) {
+        this.selectedInterviews.splice(index, 1);
+      } else {
+        this.selectedInterviews.push(chatId);
+      }
+    },
     getInterviewerName(interviewerId) {
       const interviewer = this.interviewersList.find(item => item.interviewerId === interviewerId);
       return interviewer ? interviewer.name : `面试官-${interviewerId}`;
@@ -483,7 +543,6 @@ export default {
       return interview ? interview.topic : `记录-${chatId}`;
     },
 
-    // 保持原有的其他方法
     setLocalstorage(type) {
       if (typeof arguments[0] === 'object') {
         localStorage.setItem('articleTags', arguments[1]);
@@ -935,7 +994,7 @@ export default {
           font-size: 14px;
         }
         
-        &.record-avatar {
+        &.interview-avatar {
           background: linear-gradient(135deg, @warning-color, #ffd666);
         }
       }
@@ -1000,10 +1059,13 @@ export default {
       transition: @transition;
       height: 100%;
       
+      /* 移除卡片悬停效果 */
+      /*
       &:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
       }
+      */
       
       .card-header {
         display: flex;
@@ -1028,6 +1090,113 @@ export default {
           .el-badge__content {
             background-color: @primary-color;
             border: none;
+          }
+        }
+      }
+      
+      // 新增列表容器样式
+      .interviewer-list-container,
+      .interview-list-container {
+        margin-bottom: 16px;
+        border: 1px solid #e4e7ed;
+        border-radius: @border-radius;
+        overflow: hidden;
+        
+        .search-box {
+          padding: 8px;
+          background-color: #f5f7fa;
+          border-bottom: 1px solid #e4e7ed;
+          
+          .el-input__inner {
+            border-radius: 4px;
+            height: 32px;
+          }
+        }
+        
+        .list-scrollbar {
+          height: 240px;
+          
+          .el-scrollbar__wrap {
+            overflow-x: hidden;
+          }
+          
+          .list-container {
+            padding: 8px 0;
+            
+            .list-item {
+              display: flex;
+              align-items: center;
+              padding: 10px 16px;
+              cursor: pointer;
+              transition: @transition;
+              
+              /* 移除悬停效果 */
+              /*
+              &:hover {
+                background-color: #f5f7fa;
+              }
+              */
+              
+              &.is-selected {
+                background-color: #ecf5ff;
+              }
+              
+              .item-avatar {
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                background: linear-gradient(135deg, @primary-color, #36cfc9);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-right: 12px;
+                
+                i {
+                  color: white;
+                  font-size: 14px;
+                }
+                
+                &.interview-avatar {
+                  background: linear-gradient(135deg, @warning-color, #ffd666);
+                }
+              }
+              
+              .item-info {
+                flex: 1;
+                
+                .item-name {
+                  font-size: 14px;
+                  font-weight: 500;
+                  color: #303133;
+                  white-space: nowrap;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                }
+              }
+              
+              .item-action {
+                color: @primary-color;
+                font-size: 16px;
+              }
+            }
+            
+            .empty-list {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              padding: 40px 0;
+              color: #909399;
+              
+              i {
+                font-size: 24px;
+                margin-bottom: 8px;
+              }
+              
+              span {
+                font-size: 14px;
+              }
+            }
           }
         }
       }
