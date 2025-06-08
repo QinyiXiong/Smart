@@ -1,7 +1,7 @@
 {
-  "name": "mcp-for-interview-resume",
-  "version": "1.0.8",
-  "description": "init",
+  "name": "mcp-for-interview-resume-ty",
+  "version": "1.0.1",
+  "description": "去除多余依赖",
   "type": "module",
   "bin": {
     "mcp-for-interview-resume": "build/mcp-server.js"
@@ -23,7 +23,7 @@
     "@modelcontextprotocol/sdk": "^1.7.0",
     "axios": "^1.9.0",
     "dotenv": "^16.4.7",
-    "mongodb": "^6.16.0",
+  
     "mysql2": "^3.11.5",
     "node-fetch": "^3.3.2",
     "redis": "^4.7.1",

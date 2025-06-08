@@ -1,6 +1,6 @@
 {
-  "name": "mcp-server-for-smart-interview-mock-problem-selector",
-  "version": "1.0.5",
+  "name": "mcp-server-for-smart-interview-mock-problem-selector-ty",
+  "version": "1.0.0",
   "description": "测试mcp服务发布",
   "type": "module",
   "bin": {
@@ -23,7 +23,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.7.0",
     "dotenv": "^16.4.7",
-    "mongodb": "^6.16.0",
+   "mongodb": "^5.8.1",
     "mysql2": "^3.11.5",
     "node-fetch": "^3.3.2",
     "redis": "^5.0.1",

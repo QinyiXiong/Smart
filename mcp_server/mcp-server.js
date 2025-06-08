@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-console.log("Hello World!");
+
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -29,7 +29,7 @@ async function initMySQL() {
         connectionLimit: 10,
         queueLimit: 0
     });
-    console.log('MySQL连接池已创建');
+   
 }
 
 // MongoDB初始化
@@ -38,7 +38,7 @@ async function initMongoDB() {
         `mongodb://${process.env.MONGO_USERNAME}:${process.env.MONGO_PASSWORD}@${process.env.MONGO_HOST}:${process.env.MONGO_PORT}/${process.env.MONGO_DATABASE}?authSource=${process.env.MONGO_AUTH_DATABASE}`
     );
     await mongoClient.connect();
-    console.log('MongoDB已连接');
+  
 }
 
 // Redis初始化
@@ -49,7 +49,7 @@ async function initRedis() {
     });
     redisClient.on('error', (err) => console.error('Redis Client Error', err));
     await redisClient.connect();
-    console.log('Redis已连接');
+   
 }
 
 // 获取数据库连接
@@ -73,7 +73,7 @@ async function closeAll() {
     if (mysqlPool) await mysqlPool.end();
     if (redisClient) await redisClient.quit();
     if (mongoClient) await mongoClient.close();
-    console.log('所有数据库连接已关闭');
+    
 }
 
 // 创建MCP服务器
@@ -160,7 +160,7 @@ server.tool(
 // 启动服务器
 async function main() {
     try {
-        console.log("启动模拟面试的MCP服务器...");
+        
         await initMySQL();
         await initMongoDB();
         await initRedis();
@@ -168,7 +168,7 @@ async function main() {
         const transport = new StdioServerTransport();
         await server.connect(transport);
 
-        console.log("MCP服务器已经开始等待连接");
+        
     } catch (error) {
         console.error("启动服务器时出错:", error);
         process.exit(1);

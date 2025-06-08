@@ -1576,8 +1576,6 @@ export default {
     transform: rotate(360deg);
   }
 }
-<<<<<<< HEAD
-=======
 
 .thinking-indicator {
   display: flex;
@@ -1600,7 +1598,6 @@ export default {
   }
 }
 
->>>>>>> 858f56d711fc7c1bdb4fb1c3da0980d19f60dec7
 .right-chat-area {
   flex: 1;
   display: flex;
