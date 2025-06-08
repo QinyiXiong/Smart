@@ -1,91 +1,287 @@
 <template>
   <el-row class="articles">
     <el-col v-if="hasPermissions">
+      <!-- 标题输入区域 -->
       <el-col>
-        <el-input
-          v-model="articleTitle"
-          class="article-title"
-          placeholder="请输入标题"
-          @change="setLocalstorage('title', articleTitle)">
-        </el-input>
+        <div class="input-section">
+          <label class="section-label">
+            <i class="el-icon-edit"></i>
+            文章标题
+          </label>
+          <el-input
+            v-model="articleTitle"
+            class="article-title enhanced-input"
+            placeholder="请输入一个吸引人的标题..."
+            @change="setLocalstorage('title', articleTitle)"
+            size="large">
+          </el-input>
+        </div>
       </el-col>
-      <el-col>
-        <div id="contentEditor"></div>
-      </el-col>
-      <el-col style="margin-top: 1rem;">
-        <el-select
-          style="width: 100%;"
-          v-model="articleTags"
-          multiple
-          filterable
-          allow-create
-          default-first-option
-          remote
-          :remote-method="remoteMethod"
-          placeholder="请选择文章标签"
-          :loading="loading"
-          @change="setLocalstorage('tags', articleTags)">
-          <el-option
-            v-for="item in options"
-            :key="item.value"
-            :label="item.label"
-            :value="item.value">
-          </el-option>
-        </el-select>
-      </el-col>
-      <el-col style="margin-top: 1rem;">
-          <el-select
-            style="width: 100%; margin-bottom: 1rem;"
-            v-model="selectedInterviewers"
-            multiple
-            filterable
-            placeholder="请选择面试官"
-            :loading="interviewersLoading">
-            <el-option
-              v-for="item in interviewersList"
-              :key="item.interviewerId"
-              :label="item.name"
-              :value="item.interviewerId">
-              <span>{{ item.name }}</span>
-            </el-option>
-          </el-select>
 
-          <el-select
-            style="width: 100%; margin-bottom: 1rem;"
-            v-model="selectedInterviews"
-            multiple
-            filterable
-            placeholder="请选择面试记录"
-            :loading="interviewsLoading">
-            <el-option
-              v-for="item in interviewsList"
-              :key="item.chatId"
-              :label="item.topic"
-              :value="item.chatId">
-              <span>{{ item.topic }}</span>
-              <!-- <span style="float: right; color: #8492a6; font-size: 13px">{{ item.topic }}</span> -->
-            </el-option>
-          </el-select>
+      <!-- 标签选择区域 -->
+      <el-col style="margin-top: 2rem;">
+        <div class="input-section">
+          <label class="section-label">
+            <i class="el-icon-price-tag"></i>
+            文章标签
+            <span class="label-desc">选择或创建相关标签，有助于内容分类</span>
+          </label>
+          <div class="tags-container">
+            <el-select
+              v-model="articleTags"
+              multiple
+              filterable
+              allow-create
+              default-first-option
+              remote
+              :remote-method="remoteMethod"
+              placeholder="输入标签名或从推荐中选择..."
+              :loading="loading"
+              @change="setLocalstorage('tags', articleTags)"
+              class="enhanced-select tags-select"
+              size="large">
+              <el-option
+                v-for="item in options"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+                class="tag-option">
+                <span class="tag-label">{{ item.label }}</span>
+              </el-option>
+            </el-select>
+            <div class="selected-tags" v-if="articleTags.length > 0">
+              <el-tag
+                v-for="tag in articleTags"
+                :key="tag"
+                type="primary"
+                size="medium"
+                effect="light"
+                closable
+                @close="removeTag(tag)"
+                class="selected-tag">
+                {{ tag }}
+              </el-tag>
+            </div>
+          </div>
+        </div>
       </el-col>
-      <el-col v-if="!isEdit" style="margin-top: 1rem;padding-right:3rem;text-align: right;">
-        <el-button :loading="doLoading" @click="saveArticle" plain>保存草稿</el-button>
-        <el-button type="primary" :loading="doLoading" @click="postArticle" plain>发布</el-button>
+
+      <!-- 内容编辑器区域 -->
+      <el-col>
+        <div class="input-section">
+          <label class="section-label">
+            <i class="el-icon-document"></i>
+            文章内容
+          </label>
+          <div id="contentEditor" class="content-editor-wrapper"></div>
+        </div>
       </el-col>
-      <el-col v-else style="margin-top: 1rem;padding-right:3rem;text-align: right;">
-        <el-button type="danger" :loading="doLoading" @click="deleteArticle" plain>删除</el-button>
-        <el-button v-if="articleStatus === '1'" :loading="doLoading" @click="saveArticle" plain>保存草稿</el-button>
-        <el-button v-if="articleStatus === '0'" :loading="doLoading" type="primary" @click="postArticle" plain>更新</el-button>
-        <el-button v-else type="primary" :loading="doLoading" @click="postArticle" plain>发布</el-button>
+
+      
+
+      <!-- 面试相关配置区域 -->
+      <el-col style="margin-top: 2rem;">
+        <div class="interview-section">
+          <div class="section-header">
+            <h3 class="section-title">
+              <i class="el-icon-user"></i>
+              面试相关配置
+            </h3>
+            <p class="section-subtitle">关联面试官和面试记录，丰富文章内容</p>
+          </div>
+
+          <el-row :gutter="20">
+            <!-- 面试官选择 -->
+            <el-col :span="12">
+              <div class="interview-card">
+                <div class="card-header">
+                  <i class="el-icon-s-custom card-icon"></i>
+                  <span class="card-title">选择面试官</span>
+                  <el-badge :value="selectedInterviewers.length" :hidden="selectedInterviewers.length === 0" class="item-badge">
+                  </el-badge>
+                </div>
+                <el-select
+                  v-model="selectedInterviewers"
+                  multiple
+                  filterable
+                  placeholder="选择相关面试官..."
+                  :loading="interviewersLoading"
+                  class="enhanced-select interviewer-select"
+                  size="large">
+                  <el-option
+                    v-for="item in interviewersList"
+                    :key="item.interviewerId"
+                    :label="item.name"
+                    :value="item.interviewerId"
+                    class="interviewer-option">
+                    <div class="option-content">
+                      <div class="option-avatar">
+                        <i class="el-icon-user-solid"></i>
+                      </div>
+                      <div class="option-info">
+                        <span class="option-name">{{ item.name }}</span>
+                        <span class="option-id">ID: {{ item.interviewerId }}</span>
+                      </div>
+                    </div>
+                  </el-option>
+                </el-select>
+                <div class="selected-items" v-if="selectedInterviewers.length > 0">
+                  <el-tag
+                    v-for="interviewerId in selectedInterviewers"
+                    :key="interviewerId"
+                    type="success"
+                    size="small"
+                    effect="light"
+                    closable
+                    @close="removeInterviewer(interviewerId)"
+                    class="selected-item-tag">
+                    {{ getInterviewerName(interviewerId) }}
+                  </el-tag>
+                </div>
+              </div>
+            </el-col>
+
+            <!-- 面试记录选择 -->
+            <el-col :span="12">
+              <div class="interview-card">
+                <div class="card-header">
+                  <i class="el-icon-chat-line-square card-icon"></i>
+                  <span class="card-title">选择面试记录</span>
+                  <el-badge :value="selectedInterviews.length" :hidden="selectedInterviews.length === 0" class="item-badge">
+                  </el-badge>
+                </div>
+                <el-select
+                  v-model="selectedInterviews"
+                  multiple
+                  filterable
+                  placeholder="选择相关面试记录..."
+                  :loading="interviewsLoading"
+                  class="enhanced-select interview-select"
+                  size="large">
+                  <el-option
+                    v-for="item in interviewsList"
+                    :key="item.chatId"
+                    :label="item.topic"
+                    :value="item.chatId"
+                    class="interview-option">
+                    <div class="option-content">
+                      <div class="option-avatar record-avatar">
+                        <i class="el-icon-chat-dot-round"></i>
+                      </div>
+                      <div class="option-info">
+                        <span class="option-name">{{ item.topic }}</span>
+                        <span class="option-id">记录ID: {{ item.chatId }}</span>
+                      </div>
+                    </div>
+                  </el-option>
+                </el-select>
+                <div class="selected-items" v-if="selectedInterviews.length > 0">
+                  <el-tag
+                    v-for="chatId in selectedInterviews"
+                    :key="chatId"
+                    type="warning"
+                    size="small"
+                    effect="light"
+                    closable
+                    @close="removeInterview(chatId)"
+                    class="selected-item-tag">
+                    {{ getInterviewTopic(chatId) }}
+                  </el-tag>
+                </div>
+              </div>
+            </el-col>
+          </el-row>
+        </div>
+      </el-col>
+
+      <!-- 操作按钮区域 -->
+      <el-col v-if="!isEdit" style="margin-top: 2rem;">
+        <div class="action-section">
+          <div class="action-buttons">
+            <el-button 
+              :loading="doLoading" 
+              @click="saveArticle" 
+              size="large"
+              class="action-btn draft-btn">
+              <i class="el-icon-document-copy"></i>
+              保存草稿
+            </el-button>
+            <el-button 
+              type="primary" 
+              :loading="doLoading" 
+              @click="postArticle"
+              size="large"
+              class="action-btn publish-btn">
+              <i class="el-icon-position"></i>
+              立即发布
+            </el-button>
+          </div>
+        </div>
+      </el-col>
+
+      <el-col v-else style="margin-top: 2rem;">
+        <div class="action-section">
+          <div class="action-buttons edit-buttons">
+            <el-button 
+              type="danger" 
+              :loading="doLoading" 
+              @click="deleteArticle"
+              size="large"
+              class="action-btn delete-btn">
+              <i class="el-icon-delete"></i>
+              删除文章
+            </el-button>
+            <div class="right-buttons">
+              <el-button 
+                v-if="articleStatus === '1'" 
+                :loading="doLoading" 
+                @click="saveArticle"
+                size="large"
+                class="action-btn draft-btn">
+                <i class="el-icon-document-copy"></i>
+                保存草稿
+              </el-button>
+              <el-button 
+                v-if="articleStatus === '0'" 
+                :loading="doLoading" 
+                type="primary" 
+                @click="postArticle"
+                size="large"
+                class="action-btn update-btn">
+                <i class="el-icon-refresh"></i>
+                更新发布
+              </el-button>
+              <el-button 
+                v-else 
+                type="primary" 
+                :loading="doLoading" 
+                @click="postArticle"
+                size="large"
+                class="action-btn publish-btn">
+                <i class="el-icon-position"></i>
+                发布文章
+              </el-button>
+            </div>
+          </div>
+        </div>
       </el-col>
     </el-col>
+
     <el-col v-else class="text-center">
-      <el-alert
-        title="用户无权限"
-        type="warning"
-        center
-        show-icon
-        :closable="false">
-      </el-alert>
+      <div class="permission-alert">
+        <el-alert
+          title="用户无权限"
+          type="warning"
+          center
+          show-icon
+          :closable="false"
+          class="enhanced-alert">
+          <template slot="title">
+            <span class="alert-title">访问受限</span>
+          </template>
+          您暂时没有权限访问此页面，请联系管理员获取相应权限。
+        </el-alert>
+      </div>
     </el-col>
   </el-row>
 </template>
@@ -159,6 +355,7 @@ export default {
     }
   },
   methods: {
+    // 原有方法保持不变
     _initEditor(data) {
       let _ts = this;
 
@@ -184,7 +381,6 @@ export default {
         'insert-after',
         '|',
         'upload',
-        // 'record',
         'table',
         '|',
         'undo',
@@ -230,13 +426,10 @@ export default {
           },
           delay: 500,
           mode: data.mode,
-          /*url: `${process.env.Server}/api/console/markdown`,*/
           parse: (element) => {
             if (element.style.display === 'none') {
               return
             }
-            // LazyLoadImage();
-            // Vue.Vditor.highlightRender({style: 'github'}, element, this.contentEditor);
           },
           theme: {
             path: apiConfig.VDITOR_CSS
@@ -260,6 +453,37 @@ export default {
         placeholder: data.placeholder,
       })
     },
+
+    // 新增的辅助方法
+    removeTag(tag) {
+      const index = this.articleTags.indexOf(tag);
+      if (index > -1) {
+        this.articleTags.splice(index, 1);
+        this.setLocalstorage('tags', this.articleTags);
+      }
+    },
+    removeInterviewer(interviewerId) {
+      const index = this.selectedInterviewers.indexOf(interviewerId);
+      if (index > -1) {
+        this.selectedInterviewers.splice(index, 1);
+      }
+    },
+    removeInterview(chatId) {
+      const index = this.selectedInterviews.indexOf(chatId);
+      if (index > -1) {
+        this.selectedInterviews.splice(index, 1);
+      }
+    },
+    getInterviewerName(interviewerId) {
+      const interviewer = this.interviewersList.find(item => item.interviewerId === interviewerId);
+      return interviewer ? interviewer.name : `面试官-${interviewerId}`;
+    },
+    getInterviewTopic(chatId) {
+      const interview = this.interviewsList.find(item => item.chatId === chatId);
+      return interview ? interview.topic : `记录-${chatId}`;
+    },
+
+    // 保持原有的其他方法
     setLocalstorage(type) {
       if (typeof arguments[0] === 'object') {
         localStorage.setItem('articleTags', arguments[1]);
@@ -315,7 +539,6 @@ export default {
       }).catch(() => {
         _ts.doLoading = false;
       });
-
     },
     async postArticle() {
       let _ts = this;
@@ -335,20 +558,23 @@ export default {
         articleContentHtml: articleContentHtml,
         articleTags: _ts.articleTags.join(","),
         articleStatus: 0,
-        interviewerList: _ts.selectedInterviewers.map(id => ({
-          interviewerId: id,
-          name: null,
-          userId: null,
-          knowledgeBaseId: null,
-          customPrompt: null,
-          settingsList: null
-        })),
+        interviewerList: _ts.selectedInterviewers.map(id => {
+          const interviewer = _ts.interviewersList.find(item => item.interviewerId === id);
+          return {
+            interviewerId: id,
+            name: interviewer ? interviewer.name : `面试官-${id}`,
+            userId: null,
+            knowledgeBaseId: null,
+            customPrompt: null,
+            settingsList: null
+          };
+        }),
         chatRecordsList: _ts.selectedInterviews.map(id => {
           const interview = _ts.interviewsList.find(item => item.chatId === id);
           return {
             interviewer: {
               interviewerId: interview ? interview.interviewerId : null,
-              name: null,
+              name: interview ? _ts.getInterviewerName(interview.interviewerId) : null,
               userId: null,
               knowledgeBaseId: null,
               customPrompt: null,
@@ -360,7 +586,7 @@ export default {
             interviewerId: interview ? interview.interviewerId : null,
             createdAt: null,
             updatedAt: null,
-            topic: null,
+            topic: interview ? interview.topic : `记录-${id}`,
           };
         })
       };
@@ -382,7 +608,6 @@ export default {
           })
         }
       })
-
     },
     async saveArticle() {
       let _ts = this;
@@ -402,20 +627,23 @@ export default {
         articleContentHtml: articleContentHtml,
         articleTags: _ts.articleTags.join(","),
         articleStatus: 0,
-        interviewerList: _ts.selectedInterviewers.map(id => ({
-          interviewerId: id,
-          name: null,
-          userId: null,
-          knowledgeBaseId: null,
-          customPrompt: null,
-          settingsList: null
-        })),
+        interviewerList: _ts.selectedInterviewers.map(id => {
+          const interviewer = _ts.interviewersList.find(item => item.interviewerId === id);
+          return {
+            interviewerId: id,
+            name: interviewer ? interviewer.name : `面试官-${id}`,
+            userId: null,
+            knowledgeBaseId: null,
+            customPrompt: null,
+            settingsList: null
+          };
+        }),
         chatRecordsList: _ts.selectedInterviews.map(id => {
           const interview = _ts.interviewsList.find(item => item.chatId === id);
           return {
             interviewer: {
               interviewerId: interview ? interview.interviewerId : null,
-              name: null,
+              name: interview ? _ts.getInterviewerName(interview.interviewerId) : null,
               userId: null,
               knowledgeBaseId: null,
               customPrompt: null,
@@ -427,7 +655,7 @@ export default {
             interviewerId: interview ? interview.interviewerId : null,
             createdAt: null,
             updatedAt: null,
-            topic: null,
+            topic: interview ? interview.topic : `记录-${id}`,
           };
         })
       };
@@ -456,7 +684,6 @@ export default {
         }
       })
     },
-    // 获取用户创建的面试官列表
     async getInterviewers() {
       let _ts = this;
       _ts.interviewersLoading = true;
@@ -472,7 +699,6 @@ export default {
         _ts.interviewersLoading = false;
       }
     },
-    // 获取用户创建的面试记录列表
     async getInterviews() {
       let _ts = this;
       _ts.interviewsLoading = true;
@@ -506,12 +732,6 @@ export default {
       next();
     }
   },
-  //     beforeRouteLeave(to, from, next) {
-  //   let _ts = this;
-  //   // 删除条件判断和弹窗逻辑
-  //   _ts.$store.commit("setActiveMenu", "article-post");
-  //   next(); // 直接放行路由跳转
-  // },
   beforeDestroy() {
     window.onbeforeunload = null;
   },
@@ -519,17 +739,6 @@ export default {
     if (!this.hasPermissions) {
       return
     }
-    // window.addEventListener('beforeunload', e => {
-    //   e = e || window.event;
-
-    //   // 兼容IE8和Firefox 4之前的版本
-    //   if (e) {
-    //     e.returnValue = '关闭提示';
-    //   }
-
-    //   // Chrome, Safari, Firefox 4+, Opera 12+ , IE 9+
-    //   return '关闭提示';
-    // });
     let _ts = this;
     _ts.$store.commit('setActiveMenu', 'article-post');
     const responseData = await _ts.$axios.$get('/api/upload/token');
@@ -542,9 +751,8 @@ export default {
     }
 
     _ts.getTags();
-    // 获取面试官和面试记录列表
-    _ts.getInterviewers();
-    _ts.getInterviews();
+    await _ts.getInterviewers();
+    await _ts.getInterviews();
     Vue.nextTick(() => {
       let articleContent = '';
       if (_ts.$route.params.article_id) {
@@ -555,8 +763,16 @@ export default {
         _ts.$set(_ts, 'articleContent', article.articleContent);
         _ts.$set(_ts, 'articleStatus', article.articleStatus);
         _ts.$set(_ts, 'articleTags', (article.articleTags).split(','));
-        _ts.$set(_ts, 'selectedInterviewers', article.interviewers || []);
-        _ts.$set(_ts, 'selectedInterviews', article.interviews || []);
+        
+        // 设置已选择的面试官和面试记录
+        if (article.interviewers && article.interviewers.length > 0) {
+          _ts.$set(_ts, 'selectedInterviewers', article.interviewers.map(interviewer => interviewer.interviewerId));
+        }
+        
+        if (article.interviews && article.interviews.length > 0) {
+          _ts.$set(_ts, 'selectedInterviews', article.interviews.map(interview => interview.chatId));
+        }
+        
         localStorage.setItem("article-title", article.articleTitle);
         localStorage.setItem("article-tags", (article.articleTags).split(','));
         articleContent = article.articleContent
@@ -566,8 +782,8 @@ export default {
       _ts.contentEditor = _ts._initEditor({
         id: 'contentEditor',
         mode: 'both',
-        height: 480,
-        placeholder: '', //_ts.$t('inputContent', _ts.$store.state.locale)
+        height: 600,
+        placeholder: '',
         resize: false,
         value: articleContent
       });
@@ -578,4 +794,433 @@ export default {
 
 <style lang="less">
 @import "~vditor/src/assets/less/index.less";
+
+// 主要变量定义
+@primary-color: #409EFF;
+@success-color: #67C23A;
+@warning-color: #E6A23C;
+@danger-color: #F56C6C;
+@border-radius: 8px;
+@box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+@transition: all 0.3s ease;
+
+.articles {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  background: #fff;
+  min-height: 100vh;
+
+  // 输入区域样式
+  .input-section {
+    margin-bottom: 12px;
+    
+    .section-label {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #303133;
+      
+      i {
+        margin-right: 8px;
+        color: @primary-color;
+        font-size: 18px;
+      }
+      
+      .label-desc {
+        margin-left: 8px;
+        font-size: 12px;
+        font-weight: 400;
+        color: #909399;
+      }
+    }
+  }
+
+  // 增强输入框样式
+  .enhanced-input {
+    .el-input__inner {
+      border-radius: @border-radius;
+      border: 2px solid #DCDFE6;
+      transition: @transition;
+      
+      &:focus {
+        border-color: @primary-color;
+        box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+      }
+      
+      &:hover {
+        border-color: #C0C4CC;
+      }
+    }
+  }
+
+  // 内容编辑器包装
+  .content-editor-wrapper {
+    border-radius: @border-radius;
+    overflow: hidden;
+    box-shadow: @box-shadow;
+  }
+
+  // 标签区域样式
+  .tags-container {
+    .tags-select {
+      width: 100%;
+      margin-bottom: 16px;
+    }
+    
+    .selected-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      
+      .selected-tag {
+        transition: @transition;
+        
+        &:hover {
+          transform: translateY(-1px);
+        }
+      }
+    }
+  }
+
+  // 增强选择器样式
+  .enhanced-select {
+    .el-select__tags {
+      max-height: 80px;
+      overflow-y: auto;
+    }
+    
+    .el-input__inner {
+      border-radius: @border-radius;
+      border: 2px solid #DCDFE6;
+      transition: @transition;
+      
+      &:focus {
+        border-color: @primary-color;
+        box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+      }
+    }
+  }
+
+  // 选项样式
+  .tag-option, .interviewer-option, .interview-option {
+    padding: 12px 16px;
+    
+    &:hover {
+      background-color: #f5f7fa;
+    }
+    
+    .tag-label {
+      font-weight: 500;
+    }
+    
+    .option-content {
+      display: flex;
+      align-items: center;
+      
+      .option-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, @primary-color, #36cfc9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 12px;
+        
+        i {
+          color: white;
+          font-size: 14px;
+        }
+        
+        &.record-avatar {
+          background: linear-gradient(135deg, @warning-color, #ffd666);
+        }
+      }
+      
+      .option-info {
+        flex: 1;
+        
+        .option-name {
+          display: block;
+          font-weight: 500;
+          color: #303133;
+          margin-bottom: 2px;
+        }
+        
+        .option-id {
+          font-size: 12px;
+          color: #909399;
+        }
+      }
+    }
+  }
+
+  // 面试配置区域
+  .interview-section {
+    background: linear-gradient(135deg, #f8f9ff 0%, #f0f7ff 100%);
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid #e6f0ff;
+    
+    .section-header {
+      text-align: center;
+      margin-bottom: 24px;
+      
+      .section-title {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 0 8px 0;
+        font-size: 20px;
+        font-weight: 600;
+        color: #303133;
+        
+        i {
+          margin-right: 8px;
+          color: @primary-color;
+          font-size: 24px;
+        }
+      }
+      
+      .section-subtitle {
+        margin: 0;
+        font-size: 14px;
+        color: #606266;
+      }
+    }
+    
+    .interview-card {
+      background: white;
+      border-radius: @border-radius;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      transition: @transition;
+      height: 100%;
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      }
+      
+      .card-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 16px;
+        position: relative;
+        
+        .card-icon {
+          color: @primary-color;
+          font-size: 20px;
+          margin-right: 8px;
+        }
+        
+        .card-title {
+          font-size: 16px;
+          font-weight: 600;
+          color: #303133;
+          flex: 1;
+        }
+        
+        .item-badge {
+          .el-badge__content {
+            background-color: @primary-color;
+            border: none;
+          }
+        }
+      }
+      
+      .selected-items {
+        margin-top: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        max-height: 100px;
+        overflow-y: auto;
+        
+        .selected-item-tag {
+          transition: @transition;
+          font-size: 12px;
+          
+          &:hover {
+            transform: translateY(-1px);
+          }
+        }
+      }
+    }
+  }
+
+  // 操作按钮区域
+  .action-section {
+    background: #fafbfc;
+    border-radius: @border-radius;
+    padding: 20px;
+    border: 1px solid #e4e7ed;
+    
+    .action-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      
+      &.edit-buttons {
+        justify-content: space-between;
+        
+        .right-buttons {
+          display: flex;
+          gap: 16px;
+        }
+      }
+      
+      .action-btn {
+        padding: 12px 24px;
+        border-radius: @border-radius;
+        font-weight: 500;
+        transition: @transition;
+        min-width: 140px;
+        
+        i {
+          margin-right: 6px;
+        }
+        
+        &:hover {
+          transform: translateY(-1px);
+        }
+        
+        &.draft-btn {
+          background: #f4f4f5;
+          border-color: #d3d4d6;
+          color: #606266;
+          
+          &:hover {
+            background: #e9e9eb;
+            border-color: #c0c4cc;
+          }
+        }
+        
+        &.publish-btn {
+          background: linear-gradient(135deg, @primary-color, #36cfc9);
+          border: none;
+          
+          &:hover {
+            background: linear-gradient(135deg, #328FE6, #2db7b1);
+          }
+        }
+        
+        &.update-btn {
+          background: linear-gradient(135deg, @success-color, #85ce61);
+          border: none;
+          
+          &:hover {
+            background: linear-gradient(135deg, #5daf34, #73c150);
+          }
+        }
+        
+        &.delete-btn {
+          background: linear-gradient(135deg, @danger-color, #f78989);
+          border: none;
+          
+          &:hover {
+            background: linear-gradient(135deg, #f25555, #f56c6c);
+          }
+        }
+      }
+    }
+  }
+
+  // 权限提示区域
+  .permission-alert {
+    max-width: 600px;
+    margin: 100px auto;
+    
+    .enhanced-alert {
+      border-radius: @border-radius;
+      border: none;
+      box-shadow: @box-shadow;
+      
+      .alert-title {
+        font-size: 18px;
+        font-weight: 600;
+      }
+    }
+  }
+
+  // 响应式设计
+  @media (max-width: 768px) {
+    padding: 16px;
+    
+    .interview-section {
+      .el-row {
+        .el-col {
+          margin-bottom: 16px;
+        }
+      }
+    }
+    
+    .action-section {
+      .action-buttons {
+        flex-direction: column;
+        
+        &.edit-buttons {
+          .right-buttons {
+            flex-direction: column;
+          }
+        }
+        
+        .action-btn {
+          min-width: auto;
+        }
+      }
+    }
+  }
+
+  // 滚动条美化
+  .selected-items::-webkit-scrollbar,
+  .enhanced-select .el-select__tags::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  .selected-items::-webkit-scrollbar-track,
+  .enhanced-select .el-select__tags::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 2px;
+  }
+  
+  .selected-items::-webkit-scrollbar-thumb,
+  .enhanced-select .el-select__tags::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 2px;
+    
+    &:hover {
+      background: #a8a8a8;
+    }
+  }
+
+  // 加载动画优化
+  .el-loading-mask {
+    border-radius: @border-radius;
+  }
+
+  // 选择器下拉面板美化
+  .el-select-dropdown {
+    border-radius: @border-radius;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    border: none;
+    
+    .el-select-dropdown__item {
+      transition: @transition;
+      
+      &:hover {
+        background-color: #f5f7fa;
+      }
+      
+      &.selected {
+        background-color: #e6f7ff;
+        color: @primary-color;
+        font-weight: 500;
+      }
+    }
+  }
+}
 </style>
