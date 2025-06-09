@@ -348,10 +348,12 @@ export default {
       selectedInterviewers: [],
       interviewersList: [],
       interviewersLoading: false,
+      interviewerSearchQuery: '', // 面试官搜索关键词
       // 面试记录相关数据
       selectedInterviews: [],
       interviewsList: [],
-      interviewsLoading: false
+      interviewsLoading: false,
+      interviewSearchQuery: '' // 面试记录搜索关键词
     }
   },
   methods: {
@@ -474,6 +476,24 @@ export default {
         this.selectedInterviews.splice(index, 1);
       }
     },
+    // 切换面试官选择状态
+    toggleInterviewer(interviewerId) {
+      const index = this.selectedInterviewers.indexOf(interviewerId);
+      if (index > -1) {
+        this.selectedInterviewers.splice(index, 1);
+      } else {
+        this.selectedInterviewers.push(interviewerId);
+      }
+    },
+    // 切换面试记录选择状态
+    toggleInterview(chatId) {
+      const index = this.selectedInterviews.indexOf(chatId);
+      if (index > -1) {
+        this.selectedInterviews.splice(index, 1);
+      } else {
+        this.selectedInterviews.push(chatId);
+      }
+    },
     getInterviewerName(interviewerId) {
       const interviewer = this.interviewersList.find(item => item.interviewerId === interviewerId);
       return interviewer ? interviewer.name : `面试官-${interviewerId}`;
@@ -483,7 +503,6 @@ export default {
       return interview ? interview.topic : `记录-${chatId}`;
     },
 
-    // 保持原有的其他方法
     setLocalstorage(type) {
       if (typeof arguments[0] === 'object') {
         localStorage.setItem('articleTags', arguments[1]);
@@ -937,7 +956,7 @@ export default {
           font-size: 14px;
         }
 
-        &.record-avatar {
+        &.interview-avatar {
           background: linear-gradient(135deg, @warning-color, #ffd666);
         }
       }
@@ -1002,10 +1021,13 @@ export default {
       transition: @transition;
       height: 100%;
 
+      /* 移除卡片悬停效果 */
+      /*
       &:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
       }
+      */
 
       .card-header {
         display: flex;
