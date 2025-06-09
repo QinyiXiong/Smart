@@ -195,7 +195,8 @@
     <el-col>
       <el-dialog
         :visible.sync="interviewModalVisible"
-        fullscreen
+        width="80%"
+        :fullscreen="false"
         custom-class="interview-dialog"
         :show-close="true"
         :modal="true"
@@ -473,7 +474,7 @@ export default {
 
     // 查看面试详情
     viewInterviewDetail(interviewId) {
-      
+
       this.selectedInterviewId = interviewId;
       this.interviewModalVisible = true;
     },
@@ -578,6 +579,7 @@ export default {
 .interview-dialog {
   display: flex;
   flex-direction: column;
+  height: 80vh !important;
 }
 
 .interview-dialog .el-dialog__header {
@@ -590,6 +592,7 @@ export default {
   flex: 1;
   padding: 0;
   overflow: hidden;
+  height: calc(100% - 100px) !important;
 }
 
 .interview-dialog .el-dialog__footer {

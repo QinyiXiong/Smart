@@ -14,7 +14,9 @@
     <div v-if="showDebugInfo" class="debug-info">
       <p><strong>面试ID:</strong> {{ interviewId }}</p>
       <p><strong>话题:</strong> {{ interview ? interview.topic : 'null' }}</p>
-      <p><strong>消息数量:</strong> {{ messages ? messages.length : 0 }}</p>
+      <p><strong>消息数量:</strong> {{ messageListForShow ? messageListForShow.length : 0 }}</p>
+      <p><strong>分支数量:</strong> {{ allBranches ? allBranches.length : 0 }}</p>
+      <p><strong>当前分支:</strong> {{ currentBranch ? currentBranch.index : 'null' }}</p>
       <p v-if="apiError"><strong>错误:</strong> {{ apiError }}</p>
       <p><strong>API响应:</strong></p>
       <pre v-if="apiResponse">{{ JSON.stringify(apiResponse, null, 2) }}</pre>
@@ -26,14 +28,38 @@
         <i class="el-icon-loading"></i>
         <span>加载中...</span>
       </div>
-      <template v-else-if="messages && messages.length > 0">
-        <div v-for="(message, index) in messages" :key="index"
-          :class="['message', message.role === 'user' ? 'user-message' : 'ai-message']">
+      <template v-else-if="messageListForShow && messageListForShow.length > 0">
+        <div v-for="(message, index) in messageListForShow" :key="index"
+          :class="['message', message.role === 'user' ? 'user-message' : 'ai-message']"
+          @mouseenter="message.showActions = true" @mouseleave="message.showActions = false">
           <div class="message-time">{{ formatTime(message.timestamp) }}</div>
 
           <div class="message-content-wrapper">
             <div class="message-content">
               <div class="message-text" v-html="renderMarkdown(message.content.text, message.role)"></div>
+            </div>
+          </div>
+
+          <!-- 分支切换按钮 -->
+          <div class="branch-switch-container">
+            <div v-if="isFirstMessageInBranch(message) && checkSiblings(message)" class="branch-switch"
+              :class="{ 'user-branch': message.role === 'user' }">
+              <el-button type="text" @click="toggleShowBranch(message)">
+                <i :class="message.showBranchTag ? 'el-icon-caret-top' : 'el-icon-caret-bottom'"></i>
+                {{ message.showBranchTag ? '收起分支' : '显示分支' }}
+              </el-button>
+            </div>
+          </div>
+
+          <!-- 分支编辑面板 -->
+          <div v-if="message.showBranchTag" class="branch-edit-panel"
+            :class="{ 'user-branch-panel': message.role === 'user' }">
+            <div class="branch-tag-list">
+              <div v-for="(sibling, idx) in siblingNodes.find(node => node.branchId === message.branchId)?.siblings || []"
+                :key="sibling.index" class="branch-tag-item"
+                :class="{ 'active-branch': sibling.index === currentBranchIndex }">
+                <span class="branch-tag-text" @click="switchBranch(sibling.index)">{{ sibling.tag || `分支${idx + 1}` }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -49,270 +75,508 @@
 import MarkdownIt from 'markdown-it';
 
 export default {
-    name: 'InterviewModal',
+  name: 'InterviewModal',
 
-    props: {
-        interviewId: {
-            type: [String, Number],
-            required: true
-        }
-    },
-
-    data() {
-        return {
-            interview: null,
-            messages: [],
-            loading: true,
-            md: new MarkdownIt(),
-            showDebugInfo: false,
-            isDevMode: process.env.NODE_ENV === 'development',
-            apiResponse: null,
-            apiError: null
-        };
-    },
-
-    watch: {
-        interviewId: {
-            immediate: true,
-            handler() {
-                if (this.interviewId) {
-                    this.fetchInterviewData();
-                }
-            }
-        }
-    },
-
-    methods: {
-        async fetchInterviewData() {
-            this.loading = true;
-            this.apiResponse = null;
-            this.apiError = null;
-
-            try {
-                console.log('正在获取面试ID为', this.interviewId, '的记录');
-
-                // 获取聊天记录
-                const response = await this.$axios.post('/api/v1/chat/getAllBranches', {
-                    chatId: Number(this.interviewId)  // 确保ID是数字类型
-                });
-
-                console.log('API响应:', response.data);
-                this.apiResponse = response.data;
-
-                if (response.data && response.data.data && response.data.data.length > 0) {
-                    // 使用response.data.data访问实际数据（后端GlobalResult包装）
-                    const branches = response.data.data;
-
-                    // 找到根分支
-                    const rootBranch = branches.find(b => b.index == 0);
-                    if (rootBranch && rootBranch.messageLocals) {
-                        this.messages = rootBranch.messageLocals;
-                        this.interview = {
-                            topic: rootBranch.tag || '面试对话',
-                            chatId: this.interviewId
-                        };
-                    } else {
-                        this.$message.warning('未找到面试记录内容');
-                        console.log('根分支数据:', rootBranch);
-                        this.apiError = '根分支中未找到消息数据';
-                    }
-                } else {
-                    // 尝试使用直接获取聊天记录的API
-                    try {
-                        const chatResponse = await this.$axios.post('/api/v1/chat/getChatRecords', {
-                            chatId: Number(this.interviewId)  // 确保ID是数字类型
-                        });
-
-                        console.log('聊天记录API响应:', chatResponse.data);
-                        this.apiResponse = chatResponse.data;
-
-                        if (chatResponse.data && chatResponse.data.data && chatResponse.data.data.length > 0) {
-                            const chatRecord = chatResponse.data.data[0];
-                            this.interview = {
-                                topic: chatRecord.topic || '面试对话',
-                                chatId: this.interviewId
-                            };
-
-                            // 如果有消息数据
-                            if (chatRecord.branches && chatRecord.branches.length > 0) {
-                                const mainBranch = chatRecord.branches[0];
-                                if (mainBranch.messageLocals) {
-                                    this.messages = mainBranch.messageLocals;
-                                }
-                            } else {
-                                this.$message.warning('面试记录中无对话内容');
-                                this.apiError = '面试记录中无分支数据';
-                            }
-                        } else {
-                            this.$message.warning('未能加载面试记录');
-                            console.log('API响应:', chatResponse.data);
-                            this.apiError = '未找到匹配的聊天记录';
-                        }
-                    } catch (chatError) {
-                        console.error('获取聊天记录详情失败:', chatError);
-                        this.apiError = '获取聊天记录详情失败: ' + chatError.message;
-                    }
-                }
-            } catch (error) {
-                console.error('获取面试记录失败:', error);
-                this.$message.error('获取面试记录失败: ' + (error.response?.data?.message || error.message));
-                this.apiError = '获取面试记录失败: ' + (error.response?.data?.message || error.message);
-            } finally {
-                this.loading = false;
-                this.$nextTick(() => {
-                    this.scrollToBottom();
-                });
-            }
-        },
-
-        renderMarkdown(text, role) {
-            if (role === 'assistant') {
-                const rendered = this.md.render(text || '');
-                // 添加内联样式
-                const styledContent = rendered
-                    .replace(/<ul>/g, '<ul style="margin: 0px 0; padding-left: 20px;padding-top:0px;padding-bottom:0px;">')
-                    .replace(/<ol>/g, '<ol style="margin: 0px 0; padding-left: 20px;padding-top:0px;padding-bottom:0px;">')
-                    .replace(/<li>/g, '<li style="margin: 0px 0; padding: 0; line-height: 1.0;">')
-                    .replace(/<p>/g, '<p style="margin: 0px 0;padding-top:0px;padding-bottom:0px;">');
-                return `<div class="markdown-body">${styledContent}</div>`;
-            }
-            return text;
-        },
-
-        formatTime(timestamp) {
-            if (!timestamp) return '';
-            const date = new Date(timestamp);
-            return date.toLocaleString();
-        },
-
-        scrollToBottom() {
-            const container = this.$refs.chatMessages;
-            if (container) {
-                container.scrollTop = container.scrollHeight;
-            }
-        }
+  props: {
+    interviewId: {
+      type: [String, Number],
+      required: true
     }
+  },
+
+  data() {
+    return {
+      interview: null,
+      messages: [],  // 原始消息列表，现在仅用于存储
+      messageListForShow: [], // 用于显示的消息列表，处理分支逻辑后的结果
+      allBranches: [], // 存储所有分支数据
+      siblingNodes: [], // 存储当前路径上每个节点的兄弟节点信息
+      currentBranch: null, // 当前正在查看的分支
+      currentBranchIndex: 0,
+      rootBranch: null,  // 根分支
+      loading: true,
+      md: new MarkdownIt(),
+      showDebugInfo: false,
+      isDevMode: process.env.NODE_ENV === 'development',
+      apiResponse: null,
+      apiError: null
+    };
+  },
+
+  watch: {
+    interviewId: {
+      immediate: true,
+      handler() {
+        if (this.interviewId) {
+          this.fetchInterviewData();
+        }
+      }
+    }
+  },
+
+  methods: {
+    async fetchInterviewData() {
+      this.loading = true;
+      this.apiResponse = null;
+      this.apiError = null;
+      this.messageListForShow = [];
+      this.allBranches = [];
+      this.siblingNodes = [];
+
+      try {
+        console.log('正在获取面试ID为', this.interviewId, '的记录');
+
+        // 获取所有分支数据
+        const response = await this.$axios.post('/api/chat/getAllBranches', {
+          chatId: Number(this.interviewId)  // 确保ID是数字类型
+        });
+
+        console.log('API响应:', response.data);
+        this.apiResponse = response.data;
+
+        if (response.data?.data) {
+          this.allBranches = response.data.data;
+
+          // 找到根分支（parentBranchIndex为-1，index为0的通常是根分支）
+          this.rootBranch = this.allBranches.find(b => b.index === 0);
+
+          if (this.rootBranch) {
+            this.interview = {
+              topic: this.rootBranch.topic || '面试对话',
+              chatId: this.interviewId
+            };
+
+            // 查找第一个有消息的分支作为默认显示分支
+            const firstBranchWithMessages = this.allBranches.find(
+              b => b.messageLocals && b.messageLocals.length > 0
+            );
+
+            // 构建分支路径并显示消息
+            if (firstBranchWithMessages) {
+              await this.buildPathForTargetBranch(firstBranchWithMessages);
+            } else {
+              await this.buildPathForTargetBranch(this.rootBranch);
+            }
+          } else {
+            this.$message.warning('未找到面试记录内容');
+            console.log('根分支数据不存在');
+            this.apiError = '根分支不存在';
+          }
+        } else if (response.data) { // 处理可能没有data字段的情况
+          this.allBranches = response.data;
+
+          // 找到根分支（parentBranchIndex为-1，index为0的通常是根分支）
+          this.rootBranch = this.allBranches.find(b => b.index === 0);
+
+          if (this.rootBranch) {
+            this.interview = {
+              topic: this.rootBranch.topic || '面试对话',
+              chatId: this.interviewId
+            };
+
+            // 查找第一个有消息的分支作为默认显示分支
+            const firstBranchWithMessages = this.allBranches.find(
+              b => b.messageLocals && b.messageLocals.length > 0
+            );
+
+            // 构建分支路径并显示消息
+            if (firstBranchWithMessages) {
+              await this.buildPathForTargetBranch(firstBranchWithMessages);
+            } else {
+              await this.buildPathForTargetBranch(this.rootBranch);
+            }
+          } else {
+            this.$message.warning('未找到面试记录内容');
+            console.log('根分支数据不存在');
+            this.apiError = '根分支不存在';
+          }
+        } else {
+          this.$message.warning('未找到面试记录内容');
+          this.apiError = '返回数据格式不正确';
+        }
+      } catch (error) {
+        console.error('获取面试记录失败:', error);
+        this.$message.error('获取面试记录失败: ' + (error.response?.data?.message || error.message));
+        this.apiError = '获取面试记录失败: ' + (error.response?.data?.message || error.message);
+      } finally {
+        this.loading = false;
+        this.$nextTick(() => {
+          this.scrollToBottom();
+        });
+      }
+    },
+
+    // 构建到目标分支的路径
+    async buildPathForTargetBranch(targetBranch) {
+      if (!targetBranch) return;
+
+      // 1. 向上查找父分支链
+      const parentChain = [];
+      let current = targetBranch;
+
+      while (current && current.parentBranchIndex !== -1 && current.parentBranchIndex !== "-1") {
+        const parent = this.allBranches.find(b => b.index == current.parentBranchIndex);
+        if (parent) {
+          parentChain.unshift(parent); // 添加到数组开头
+          current = parent;
+        } else {
+          break;
+        }
+      }
+
+      // 2. 清空消息和兄弟节点列表，重新构建
+      this.siblingNodes = [];
+      this.messageListForShow = [];
+
+      // 3. 从根分支开始向下构建路径
+      let parentBranch = this.rootBranch;
+
+      // 遍历父链中的每个分支
+      for (const branch of parentChain) {
+        if (branch) {
+          if (branch.index != 0) {
+            // 获取当前分支的所有消息
+            const branchMessages = branch?.messageLocals || [];
+            // 将消息添加到展示列表中
+            this.messageListForShow.push(...branchMessages);
+
+            // 添加兄弟节点信息
+            if (parentBranch && parentBranch.children) {
+              this.siblingNodes.push({
+                index: branch.index,
+                branchId: branch.branchId,
+                siblings: parentBranch.children.map(child => ({
+                  index: child.branchIndex,
+                  tag: child.tag
+                }))
+              });
+            }
+          }
+
+          parentBranch = branch;
+        }
+      }
+
+      // 4. 添加目标分支的兄弟节点信息
+      if (parentBranch && parentBranch.children) {
+        this.siblingNodes.push({
+          index: targetBranch.index,
+          branchId: targetBranch.branchId,
+          siblings: parentBranch.children.map(child => ({
+            index: child.branchIndex,
+            tag: child.tag
+          }))
+        });
+      }
+
+      // 5. 显示目标分支的消息
+      if (targetBranch.messageLocals && targetBranch.messageLocals.length > 0) {
+        this.messageListForShow.push(...targetBranch.messageLocals);
+      }
+
+      // 6. 更新当前分支
+      this.currentBranch = targetBranch;
+      this.currentBranchIndex = targetBranch.index;
+    },
+
+    // 检查消息是否有兄弟分支
+    checkSiblings(message) {
+      const siblingNode = this.siblingNodes.find(b => b.branchId == message.branchId);
+
+      if (siblingNode && siblingNode.siblings) {
+        return siblingNode.siblings.length > 1;
+      }
+      return false;
+    },
+
+    // 检查消息是否是分支中的第一条
+    isFirstMessageInBranch(message) {
+      const branch = this.allBranches.find(b => b.branchId == message.branchId);
+      if (!branch || !branch.messageLocals) return false;
+
+      const branchMsgIndex = branch.messageLocals.findIndex(
+        msg => msg.messageId == message.messageId
+      );
+
+      return branchMsgIndex == 0;
+    },
+
+    // 切换显示分支切换面板
+    toggleShowBranch(message) {
+      if (message.showBranchTag) {
+        this.$set(message, 'showBranchTag', false);
+      } else {
+        // 关闭其他打开的分支面板
+        this.messageListForShow.forEach(msg => {
+          if (msg.showBranchTag && msg !== message) {
+            this.$set(msg, 'showBranchTag', false);
+          }
+        });
+        this.$set(message, 'showBranchTag', true);
+      }
+    },
+
+    // 切换分支
+    async switchBranch(targetIndex) {
+      const targetBranch = this.allBranches.find(b => b.index == targetIndex);
+
+      if (targetBranch) {
+        await this.buildPathForTargetBranch(targetBranch);
+      }
+    },
+
+    // 生成UUID
+    generateUuid() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = Math.random() * 16 | 0,
+          v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    },
+
+    renderMarkdown(text, role) {
+      if (role === 'assistant') {
+        const rendered = this.md.render(text || '');
+        // 添加内联样式
+        const styledContent = rendered
+          .replace(/<ul>/g, '<ul style="margin: 0px 0; padding-left: 20px;padding-top:0px;padding-bottom:0px;">')
+          .replace(/<ol>/g, '<ol style="margin: 0px 0; padding-left: 20px;padding-top:0px;padding-bottom:0px;">')
+          .replace(/<li>/g, '<li style="margin: 0px 0; padding: 0; line-height: 1.0;">')
+          .replace(/<p>/g, '<p style="margin: 0px 0;padding-top:0px;padding-bottom:0px;">');
+        return `<div class="markdown-body">${styledContent}</div>`;
+      }
+      return text;
+    },
+
+    formatTime(timestamp) {
+      if (!timestamp) return '';
+      const date = new Date(timestamp);
+      return date.toLocaleString();
+    },
+
+    scrollToBottom() {
+      const container = this.$refs.chatMessages;
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
+  }
 }
 </script>
 
 <style scoped>
 .interview-modal {
-    display: flex;
-    flex-direction: column;
-    height: 60vh;
-    width: 100%;
+  display: flex;
+  flex-direction: column;
+  height: 60vh;
+  width: 100%;
 }
 
 .interview-header {
-    padding: 10px 20px;
-    border-bottom: 1px solid #ebeef5;
-    background-color: #f5f7fa;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  padding: 10px 20px;
+  border-bottom: 1px solid #ebeef5;
+  background-color: #f5f7fa;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .interview-header h3 {
-    margin: 0;
-    color: #303133;
+  margin: 0;
+  color: #303133;
 }
 
 .debug-info {
-    padding: 10px;
-    background-color: #f8f8f8;
-    border: 1px dashed #dcdfe6;
-    font-family: monospace;
-    font-size: 12px;
-    max-height: 200px;
-    overflow: auto;
+  padding: 10px;
+  background-color: #f8f8f8;
+  border: 1px dashed #dcdfe6;
+  font-family: monospace;
+  font-size: 12px;
+  max-height: 200px;
+  overflow: auto;
 }
 
 .chat-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px;
-    background-color: #f5f7fa;
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  background-color: #f5f7fa;
 }
 
 .loading-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    color: #909399;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #909399;
 }
 
 .empty-message-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
 }
 
 .message {
-    margin-bottom: 20px;
-    max-width: 80%;
-    position: relative;
+  margin-bottom: 20px;
+  max-width: 80%;
+  position: relative;
+  padding-left: 40px;
+  padding-right: 40px;
 }
 
 .user-message {
-    align-self: flex-end;
-    margin-left: auto;
+  align-self: flex-end;
+  margin-left: auto;
 }
 
 .ai-message {
-    align-self: flex-start;
+  align-self: flex-start;
 }
 
 .message-time {
-    font-size: 12px;
-    color: #909399;
-    margin-bottom: 5px;
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 5px;
 }
 
 .message-content-wrapper {
-    display: flex;
+  display: flex;
 }
 
 .message-content {
-    padding: 10px 15px;
-    border-radius: 8px;
-    word-break: break-word;
+  padding: 10px 15px;
+  border-radius: 8px;
+  word-break: break-word;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .user-message .message-content {
-    background-color: #ecf5ff;
-    color: #303133;
+  background-color: #ecf5ff;
+  color: #303133;
+  border-top-right-radius: 0;
 }
 
 .ai-message .message-content {
-    background-color: #f4f4f5;
-    color: #303133;
+  background-color: #f4f4f5;
+  color: #303133;
+  border-top-left-radius: 0;
 }
 
 .message-text {
-    line-height: 1.5;
+  line-height: 1.5;
+}
+
+/* 分支切换容器和按钮 */
+.branch-switch-container {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 5px;
+}
+
+.branch-switch {
+  transition: all 0.3s ease;
+}
+
+.branch-switch .el-button {
+  font-size: 12px;
+  color: #909399;
+  padding: 5px 10px;
+}
+
+.branch-switch .el-button:hover {
+  color: #409eff;
+}
+
+/* 分支编辑面板 */
+.branch-edit-panel {
+  margin-top: 10px;
+  background-color: #f9fafc;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  display: inline-block;
+  min-width: 200px;
+  max-width: 90%;
+  transition: all 0.3s ease;
+  align-self: flex-start;
+}
+
+.user-branch-panel {
+  align-self: flex-end;
+}
+
+/* 分支标签列表 - 水平布局 */
+.branch-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-start;
+}
+
+/* 分支标签项 */
+.branch-tag-item {
+  display: inline-flex;
+  align-items: center;
+  background-color: #f5f7fa;
+  border-radius: 20px;
+  padding: 4px 12px 4px 4px;
+  border: 1px solid #ebeef5;
+  transition: all 0.2s ease;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.branch-tag-item:hover {
+  border-color: #c0c4cc;
+}
+
+.branch-tag-item.active-branch {
+  background-color: #ecf5ff;
+  border-color: #b3d8ff;
+}
+
+.branch-tag-text {
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 16px;
+  background-color: #fff;
+  margin-right: 8px;
+  border: 1px solid #ebeef5;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+.branch-tag-text:hover {
+  background-color: #ecf5ff;
+  color: #409eff;
 }
 
 /* 为markdown内容添加样式 */
 :deep(.markdown-body) {
-    font-size: 14px;
+  font-size: 14px;
 }
 
 :deep(.markdown-body pre) {
-    background-color: #282c34;
-    padding: 10px;
-    border-radius: 5px;
-    overflow-x: auto;
+  background-color: #282c34;
+  padding: 10px;
+  border-radius: 5px;
+  overflow-x: auto;
 }
 
 :deep(.markdown-body code) {
-    color: #476582;
-    padding: 0.25rem 0.5rem;
-    margin: 0;
-    font-size: 0.85em;
-    background-color: rgba(27, 31, 35, 0.05);
-    border-radius: 3px;
+  color: #476582;
+  padding: 0.25rem 0.5rem;
+  margin: 0;
+  font-size: 0.85em;
+  background-color: rgba(27, 31, 35, 0.05);
+  border-radius: 3px;
 }
 </style>

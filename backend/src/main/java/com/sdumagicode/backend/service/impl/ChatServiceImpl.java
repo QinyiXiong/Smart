@@ -484,7 +484,7 @@ public class ChatServiceImpl implements ChatService {
         chatRecords.setUserId(userId);
         chatMapper.insertChatRecord(chatRecords);
 
-        List<Branch> sourceBranches = branchRepository.findByChatId(chatRecords.getChatId());
+        List<Branch> sourceBranches = branchRepository.findByChatId(sourceChatId);
         List<Branch> collect = sourceBranches.stream().map((item) -> {
             Branch branch = branchDeepCopy(item, userId, chatRecords.getChatId());
             return branch;
