@@ -30,18 +30,6 @@ instance.interceptors.request.use(
         return Promise.reject(new Error('Token expired'))
       }
     }
-
-    // 调试日志
-    if (process.env.NODE_ENV === 'development') {
-      console.debug('[Axios Request]', {
-        url: config.url,
-        method: config.method,
-        headers: config.headers,
-        params: config.params,
-        data: config.data
-      })
-    }
-
     return config
   },
   (error) => {
