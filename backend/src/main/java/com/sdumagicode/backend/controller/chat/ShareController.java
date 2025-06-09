@@ -27,33 +27,35 @@ public class ShareController {
 
     // 聊天记录保存到收藏的用户账户中
     @PostMapping("/chatShareToUser")
-    public GlobalResult chatShareToUser(@RequestBody Long chatId){
+    public GlobalResult chatShareToUser(@RequestBody InterviewRequest request){
+        System.out.println(request.getChatId());
         Long idUser = UserUtils.getCurrentUserByToken().getIdUser();
-        chatService.deepCopy(chatId,idUser);
+        chatService.deepCopy(request.getChatId(),idUser);
         return GlobalResultGenerator.genSuccessResult("获取分享聊天记录成功");
     }
 
     @PostMapping("/chatShareToSnapshot")
-    public GlobalResult chatShareToSnapshot(@RequestBody Long chatId){
+    public GlobalResult chatShareToSnapshot(@RequestBody InterviewRequest request){
         Long idUser = UserUtils.getCurrentUserByToken().getIdUser();
-        ChatRecords chatRecords = chatService.deepCopy(chatId, 2L);
+        ChatRecords chatRecords = chatService.deepCopy(request.getChatId(), 2L);
         return GlobalResultGenerator.genSuccessResult(chatRecords);
     }
 
     // 面试官保存到收藏的用户账户中
     @PostMapping("/interviewShareToUser")
-    public GlobalResult interviewShareToUser(@RequestBody String interviewerId){
+    public GlobalResult interviewShareToUser(@RequestBody InterviewerRequest request){
+
         Long idUser = UserUtils.getCurrentUserByToken().getIdUser();
 
-        interviewerService.deepCopy(interviewerId,idUser);
+        interviewerService.deepCopy(request.getInterviewerId(), idUser);
         return GlobalResultGenerator.genSuccessResult("获取分享面试官成功");
     }
 
     @PostMapping("/interviewShareToSnapshot")
-    public GlobalResult interviewShareToSnapshot(@RequestBody String interviewerId){
+    public GlobalResult interviewShareToSnapshot(@RequestBody InterviewerRequest request){
         Long idUser = UserUtils.getCurrentUserByToken().getIdUser();
 
-        Interviewer interviewer = interviewerService.deepCopy(interviewerId, idUser);
+        Interviewer interviewer = interviewerService.deepCopy(request.getInterviewerId(), idUser);
         return GlobalResultGenerator.genSuccessStringDataResult(interviewer);
     }
     
@@ -83,6 +85,30 @@ public class ShareController {
         }
         
         return GlobalResultGenerator.genSuccessResult(allRecords);
+    }
+
+    static class InterviewerRequest {
+        private String interviewerId;
+        
+        public String getInterviewerId() {
+            return interviewerId;
+        }
+        
+        public void setInterviewerId(String interviewerId) {
+            this.interviewerId = interviewerId;
+        }
+    }
+
+    static class InterviewRequest {
+        private Long chatId;
+
+        public Long getChatId() {
+            return chatId;
+        }
+
+        public void setChatId(Long chatId) {
+            this.chatId = chatId;
+        }
     }
 
 }

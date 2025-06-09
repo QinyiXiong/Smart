@@ -148,4 +148,13 @@ public class ArticleController {
         return GlobalResultGenerator.genSuccessResult("获取分享内容成功");
     }
 
+    @PostMapping("/{articleId}/interview/{interviewId}/get")
+    @RequiresPermissions(value = "user")
+    public GlobalResult getInterview(@PathVariable Long articleId, @PathVariable Long interviewId) {
+        Long idUser = UserUtils.getCurrentUserByToken().getIdUser();
+        
+        chatService.deepCopy(interviewId, idUser);
+        return GlobalResultGenerator.genSuccessResult("获取面试记录成功");
+    }
+
 }
