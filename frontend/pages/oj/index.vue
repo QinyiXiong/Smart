@@ -1,5 +1,49 @@
 <template>
   <div class="problem-list">
+    <!-- 上部分：统计数据 -->
+    <div class="statistics-dashboard">
+      <!-- 上左侧：难度统计 -->
+      <el-card class="stats-card difficulty-stats">
+        <div slot="header" class="card-header">
+          <span>题目难度统计</span>
+        </div>
+        <div class="difficulty-items">
+          <div v-for="(data, difficulty) in statistics.byDifficulty" :key="difficulty" class="difficulty-item">
+            <div class="difficulty-label">
+              <el-tag :type="getDifficultyTagType(difficulty)" size="medium">{{ difficulty }}</el-tag>
+            </div>
+            <div class="difficulty-progress">
+              <el-progress 
+                :percentage="data.rate"
+                :stroke-width="15"
+                :color="getDifficultyColor(difficulty)"
+              ></el-progress>
+              <div class="difficulty-numbers">
+                已完成 {{ data.solved }} 题 / 题库总量 {{ data.total }} 题
+              </div>
+            </div>
+          </div>
+        </div>
+      </el-card>
+      
+      <!-- 上右侧：扇形图 -->
+      <el-card class="stats-card pie-chart">
+        <div slot="header" class="card-header">
+          <span>完成情况统计</span>
+        </div>
+        <div class="chart-container" ref="pieChart"></div>
+      </el-card>
+    </div>
+    
+    <!-- 下部分：提交热力图 -->
+    <el-card class="heatmap-card">
+      <div slot="header" class="card-header">
+        <span>过去一年总提交数</span>
+      </div>
+      <div class="heatmap-container" ref="heatmap"></div>
+    </el-card>
+
+    <!-- 筛选区 -->
     <el-card class="filter-card">
       <div class="filter-section">
         <el-input
@@ -37,32 +81,6 @@
           />
         </el-select>
       </div>
-
-      <div class="statistics-section">
-        <el-row :gutter="20">
-          <el-col :span="8" v-for="(stat, type) in statistics" :key="type">
-            <el-card shadow="hover" :class="['stat-card', `stat-${type}`]">
-              <div class="stat-content">
-                <div class="stat-icon">
-                  <i :class="getStatIcon(type)"></i>
-                </div>
-                <div class="stat-info">
-                  <div class="stat-title">{{ stat.title }}</div>
-                  <div class="stat-value">{{ stat.value }}</div>
-                  <el-progress 
-                    :percentage="stat.rate" 
-                    :color="getStatColor(type)" 
-                    :show-text="false"
-                    :stroke-width="4"
-                    class="stat-progress"
-                  ></el-progress>
-                  <div class="stat-rate">{{ getRateLabel(type) }}: {{ stat.rate }}%</div>
-                </div>
-              </div>
-            </el-card>
-          </el-col>
-        </el-row>
-      </div>
     </el-card>
 
     <el-table
@@ -74,6 +92,14 @@
       <el-table-column prop="problemCode" label="题号" width="100" align="center">
         <template #default="scope">
           <span class="problem-code">{{ scope.row.problemCode }}</span>
+        </template>
+      </el-table-column>
+
+      <el-table-column prop="status" label="状态" width="80" align="center">
+        <template #default="scope">
+          <i v-if="scope.row.status === 'solved'" class="el-icon-check" style="color: #67C23A; font-size: 18px;"></i>
+          <i v-else-if="scope.row.status === 'attempted'" class="el-icon-time" style="color: #E6A23C; font-size: 18px;"></i>
+          <i v-else class="el-icon-minus" style="color: #909399; font-size: 18px;"></i>
         </template>
       </el-table-column>
 
@@ -148,6 +174,8 @@
 </template>
 
 <script>
+import * as echarts from 'echarts';
+
 export default {
   data() {
     return {
@@ -168,8 +196,17 @@ export default {
       statistics: {
         total: { title: '总题数', value: 0, rate: 0 },
         solved: { title: '已解决', value: 0, rate: 0 },
-        attempted: { title: '尝试过', value: 0, rate: 0 }
-      }
+        attempted: { title: '尝试过', value: 0, rate: 0 },
+        byDifficulty: {
+          '简单': { total: 0, solved: 0, rate: 0 },
+          '中等': { total: 0, solved: 0, rate: 0 },
+          '困难': { total: 0, solved: 0, rate: 0 }
+        },
+        heatmapData: {},
+        monthLabels: []
+      },
+      pieChart: null,
+      heatmap: null
     }
   },
   computed: {
@@ -204,6 +241,13 @@ export default {
     await this.fetchTags();
     await this.fetchStatistics();
   },
+  mounted() {
+    // 组件挂载后初始化图表，但需要等待统计数据加载完成
+    this.$nextTick(() => {
+      this.initPieChart();
+      this.initHeatmap();
+    });
+  },
   methods: {
     getDifficultyTagType(difficulty) {
       switch(difficulty) {
@@ -211,6 +255,14 @@ export default {
         case '中等': return 'warning';
         case '困难': return 'danger';
         default: return '';
+      }
+    },
+    getDifficultyColor(difficulty) {
+      switch(difficulty) {
+        case '简单': return '#67C23A';
+        case '中等': return '#E6A23C';
+        case '困难': return '#F56C6C';
+        default: return '#909399';
       }
     },
     getAcceptanceColor(rate) {
@@ -272,6 +324,9 @@ export default {
             const start = (this.currentPage - 1) * this.pageSize;
             const end = start + this.pageSize;
             this.problems = filteredProblems.slice(start, end);
+            
+            // 为每个问题添加状态标识
+            this.addProblemStatus(this.problems);
           }
         } else {
           // 使用分页API获取数据
@@ -279,6 +334,9 @@ export default {
           if (res.code === 0) {
             this.problems = res.data.list || [];
             this.total = res.data.total;
+            
+            // 为每个问题添加状态标识
+            this.addProblemStatus(this.problems);
           }
         }
       } catch (error) {
@@ -305,21 +363,177 @@ export default {
         console.log('统计信息响应:', res);
         if (res && res.data) {
           this.statistics = res.data;
+          this.addProblemStatus(this.problems); // 确保在统计数据加载后更新问题状态
+          
+          // 更新后重新初始化图表
+          this.$nextTick(() => {
+            this.initPieChart();
+            this.initHeatmap();
+          });
         }
       } catch (error) {
         console.error('获取统计信息失败:', error);
         this.$message.error('获取统计信息失败');
       }
     },
-    getRateLabel(type) {
-      switch(type) {
-        case 'solved':
-          return '通过率';
-        case 'attempted':
-          return '尝试率';
-        default:
-          return '可见率';
+    initPieChart() {
+      if (!this.$refs.pieChart) return;
+      
+      if (this.pieChart) {
+        this.pieChart.dispose();
       }
+      
+      this.pieChart = echarts.init(this.$refs.pieChart);
+      
+      // 转换数据为饼图所需格式
+      const pieData = [
+        { 
+          name: '简单',
+          value: this.statistics.byDifficulty['简单']?.solved || 0,
+          itemStyle: { color: '#67C23A' }
+        },
+        { 
+          name: '中等',
+          value: this.statistics.byDifficulty['中等']?.solved || 0,
+          itemStyle: { color: '#E6A23C' }
+        },
+        { 
+          name: '困难',
+          value: this.statistics.byDifficulty['困难']?.solved || 0,
+          itemStyle: { color: '#F56C6C' }
+        }
+      ];
+      
+      const option = {
+        tooltip: {
+          trigger: 'item',
+          formatter: '{a} <br/>{b}: {c} ({d}%)'
+        },
+        legend: {
+          orient: 'vertical',
+          right: 10,
+          top: 'center',
+          data: ['简单', '中等', '困难']
+        },
+        series: [
+          {
+            name: '完成题目',
+            type: 'pie',
+            radius: ['50%', '70%'],
+            avoidLabelOverlap: false,
+            label: {
+              show: false,
+              position: 'center'
+            },
+            emphasis: {
+              label: {
+                show: true,
+                fontSize: '16',
+                fontWeight: 'bold'
+              }
+            },
+            labelLine: {
+              show: false
+            },
+            data: pieData
+          }
+        ]
+      };
+      
+      this.pieChart.setOption(option);
+      
+      // 窗口大小变化时重新渲染图表
+      window.addEventListener('resize', () => {
+        this.pieChart.resize();
+      });
+    },
+    initHeatmap() {
+      if (!this.$refs.heatmap) return;
+      
+      if (this.heatmapChart) {
+        this.heatmapChart.dispose();
+      }
+      
+      this.heatmapChart = echarts.init(this.$refs.heatmap);
+      
+      // 获取热力图数据和月份标签
+      const heatmapData = this.statistics.heatmapData || {};
+      const monthLabels = this.statistics.monthLabels || [];
+      
+      // 计算过去一年的总提交数
+      const totalSubmissions = Object.values(heatmapData).reduce((sum, count) => sum + count, 0);
+      
+      // 生成日历数据
+      const calendarData = [];
+      for (const [date, count] of Object.entries(heatmapData)) {
+        calendarData.push([date, count]);
+      }
+      
+      // 获取当前日期和12个月前的日期
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 12);
+      
+      // 格式化日期
+      const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
+      const option = {
+        title: {
+          text: `过去一年总提交数: ${totalSubmissions}`,
+          left: 'center',
+          top: 0
+        },
+        tooltip: {
+          formatter: function (params) {
+            return `${params.value[0]}: ${params.value[1]} 次提交`;
+          }
+        },
+        visualMap: {
+          min: 0,
+          max: Math.max(...Object.values(heatmapData), 1),
+          calculable: true,
+          orient: 'horizontal',
+          left: 'center',
+          bottom: 20,
+          inRange: {
+            color: ['#ebedf0', '#c6e48b', '#7bc96f', '#239a3b', '#196127']
+          }
+        },
+        calendar: {
+          top: 50,
+          left: 30,
+          right: 30,
+          cellSize: ['auto', 15],
+          range: [formatDate(startDate), formatDate(endDate)],
+          itemStyle: {
+            borderWidth: 0.5
+          },
+          yearLabel: { show: false },
+          monthLabel: {
+            nameMap: 'cn',
+            formatter: function (params) {
+              console.log(params);
+              return params.M + '月';
+            }
+          },
+          dayLabel: {
+            firstDay: 1, // 从周一开始
+            nameMap: 'cn'
+          }
+        },
+        series: {
+          type: 'heatmap',
+          coordinateSystem: 'calendar',
+          data: calendarData
+        }
+      };
+      
+      this.heatmapChart.setOption(option);
     },
     handleView(row) {
       this.$router.push(`/oj/problem/${row.id}`);
@@ -335,7 +549,41 @@ export default {
     handleCurrentChange(val) {
       this.currentPage = val;
       this.fetchProblems(); // 重新请求数据
-    }
+    },
+    // 为每个问题添加状态标识
+    addProblemStatus(problems) {
+      if (!problems || !this.statistics) return;
+      
+      // 获取已解决和尝试过的题目ID集合
+      const solvedProblemIds = new Set();
+      const attemptedProblemIds = new Set();
+      
+      // 从统计数据中提取已解决和尝试过的题目ID
+      if (this.statistics.solvedProblems) {
+        this.statistics.solvedProblems.forEach(id => solvedProblemIds.add(id));
+      }
+      
+      if (this.statistics.attemptedProblems) {
+        this.statistics.attemptedProblems.forEach(id => {
+          // 只添加未解决但尝试过的题目
+          if (!solvedProblemIds.has(id)) {
+            attemptedProblemIds.add(id);
+          }
+        });
+      }
+      
+      // 为每个问题设置状态
+      problems.forEach(problem => {
+        let newStatus = 'untried';
+        if (solvedProblemIds.has(problem.id)) {
+          newStatus = 'solved';
+        } else if (attemptedProblemIds.has(problem.id)) {
+          newStatus = 'attempted';
+        }
+        // 使用 this.$set 确保响应式更新
+        this.$set(problem, 'status', newStatus);
+      });
+    },
   }
 }
 </script>
@@ -347,6 +595,77 @@ export default {
   margin: 0 auto;
 }
 
+/* 统计面板样式 */
+.statistics-dashboard {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.stats-card {
+  flex: 1;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+/* 难度统计样式 */
+.difficulty-stats {
+  flex: 3;
+}
+
+.difficulty-items {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.difficulty-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.difficulty-label {
+  width: 60px;
+  text-align: center;
+}
+
+.difficulty-progress {
+  flex: 1;
+}
+
+.difficulty-numbers {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #606266;
+}
+
+/* 饼图样式 */
+.pie-chart {
+  flex: 2;
+}
+
+.chart-container {
+  height: 220px;
+}
+
+/* 热力图样式 */
+.heatmap-card {
+  margin-bottom: 24px;
+}
+
+.heatmap-container {
+  height: 250px;
+  margin-top: 10px;
+}
+
+/* 筛选区域样式 */
 .filter-card {
   margin-bottom: 24px;
 }
@@ -354,7 +673,6 @@ export default {
 .filter-section {
   display: flex;
   gap: 16px;
-  margin-bottom: 24px;
 }
 
 .search-input {
@@ -363,91 +681,6 @@ export default {
 
 .filter-select {
   width: 200px;
-}
-
-.statistics-section {
-  margin-top: 24px;
-}
-
-.stat-card {
-  transition: transform 0.3s, box-shadow 0.3s;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
-}
-
-.stat-content {
-  padding: 16px;
-  display: flex;
-  align-items: center;
-}
-
-.stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 16px;
-  font-size: 24px;
-}
-
-.stat-total .stat-icon {
-  background-color: rgba(64, 158, 255, 0.1);
-  color: #409EFF;
-}
-
-.stat-solved .stat-icon {
-  background-color: rgba(103, 194, 58, 0.1);
-  color: #67C23A;
-}
-
-.stat-attempted .stat-icon {
-  background-color: rgba(230, 162, 60, 0.1);
-  color: #E6A23C;
-}
-
-.stat-info {
-  flex: 1;
-}
-
-.stat-title {
-  font-size: 14px;
-  color: #606266;
-  margin-bottom: 8px;
-  font-weight: 500;
-}
-
-.stat-value {
-  font-size: 24px;
-  font-weight: bold;
-  margin-bottom: 8px;
-}
-
-.stat-total .stat-value {
-  color: #409EFF;
-}
-
-.stat-solved .stat-value {
-  color: #67C23A;
-}
-
-.stat-attempted .stat-value {
-  color: #E6A23C;
-}
-
-.stat-progress {
-  margin-bottom: 4px;
-}
-
-.stat-rate {
-  font-size: 12px;
-  color: #909399;
 }
 
 .problem-code {
@@ -497,6 +730,10 @@ export default {
 @media screen and (max-width: 768px) {
   .problem-list {
     padding: 12px;
+  }
+
+  .statistics-dashboard {
+    flex-direction: column;
   }
 
   .filter-section {
