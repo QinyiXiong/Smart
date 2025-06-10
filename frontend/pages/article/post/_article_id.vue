@@ -77,7 +77,7 @@
         </div>
       </el-col>
 
-      
+
 
       <!-- 面试相关配置区域 -->
       <el-col style="margin-top: 2rem;">
@@ -112,8 +112,8 @@
                   </div>
                   <el-scrollbar class="list-scrollbar">
                     <div class="list-container" v-loading="interviewersLoading">
-                      <div 
-                        v-for="item in filteredInterviewers" 
+                      <div
+                        v-for="item in filteredInterviewers"
                         :key="item.interviewerId"
                         class="list-item"
                         :class="{ 'is-selected': selectedInterviewers.includes(item.interviewerId) }"
@@ -122,7 +122,7 @@
                           <i class="el-icon-user-solid"></i>
                         </div>
                         <div class="item-info">
-                          <span class="item-name">{{ item.name }}</span>
+                          <span class="item-name">{{ item.name || "未命名" }}</span>
                         </div>
                         <div class="item-action" v-if="selectedInterviewers.includes(item.interviewerId)">
                           <i class="el-icon-check"></i>
@@ -172,8 +172,8 @@
                   </div>
                   <el-scrollbar class="list-scrollbar">
                     <div class="list-container" v-loading="interviewsLoading">
-                      <div 
-                        v-for="item in filteredInterviews" 
+                      <div
+                        v-for="item in filteredInterviews"
                         :key="item.chatId"
                         class="list-item"
                         :class="{ 'is-selected': selectedInterviews.includes(item.chatId) }"
@@ -182,7 +182,7 @@
                           <i class="el-icon-chat-dot-round"></i>
                         </div>
                         <div class="item-info">
-                          <span class="item-name">{{ item.topic }}</span>
+                          <span class="item-name">{{ item.topic || "未命名" }}</span>
                         </div>
                         <div class="item-action" v-if="selectedInterviews.includes(item.chatId)">
                           <i class="el-icon-check"></i>
@@ -218,17 +218,17 @@
       <el-col v-if="!isEdit" style="margin-top: 2rem;">
         <div class="action-section">
           <div class="action-buttons">
-            <el-button 
-              :loading="doLoading" 
-              @click="saveArticle" 
+            <el-button
+              :loading="doLoading"
+              @click="saveArticle"
               size="large"
               class="action-btn draft-btn">
               <i class="el-icon-document-copy"></i>
               保存草稿
             </el-button>
-            <el-button 
-              type="primary" 
-              :loading="doLoading" 
+            <el-button
+              type="primary"
+              :loading="doLoading"
               @click="postArticle"
               size="large"
               class="action-btn publish-btn">
@@ -242,9 +242,9 @@
       <el-col v-else style="margin-top: 2rem;">
         <div class="action-section">
           <div class="action-buttons edit-buttons">
-            <el-button 
-              type="danger" 
-              :loading="doLoading" 
+            <el-button
+              type="danger"
+              :loading="doLoading"
               @click="deleteArticle"
               size="large"
               class="action-btn delete-btn">
@@ -252,29 +252,29 @@
               删除文章
             </el-button>
             <div class="right-buttons">
-              <el-button 
-                v-if="articleStatus === '1'" 
-                :loading="doLoading" 
+              <el-button
+                v-if="articleStatus === '1'"
+                :loading="doLoading"
                 @click="saveArticle"
                 size="large"
                 class="action-btn draft-btn">
                 <i class="el-icon-document-copy"></i>
                 保存草稿
               </el-button>
-              <el-button 
-                v-if="articleStatus === '0'" 
-                :loading="doLoading" 
-                type="primary" 
+              <el-button
+                v-if="articleStatus === '0'"
+                :loading="doLoading"
+                type="primary"
                 @click="postArticle"
                 size="large"
                 class="action-btn update-btn">
                 <i class="el-icon-refresh"></i>
                 更新发布
               </el-button>
-              <el-button 
-                v-else 
-                type="primary" 
-                :loading="doLoading" 
+              <el-button
+                v-else
+                type="primary"
+                :loading="doLoading"
                 @click="postArticle"
                 size="large"
                 class="action-btn publish-btn">
@@ -349,7 +349,7 @@ export default {
         return this.interviewersList;
       }
       const query = this.interviewerSearchQuery.toLowerCase();
-      return this.interviewersList.filter(item => 
+      return this.interviewersList.filter(item =>
         item.name.toLowerCase().includes(query)
       );
     },
@@ -359,7 +359,7 @@ export default {
         return this.interviewsList;
       }
       const query = this.interviewSearchQuery.toLowerCase();
-      return this.interviewsList.filter(item => 
+      return this.interviewsList.filter(item =>
         item.topic.toLowerCase().includes(query)
       );
     }
@@ -822,16 +822,16 @@ export default {
         _ts.$set(_ts, 'articleContent', article.articleContent);
         _ts.$set(_ts, 'articleStatus', article.articleStatus);
         _ts.$set(_ts, 'articleTags', (article.articleTags).split(','));
-        
+
         // 设置已选择的面试官和面试记录
         if (article.interviewers && article.interviewers.length > 0) {
           _ts.$set(_ts, 'selectedInterviewers', article.interviewers.map(interviewer => interviewer.interviewerId));
         }
-        
+
         if (article.interviews && article.interviews.length > 0) {
           _ts.$set(_ts, 'selectedInterviews', article.interviews.map(interview => interview.chatId));
         }
-        
+
         localStorage.setItem("article-title", article.articleTitle);
         localStorage.setItem("article-tags", (article.articleTags).split(','));
         articleContent = article.articleContent
@@ -873,7 +873,7 @@ export default {
   // 输入区域样式
   .input-section {
     margin-bottom: 12px;
-    
+
     .section-label {
       display: flex;
       align-items: center;
@@ -881,13 +881,13 @@ export default {
       font-size: 16px;
       font-weight: 600;
       color: #303133;
-      
+
       i {
         margin-right: 8px;
         color: @primary-color;
         font-size: 18px;
       }
-      
+
       .label-desc {
         margin-left: 8px;
         font-size: 12px;
@@ -903,12 +903,12 @@ export default {
       border-radius: @border-radius;
       border: 2px solid #DCDFE6;
       transition: @transition;
-      
+
       &:focus {
         border-color: @primary-color;
         box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
       }
-      
+
       &:hover {
         border-color: #C0C4CC;
       }
@@ -928,15 +928,15 @@ export default {
       width: 100%;
       margin-bottom: 16px;
     }
-    
+
     .selected-tags {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      
+
       .selected-tag {
         transition: @transition;
-        
+
         &:hover {
           transform: translateY(-1px);
         }
@@ -950,12 +950,12 @@ export default {
       max-height: 80px;
       overflow-y: auto;
     }
-    
+
     .el-input__inner {
       border-radius: @border-radius;
       border: 2px solid #DCDFE6;
       transition: @transition;
-      
+
       &:focus {
         border-color: @primary-color;
         box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
@@ -964,21 +964,23 @@ export default {
   }
 
   // 选项样式
-  .tag-option, .interviewer-option, .interview-option {
+  .tag-option,
+  .interviewer-option,
+  .interview-option {
     padding: 12px 16px;
-    
+
     &:hover {
       background-color: #f5f7fa;
     }
-    
+
     .tag-label {
       font-weight: 500;
     }
-    
+
     .option-content {
       display: flex;
       align-items: center;
-      
+
       .option-avatar {
         width: 32px;
         height: 32px;
@@ -988,27 +990,27 @@ export default {
         align-items: center;
         justify-content: center;
         margin-right: 12px;
-        
+
         i {
           color: white;
           font-size: 14px;
         }
-        
+
         &.interview-avatar {
           background: linear-gradient(135deg, @warning-color, #ffd666);
         }
       }
-      
+
       .option-info {
         flex: 1;
-        
+
         .option-name {
           display: block;
           font-weight: 500;
           color: #303133;
           margin-bottom: 2px;
         }
-        
+
         .option-id {
           font-size: 12px;
           color: #909399;
@@ -1023,11 +1025,11 @@ export default {
     border-radius: 12px;
     padding: 24px;
     border: 1px solid #e6f0ff;
-    
+
     .section-header {
       text-align: center;
       margin-bottom: 24px;
-      
+
       .section-title {
         display: flex;
         align-items: center;
@@ -1036,21 +1038,21 @@ export default {
         font-size: 20px;
         font-weight: 600;
         color: #303133;
-        
+
         i {
           margin-right: 8px;
           color: @primary-color;
           font-size: 24px;
         }
       }
-      
+
       .section-subtitle {
         margin: 0;
         font-size: 14px;
         color: #606266;
       }
     }
-    
+
     .interview-card {
       background: white;
       border-radius: @border-radius;
@@ -1058,7 +1060,7 @@ export default {
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
       transition: @transition;
       height: 100%;
-      
+
       /* 移除卡片悬停效果 */
       /*
       &:hover {
@@ -1066,26 +1068,26 @@ export default {
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
       }
       */
-      
+
       .card-header {
         display: flex;
         align-items: center;
         margin-bottom: 16px;
         position: relative;
-        
+
         .card-icon {
           color: @primary-color;
           font-size: 20px;
           margin-right: 8px;
         }
-        
+
         .card-title {
           font-size: 16px;
           font-weight: 600;
           color: #303133;
           flex: 1;
         }
-        
+
         .item-badge {
           .el-badge__content {
             background-color: @primary-color;
@@ -1093,7 +1095,7 @@ export default {
           }
         }
       }
-      
+
       // 新增列表容器样式
       .interviewer-list-container,
       .interview-list-container {
@@ -1101,46 +1103,46 @@ export default {
         border: 1px solid #e4e7ed;
         border-radius: @border-radius;
         overflow: hidden;
-        
+
         .search-box {
           padding: 8px;
           background-color: #f5f7fa;
           border-bottom: 1px solid #e4e7ed;
-          
+
           .el-input__inner {
             border-radius: 4px;
             height: 32px;
           }
         }
-        
+
         .list-scrollbar {
           height: 240px;
-          
+
           .el-scrollbar__wrap {
             overflow-x: hidden;
           }
-          
+
           .list-container {
             padding: 8px 0;
-            
+
             .list-item {
               display: flex;
               align-items: center;
               padding: 10px 16px;
               cursor: pointer;
               transition: @transition;
-              
+
               /* 移除悬停效果 */
               /*
               &:hover {
                 background-color: #f5f7fa;
               }
               */
-              
+
               &.is-selected {
                 background-color: #ecf5ff;
               }
-              
+
               .item-avatar {
                 width: 32px;
                 height: 32px;
@@ -1150,20 +1152,20 @@ export default {
                 align-items: center;
                 justify-content: center;
                 margin-right: 12px;
-                
+
                 i {
                   color: white;
                   font-size: 14px;
                 }
-                
+
                 &.interview-avatar {
                   background: linear-gradient(135deg, @warning-color, #ffd666);
                 }
               }
-              
+
               .item-info {
                 flex: 1;
-                
+
                 .item-name {
                   font-size: 14px;
                   font-weight: 500;
@@ -1173,13 +1175,13 @@ export default {
                   text-overflow: ellipsis;
                 }
               }
-              
+
               .item-action {
                 color: @primary-color;
                 font-size: 16px;
               }
             }
-            
+
             .empty-list {
               display: flex;
               flex-direction: column;
@@ -1187,12 +1189,12 @@ export default {
               justify-content: center;
               padding: 40px 0;
               color: #909399;
-              
+
               i {
                 font-size: 24px;
                 margin-bottom: 8px;
               }
-              
+
               span {
                 font-size: 14px;
               }
@@ -1200,7 +1202,7 @@ export default {
           }
         }
       }
-      
+
       .selected-items {
         margin-top: 12px;
         display: flex;
@@ -1208,11 +1210,11 @@ export default {
         gap: 6px;
         max-height: 100px;
         overflow-y: auto;
-        
+
         .selected-item-tag {
           transition: @transition;
           font-size: 12px;
-          
+
           &:hover {
             transform: translateY(-1px);
           }
@@ -1227,69 +1229,69 @@ export default {
     border-radius: @border-radius;
     padding: 20px;
     border: 1px solid #e4e7ed;
-    
+
     .action-buttons {
       display: flex;
       justify-content: center;
       gap: 16px;
-      
+
       &.edit-buttons {
         justify-content: space-between;
-        
+
         .right-buttons {
           display: flex;
           gap: 16px;
         }
       }
-      
+
       .action-btn {
         padding: 12px 24px;
         border-radius: @border-radius;
         font-weight: 500;
         transition: @transition;
         min-width: 140px;
-        
+
         i {
           margin-right: 6px;
         }
-        
+
         &:hover {
           transform: translateY(-1px);
         }
-        
+
         &.draft-btn {
           background: #f4f4f5;
           border-color: #d3d4d6;
           color: #606266;
-          
+
           &:hover {
             background: #e9e9eb;
             border-color: #c0c4cc;
           }
         }
-        
+
         &.publish-btn {
           background: linear-gradient(135deg, @primary-color, #36cfc9);
           border: none;
-          
+
           &:hover {
             background: linear-gradient(135deg, #328FE6, #2db7b1);
           }
         }
-        
+
         &.update-btn {
           background: linear-gradient(135deg, @success-color, #85ce61);
           border: none;
-          
+
           &:hover {
             background: linear-gradient(135deg, #5daf34, #73c150);
           }
         }
-        
+
         &.delete-btn {
           background: linear-gradient(135deg, @danger-color, #f78989);
           border: none;
-          
+
           &:hover {
             background: linear-gradient(135deg, #f25555, #f56c6c);
           }
@@ -1302,12 +1304,12 @@ export default {
   .permission-alert {
     max-width: 600px;
     margin: 100px auto;
-    
+
     .enhanced-alert {
       border-radius: @border-radius;
       border: none;
       box-shadow: @box-shadow;
-      
+
       .alert-title {
         font-size: 18px;
         font-weight: 600;
@@ -1318,7 +1320,7 @@ export default {
   // 响应式设计
   @media (max-width: 768px) {
     padding: 16px;
-    
+
     .interview-section {
       .el-row {
         .el-col {
@@ -1326,17 +1328,17 @@ export default {
         }
       }
     }
-    
+
     .action-section {
       .action-buttons {
         flex-direction: column;
-        
+
         &.edit-buttons {
           .right-buttons {
             flex-direction: column;
           }
         }
-        
+
         .action-btn {
           min-width: auto;
         }
@@ -1349,18 +1351,18 @@ export default {
   .enhanced-select .el-select__tags::-webkit-scrollbar {
     width: 4px;
   }
-  
+
   .selected-items::-webkit-scrollbar-track,
   .enhanced-select .el-select__tags::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 2px;
   }
-  
+
   .selected-items::-webkit-scrollbar-thumb,
   .enhanced-select .el-select__tags::-webkit-scrollbar-thumb {
     background: #c1c1c1;
     border-radius: 2px;
-    
+
     &:hover {
       background: #a8a8a8;
     }
@@ -1376,14 +1378,14 @@ export default {
     border-radius: @border-radius;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
     border: none;
-    
+
     .el-select-dropdown__item {
       transition: @transition;
-      
+
       &:hover {
         background-color: #f5f7fa;
       }
-      
+
       &.selected {
         background-color: #e6f7ff;
         color: @primary-color;

@@ -4,9 +4,9 @@
     <div class="left-sidebar" :class="{ 'collapsed': isSidebarCollapsed }">
       <div class="panel-header">
         <span>AI面试官</span>
-        <el-button 
-          class="collapse-btn" 
-          type="text" 
+        <el-button
+          class="collapse-btn"
+          type="text"
           @click="toggleSidebar"
           :icon="isSidebarCollapsed ? 'el-icon-d-arrow-right' : 'el-icon-d-arrow-left'"
         ></el-button>
@@ -98,7 +98,15 @@
             >
               <div class="record-content">
                 <i class="el-icon-chat-dot-round"></i>
-                <span class="record-title">{{ record.topic || '未命名对话' }}</span>
+                <span class="record-container">
+                  <!-- 光标放在前面 -->
+                  <span class="cursor" v-if="typingAnimation.isActive && typingAnimation.chatId === record.chatId.toString()"></span>
+                  <span class="record-title" :class="{ 'typing': typingAnimation.isActive && typingAnimation.chatId === record.chatId.toString() }">
+                    {{ (typingAnimation.isActive && typingAnimation.chatId === record.chatId.toString())
+                      ? typingAnimation.displayText
+                      : (record.topic || '未命名对话') }}
+                  </span>
+                </span>
               </div>
 
               <div class="record-actions">
@@ -138,12 +146,12 @@
       <chat-area
         :current-interviewer="currentInterviewer"
         :chat-record-id="activeChatRecord"
-        :initial-branch-id="branchId" 
+        :initial-branch-id="branchId"
         @polling-completed="handlePollingCompleted"
         @branch-loaded="handleBranchLoaded"
         ref="chatArea"
       />
-      
+
       <!-- 右侧评估tresultult区域 -->
       <div class="valuation-area" v-if="activeChatRecord && valuationData && currentInterviewer && currentInterviewer.userId">
         <div class="valuation-header">
@@ -217,6 +225,16 @@ export default {
       isSidebarCollapsed: false,
       showSkeleton: false,
       branchId: null,
+      summarizedChatIds: new Set(), // 跟踪已经生成过摘要的对话ID
+
+      typingAnimation: {
+        chatId: null,      // 当前正在执行动画的对话ID
+        originalText: '',  // 原始文本
+        displayText: '',   // 显示文本（逐渐增加）
+        isActive: false,   // 动画是否激活
+        charIndex: 0,      // 当前字符索引
+        timerId: null      // 定时器ID
+      },
     }
   },
   computed: {
@@ -243,33 +261,33 @@ export default {
   },
   async mounted() {
     await this.fetchAiList()
-    
+
     // 处理从 problem/_id.vue 跳转过来的参数
-    if(this.$route.query.interviewerId) {
-        await this.handleInterviewerSelect(this.$route.query.interviewerId);
-        this.handleTabSwitch('record')
-      }
+    if (this.$route.query.interviewerId) {
+      await this.handleInterviewerSelect(this.$route.query.interviewerId);
+      this.handleTabSwitch('record')
+    }
 
     if (this.$route.query.chatId) {
       this.activeChatRecord = this.$route.query.chatId;
-      
+
       if (this.$route.query.branchId) {
-        this.branchId = this.$route.query.branchId; 
+        this.branchId = this.$route.query.branchId;
       }
-      
+
       this.handleChatRecordSelect(this.activeChatRecord);
       // 清空 URL 查询参数
-      this.$router.replace({ 
-        query: { 
+      this.$router.replace({
+        query: {
           ...this.$route.query,
           branchId: undefined,
           chatId: undefined,
           interviewerId: undefined
-        } 
-        });
+        }
+      });
     }
   },
-  
+
   updated() {
     // 当数据更新后，如果有评估数据，则初始化雷达图
     this.$nextTick(() => {
@@ -282,17 +300,151 @@ export default {
     toggleSidebar() {
       this.isSidebarCollapsed = !this.isSidebarCollapsed;
     },
+    startTypingAnimation(chatId, text) {
+      // 停止任何正在进行的动画
+      this.stopTypingAnimation();
+
+      // 如果没有文本或者chatId，不执行动画
+      if (!text || !chatId) return;
+
+      // 如果文本过短，不执行动画
+      if (text.length < 3) {
+        return;
+      }
+
+      // 设置初始状态
+      this.typingAnimation = {
+        chatId: chatId,
+        originalText: text,
+        displayText: '',
+        isActive: true,
+        charIndex: 0,
+        timerId: null
+      };
+
+      // 添加一点延迟启动动画，使其看起来更自然
+      setTimeout(() => {
+        // 开始字符添加动画
+        this.animateNextChar();
+      }, 200);
+    },
+
+    // 逐字符添加
+    animateNextChar() {
+      const { charIndex, originalText } = this.typingAnimation;
+
+      if (charIndex <= originalText.length) {
+        // 更新要显示的文本
+        this.typingAnimation.displayText = originalText.substring(0, charIndex);
+        this.typingAnimation.charIndex = charIndex + 1;
+
+        // 设置下一个字符的定时器（随机速度，模拟自然打字）
+        const baseSpeed = 70; // 基础速度（毫秒）
+        const randomVariation = Math.random() * 100; // 0-100ms的随机变化
+        const speed = baseSpeed + randomVariation;
+
+        this.typingAnimation.timerId = setTimeout(() => {
+          this.animateNextChar();
+        }, speed);
+      } else {
+        // 动画完成
+        this.stopTypingAnimation(true);
+      }
+    },
+
+    // 停止打字机效果动画
+    stopTypingAnimation(completed = false) {
+      // 清除定时器
+      if (this.typingAnimation.timerId) {
+        clearTimeout(this.typingAnimation.timerId);
+      }
+
+      if (completed) {
+        // 如果是正常完成，添加短暂延迟后结束动画，给用户时间看到完整文本
+        setTimeout(() => {
+          this.typingAnimation.isActive = false;
+        }, 500); // 500ms延迟
+      } else {
+        // 如果是中断，重置所有状态
+        this.typingAnimation = {
+          chatId: null,
+          originalText: '',
+          displayText: '',
+          isActive: false,
+          charIndex: 0,
+          timerId: null
+        };
+      }
+    },
+
     async handlePollingCompleted() {
+      console.log(this.$refs.chatArea.messageListForShow.length)
       try {
         if (!this.activeChatRecord) return;
-        
+
+        // 检查是否有足够的对话内容可以生成摘要，且该对话尚未生成过摘要
+        if (
+          this.$refs.chatArea &&
+          this.$refs.chatArea.messageListForShow &&
+          !this.summarizedChatIds.has(this.activeChatRecord)
+        ) {
+          const messages = this.$refs.chatArea.messageListForShow;
+
+          // 检查是否至少有3条消息(通常是用户问题和AI回复交替)
+          if (messages.length >= 3) {
+            // 准备发送给后端的对话数据
+            const dialogData = messages.map(msg => ({
+              role: msg.role,
+              content: msg.content.text
+            }));
+
+            try {
+              // 调用DeepSeek API生成摘要
+              const summaryResponse = await axios.post('/api/deepseek/summarize', {
+                messages: dialogData,
+                chatId: this.activeChatRecord
+              });
+              console.log("summaryResponse", summaryResponse)
+              if (summaryResponse.message) {
+                // 如果成功获取摘要，更新对话标题
+                const summary = summaryResponse.message;
+                console.log("summary", summary)
+                // 更新对话标题
+                await axios.post('/api/chat/updateChatTopic', null, {
+                  params: {
+                    chatId: this.activeChatRecord,
+                    newTopic: summary
+                  }
+                });
+                console.log(this.activeChatRecord)
+                // 将当前对话ID添加到已摘要集合中
+                this.summarizedChatIds.add(this.activeChatRecord);
+
+                // 重新加载聊天记录以显示更新的标题
+                await this.loadChatRecords();
+
+                // 启动打字机效果动画
+                this.startTypingAnimation(this.activeChatRecord, summary);
+
+                console.log('成功生成对话摘要:', summary);
+              }
+            } catch (error) {
+              console.warn('生成对话摘要失败:', error);
+              // 失败时不影响主流程，只记录日志
+
+              // 即使生成摘要失败，也将该对话ID添加到已处理集合，避免重复尝试
+              this.summarizedChatIds.add(this.activeChatRecord);
+            }
+          }
+        }
+
         const res = await axios.get('/api/chat/getActions', {
           params: { chatId: this.activeChatRecord }
         });
-        
+
         if (res.data && res.data.length > 0) {
           console.log('获取到的actions:', res.data);
-          
+
           // 收集所有需要处理的评估变化
           const valuationChanges = [];
           const pageChanges = [];
@@ -301,28 +453,28 @@ export default {
             try {
               // 解析action数据字符串
               const actionObj = JSON.parse(actionData);
-              
+
               // 判断action类型
-              if (actionObj.action === 'update_valuation' && 
-                  actionObj.valuationName && 
-                  actionObj.delta !== undefined) {
-                
+              if (actionObj.action === 'update_valuation' &&
+                actionObj.valuationName &&
+                actionObj.delta !== undefined) {
+
                 // 保存评估变化信息
                 valuationChanges.push({
                   valuationName: actionObj.valuationName,
                   delta: parseFloat(actionObj.delta)
                 });
               }
-              
+
               // 处理跳转类型动作
-              if (actionObj.action === 'push' && 
-                  actionObj.chatId && 
-                  actionObj.problemId) {
-    
+              if (actionObj.action === 'push' &&
+                actionObj.chatId &&
+                actionObj.problemId) {
+
                 // 调用chatArea组件的handleActionPush方法
                 // 添加检查确保chatArea组件存在
                 if (this.$refs.chatArea) {
-               
+
                   this.$refs.chatArea.handleActionPush(actionObj.problemId);
                 } else {
                   console.warn('chatArea组件未找到，无法调用handleActionPush方法');
@@ -335,12 +487,12 @@ export default {
                 // 跳转到外部链接
                 window.open(actionObj.url, '_blank');
               }
-              
+
             } catch (parseError) {
               console.error('解析action数据失败:', parseError);
             }
           }
-          
+
           // 如果有评估变化且当前面试官存在userId，调用处理方法
           if (valuationChanges.length > 0 && this.currentInterviewer && this.currentInterviewer.userId) {
             await this.handleValuationUpdate(valuationChanges);
@@ -361,7 +513,7 @@ export default {
       if (!this.currentInterviewer || !this.currentInterviewer.userId) {
         return;
       }
-      
+
       // 保存当前评估数据的副本（如果存在）
       const originalValuationData = this.valuationData ? JSON.parse(JSON.stringify(this.valuationData)) : null;
 
@@ -400,18 +552,18 @@ export default {
         }
       }
     },
-    
+
     // 动画显示评估值变化
     animateValuationChange(valuationItem, originalValue) {
       // 目标值是当前评估项的值
       const targetValue = valuationItem.rank;
       const delta = targetValue - originalValue;
-      
+
       // 创建进度条元素的引用
       const valuationName = valuationItem.valuation.valuationName;
       const progressBars = document.querySelectorAll('.valuation-item');
       let targetBar = null;
-      
+
       // 找到对应的进度条元素
       for (const bar of progressBars) {
         const nameElement = bar.querySelector('.valuation-name');
@@ -420,34 +572,34 @@ export default {
           break;
         }
       }
-      
+
       if (!targetBar) return;
-      
+
       const progressBar = targetBar.querySelector('.valuation-progress-bar');
       const scoreElement = targetBar.querySelector('.valuation-score');
-      
+
       if (!progressBar || !scoreElement) return;
-      
+
       // 添加高亮效果类
       const highlightClass = delta > 0 ? 'highlight-increase' : 'highlight-decrease';
       targetBar.classList.add(highlightClass);
-      
+
       // 使用requestAnimationFrame实现平滑动画
       let startTime = null;
       const duration = 1000; // 动画持续1秒
-      
+
       const animate = (timestamp) => {
         if (!startTime) startTime = timestamp;
         const elapsed = timestamp - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        
+
         // 计算当前动画帧的值 - 从原始值到目标值的过渡
         const currentValue = originalValue + (delta * progress);
-        
+
         // 更新UI
         progressBar.style.width = `${currentValue}%`;
-    scoreElement.textContent = `${Math.round(currentValue)}/100`;
-        
+        scoreElement.textContent = `${Math.round(currentValue)}/100`;
+
         // 继续动画或结束
         if (progress < 1) {
           requestAnimationFrame(animate);
@@ -458,43 +610,43 @@ export default {
           }, 500);
         }
       };
-      
+
       requestAnimationFrame(animate);
     },
-    
+
     // 动画更新雷达图
     animateRadarChart(valuationName, originalValue) {
       if (!this.radarChart) return;
-      
+
       // 获取当前雷达图配置
       const option = this.radarChart.getOption();
       const indicators = option.radar[0].indicator;
       const seriesData = option.series[0].data[0].value;
-      
+
       // 找到对应指标的索引
       const index = indicators.findIndex(item => item.name === valuationName);
       if (index === -1) return;
-      
+
       // 目标值是当前雷达图中的值
       const targetValue = seriesData[index];
       const delta = targetValue - originalValue;
-      
+
       // 动画更新雷达图
       let startTime = null;
       const duration = 1000; // 与进度条动画同步
-      
+
       const animate = (timestamp) => {
         if (!startTime) startTime = timestamp;
         const elapsed = timestamp - startTime;
         const progress = Math.min(elapsed / duration, 1);
-        
+
         // 计算当前动画帧的值 - 从原始值到目标值的过渡
         const currentValue = originalValue + (delta * progress);
-        
+
         // 更新雷达图数据
         const newSeriesData = [...seriesData];
         newSeriesData[index] = currentValue;
-        
+
         // 应用新数据
         this.radarChart.setOption({
           series: [{
@@ -504,13 +656,13 @@ export default {
             }]
           }]
         });
-        
+
         // 继续动画或结束
         if (progress < 1) {
           requestAnimationFrame(animate);
         }
       };
-      
+
       requestAnimationFrame(animate);
     },
     async fetchAiList() {
@@ -540,19 +692,25 @@ export default {
       try {
         const res = await axios.post('/api/chat/saveChatRecords', {
           interviewerId: this.activeInterviewer,
-          userId: this.$store.state.user.userId
+          userId: this.$store.state.user.userId,
         })
-
         this.chatRecords.unshift(res.data)
         this.$message.success('新建对话成功')
         this.activeChatRecord = res.data.chatId.toString()
-        
+
         // 清空评估数据并重新获取
         this.valuationData = null;
         if (this.radarChart) {
           this.radarChart.dispose();
           this.radarChart = null;
         }
+
+        // 新增
+        // 确保新创建的对话不在已摘要列表中
+        if (this.summarizedChatIds.has(this.activeChatRecord)) {
+          this.summarizedChatIds.delete(this.activeChatRecord);
+        }
+
         await this.fetchValuationData(res.data.chatId);
       } catch (error) {
         this.$message.error('新建对话失败')
@@ -603,6 +761,9 @@ export default {
       }
     },
     handleChatRecordSelect(chatId) {
+      // 停止任何正在进行的打字机动画
+      this.stopTypingAnimation();
+
       // 添加过渡效果
       this.$nextTick(() => {
         const valuationArea = this.$refs.valuationArea;
@@ -610,7 +771,7 @@ export default {
           valuationArea.style.transition = 'opacity 0.3s ease';
           valuationArea.style.opacity = 0;
         }
-        
+
         setTimeout(() => {
           // 清空评估数据
           this.valuationData = null;
@@ -619,7 +780,7 @@ export default {
             this.radarChart = null;
           }
           this.activeChatRecord = chatId;
-          
+
           // 只有当currentInterviewer和userId存在时才获取评估数据
           if (this.currentInterviewer && this.currentInterviewer.userId) {
             // 强制重新获取评估数据并初始化雷达图
@@ -650,7 +811,7 @@ export default {
       this.newTopicName = record.topic || '';
       this.renameDialogVisible = true;
 
-      
+
     },
     async confirmRename() {
       if (!this.currentRecordToRename) return;
@@ -665,13 +826,18 @@ export default {
 
         this.$message.success('重命名成功');
         await this.loadChatRecords();
+
+        // 添加打字机效果
+        const chatId = this.currentRecordToRename.chatId.toString();
+        this.startTypingAnimation(chatId, this.newTopicName);
+
         this.renameDialogVisible = false;
       } catch (error) {
         this.$message.error('重命名失败');
         console.error(error);
       }
     },
-    
+
     // 获取面试评估数据
     async fetchValuationData(chatId) {
       // 如果当前面试官不存在或者没有userId，则不获取评估数据
@@ -680,15 +846,15 @@ export default {
         this.showSkeleton = false;
         return;
       }
-      
+
       try {
         // 显示骨架屏
         this.showSkeleton = true;
-        
+
         const res = await axios.post('/api/chat/getValutionByChatId', {
           chatId: parseInt(chatId)
         });
-        
+
         if (res.data) {
           // 使用动画过渡
           this.$nextTick(() => {
@@ -706,37 +872,37 @@ export default {
         this.showSkeleton = false;
       }
     },
-    
+
     // 初始化雷达图
     initRadarChart() {
       if (!this.valuationData || !this.valuationData.valuationRanks || this.valuationData.valuationRanks.length === 0) {
         return;
       }
-      
+
       // 销毁之前的图表实例
       if (this.radarChart) {
         this.radarChart.dispose();
       }
-      
+
       // 确保DOM元素已经渲染
       if (!this.$refs.radarChart) {
         return;
       }
-      
+
       // 初始化echarts实例
       this.radarChart = echarts.init(this.$refs.radarChart);
-      
+
       // 准备雷达图数据
       const indicator = this.valuationData.valuationRanks.map(item => ({
         name: item.valuation.valuationName,
         max: 100
       }));
-      
+
       const seriesData = [{
         value: this.valuationData.valuationRanks.map(item => item.rank), // 直接使用100分制数据
         name: '评分'
       }];
-      
+
       // 配置雷达图选项
       const option = {
         tooltip: {
@@ -785,14 +951,14 @@ export default {
           }
         }]
       };
-      
+
       // 设置图表选项并渲染
       this.radarChart.setOption(option);
-      
+
       // 添加窗口大小变化的监听，以便调整图表大小
       window.addEventListener('resize', this.resizeRadarChart);
     },
-    
+
     // 调整雷达图大小
     resizeRadarChart() {
       if (this.radarChart) {
@@ -939,9 +1105,17 @@ export default {
 
 /* 评分变化动画效果 */
 @keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
+
+  100% {
+    transform: scale(1);
+  }
 }
 
 .highlight-increase {
@@ -1213,12 +1387,22 @@ export default {
   margin-right: 10px;
 }
 
+.record-container {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
 .record-title {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   margin-left: 8px;
+  transition: color 0.3s ease;
 }
 
 .record-more {
@@ -1477,10 +1661,44 @@ export default {
   .resume-assistant-container {
     padding: 12px;
   }
-  
+
   .resume-assistant-divider {
     margin-bottom: 8px;
   }
+}
+
+/* 打字机效果相关样式 */
+@keyframes blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
+}
+
+.record-title.typing {
+  display: inline-block;
+  color: #409eff;
+  font-weight: 500;
+}
+
+.cursor {
+  display: inline-block;
+  width: 2px;
+  height: 16px;
+  background-color: #409eff;
+  margin-right: 1px;
+  animation: blink 0.7s infinite;
+  position: relative;
+  top: 1px;
+}
+
+.chat-record-item:hover .record-title.typing {
+  color: #409eff;
 }
 </style>
 
