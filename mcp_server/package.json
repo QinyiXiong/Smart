@@ -1,6 +1,6 @@
 {
-  "name": "mcp-for-smart-interview-mock-ty",
-  "version": "1.0.0",
+  "name": "mcp-for-smart-interview-mock-tyd",
+  "version": "1.0.1",
   "description": "增加编程题结果取出",
   "type": "module",
   "bin": {
