@@ -153,9 +153,15 @@
       />
 
       <!-- 右侧评估tresultult区域 -->
-      <div class="valuation-area" v-if="activeChatRecord && valuationData && currentInterviewer && currentInterviewer.userId">
+      <div class="valuation-area" v-if="activeChatRecord && valuationData && currentInterviewer && currentInterviewer.userId" :class="{ 'collapsed': isValuationCollapsed }">
         <div class="valuation-header">
           <h3>面试评估结果</h3>
+          <el-button
+            class="collapse-btn"
+            type="text"
+            @click="toggleValuation"
+            :icon="isValuationCollapsed ? 'el-icon-d-arrow-left' : 'el-icon-d-arrow-right'"
+          ></el-button>
         </div>
         <div class="valuation-content">
           <div class="radar-chart-container" ref="radarChart">
@@ -226,6 +232,7 @@ export default {
       showSkeleton: false,
       branchId: null,
       summarizedChatIds: new Set(), // 跟踪已经生成过摘要的对话ID
+      isValuationCollapsed: false,
 
       typingAnimation: {
         chatId: null,      // 当前正在执行动画的对话ID
@@ -257,6 +264,14 @@ export default {
       } else {
         this.valuationData = null;
       }
+    },
+    isValuationCollapsed(newVal) {
+      // 当折叠状态改变后，给DOM一点时间更新，然后重新渲染雷达图
+      setTimeout(() => {
+        if (this.radarChart && !newVal) {
+          this.radarChart.resize();
+        }
+      }, 300);
     }
   },
   async mounted() {
@@ -963,7 +978,33 @@ export default {
       if (this.radarChart) {
         this.radarChart.resize();
       }
-    }
+    },
+    toggleValuation() {
+      this.isValuationCollapsed = !this.isValuationCollapsed;
+      
+      // 在折叠之前先隐藏内容
+      if (this.isValuationCollapsed && this.radarChart) {
+        // 添加一点淡出效果
+        const valuationContent = document.querySelector('.valuation-content');
+        if (valuationContent) {
+          valuationContent.style.opacity = '0';
+        }
+      }
+      
+      // 在状态变更后，调用nextTick确保DOM已更新，然后重新调整雷达图大小
+      this.$nextTick(() => {
+        if (this.radarChart && !this.isValuationCollapsed) {
+          setTimeout(() => {
+            this.radarChart.resize();
+            // 展开后显示内容
+            const valuationContent = document.querySelector('.valuation-content');
+            if (valuationContent) {
+              valuationContent.style.opacity = '1';
+            }
+          }, 300); // 与CSS过渡时间同步
+        }
+      });
+    },
   }
 }
 </script>
@@ -994,23 +1035,35 @@ export default {
 
 /* 确保雷达图在边栏折叠时正确显示 */
 .valuation-area {
-  transition: width 0.3s ease;
-}
-
-/* 评估区域样式 */
-.valuation-area {
   width: 300px;
   height: 100%;
   background: #fff;
   border-left: 1px solid #ebeef5;
   display: flex;
   flex-direction: column;
+  transition: width 0.3s ease;
+}
+
+.valuation-area.collapsed {
+  width: 40px;
+}
+
+.valuation-area.collapsed .valuation-content {
+  display: none;
+  opacity: 0;
 }
 
 .valuation-header {
   padding: 22px 20px;
   border-bottom: 1px solid #ebeef5;
   background: #f5f7fa;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.valuation-area.collapsed .valuation-header h3 {
+  display: none;
 }
 
 .valuation-header h3 {
@@ -1026,6 +1079,8 @@ export default {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  opacity: 1;
+  transition: opacity 0.3s ease;
 }
 
 .radar-chart-container {
