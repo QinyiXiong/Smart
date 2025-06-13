@@ -868,68 +868,96 @@ public class JudgeServiceImpl implements JudgeService {
         }
     }
 
-    /**
-     * 解析测试用例
-     */
     private List<TestCaseDTO> parseTestCases(String testCasesJson) {
         if (testCasesJson == null || testCasesJson.isEmpty()) {
             return Collections.emptyList();
         }
-
+    
         try {
-            // 预处理JSON字符串，转义换行符和其他控制字符
-            String processedJson = testCasesJson
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
-            
-            // 使用已配置的objectMapper解析JSON
+            // 先进行特殊字符处理和引号修复
+            String processedJson = processControlChars(testCasesJson);
+            log.warn("修复后的JSON: " + processedJson); // 添加日志以便调试
             return objectMapper.readValue(processedJson, new TypeReference<List<TestCaseDTO>>() {});
         } catch (JsonProcessingException e) {
-            // 如果第一次解析失败，尝试更严格的处理
-            try {
-                log.warn("第一次解析测试用例失败，尝试更严格的JSON处理");
-                // 使用正则表达式替换所有控制字符
-                String strictProcessedJson = processControlChars(testCasesJson);
-                return objectMapper.readValue(strictProcessedJson, new TypeReference<List<TestCaseDTO>>() {});
-            } catch (JsonProcessingException e2) {
-                log.error("解析测试用例失败，两种方法均无效", e2);
-                return Collections.emptyList();
-            }
+            log.error("解析测试用例失败", e);
+            return Collections.emptyList();
         }
     }
     
-    /**
-     * 处理JSON字符串中的控制字符
-     * @param json 原始JSON字符串
-     * @return 处理后的JSON字符串
-     */
     private String processControlChars(String json) {
         if (json == null) return null;
         
-        // 使用StringBuilder提高性能
         StringBuilder sb = new StringBuilder(json.length() + 100);
+        int state = 0; // 0: 正常状态, 1: 在input值中
+        boolean inValue = false; // 是否在input值字符串中
+        int valueStart = -1; // 值字符串开始位置
+        int sum=0;
+        
         for (int i = 0; i < json.length(); i++) {
             char c = json.charAt(i);
-            if (c < 32) { // ASCII控制字符
-                switch (c) {
-                    case '\n': sb.append("\\n"); break;
-                    case '\r': sb.append("\\r"); break;
-                    case '\t': sb.append("\\t"); break;
-                    case '\b': sb.append("\\b"); break;
-                    case '\f': sb.append("\\f"); break;
-                    default: sb.append(String.format("\\u%04x", (int)c)); break;
-                }
-            } else if (c == '"' || c == '\\') {
-                // 确保引号和反斜杠被正确转义
-                sb.append('\\').append(c);
-            } else {
-                sb.append(c);
+            
+            switch (state) {
+                case 0: // 正常状态
+                    if (c == '"' && i + 6 < json.length() && json.startsWith("input", i + 1)) {
+                        // 检测到"input"键
+                        sb.append("\"input\"");
+                        sum=0;
+                        i += 6; // 跳过"input"
+                        continue;
+                    } else if (c == ':' && i > 6) {
+                        // 检查前一个token是否是"input"
+                        String prevToken = sb.substring(Math.max(0, sb.length() - 8), sb.length());
+                        if (prevToken.endsWith("\"input\"")) {
+                            state = 1; // 进入input值处理状态
+                        }
+                    }
+                    sb.append(c);
+                    break;
+                    
+                case 1: // 在input值中
+                    if (c == '"' && !inValue) {
+                        // 值字符串开始
+                        inValue = true;
+                        valueStart = sb.length();
+                        sb.append('"'); // 保留边界双引号
+                    } else if (c == '"' && inValue && sum<2) {
+                        // 值字符串内部的双引号，改为单引号
+                        ++sum;
+                        sb.append('\'');
+                    }else if (c == ',' || c == '}') {
+                        // 值结束
+                        state = 0;
+                        inValue = false;
+                        sb.append(c);
+                    } else if (c == '\\') {
+                        // 处理转义字符
+                        if (i + 1 < json.length()) {
+                            sb.append('\\').append(json.charAt(i + 1));
+                            i++;
+                        }
+                    } else if (c < 32) {
+                        // 处理控制字符
+                        appendControlChar(sb, c);
+                    } else {
+                        sb.append(c);
+                    }
+                    break;
             }
         }
+        
         return sb.toString();
     }
-
+    
+    private void appendControlChar(StringBuilder sb, char c) {
+        switch (c) {
+            case '\n': sb.append("\\n"); break;
+            case '\r': sb.append("\\r"); break;
+            case '\t': sb.append("\\t"); break;
+            case '\b': sb.append("\\b"); break;
+            case '\f': sb.append("\\f"); break;
+            default: sb.append(String.format("\\u%04x", (int) c)); break;
+        }
+    }
     /**
      * 更新提交记录结果
      */
