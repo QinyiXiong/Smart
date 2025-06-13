@@ -96,6 +96,25 @@ public class MilvusServiceImpl implements MilvusService {
     }
 
     @Override
+    public boolean updateMilvusDatabase(MilvusDatabase milvusDatabase) {
+        Long userId = UserUtils.getCurrentUserByToken().getIdUser();
+
+        MilvusDatabase existingDatabase = milvusDatabaseRepository.findMilvusDatabaseByKnowledgeBaseIdAndUserId(
+                milvusDatabase.getKnowledgeBaseId(), userId);
+        if(existingDatabase == null){
+            throw new ServiceException("未找到对应知识库");
+        }
+        
+        existingDatabase.setDatabaseName(milvusDatabase.getDatabaseName());
+        if(milvusDatabase.getDescription() != null) {
+            existingDatabase.setDescription(milvusDatabase.getDescription());
+        }
+        
+        milvusDatabaseRepository.save(existingDatabase);
+        return true;
+    }
+
+    @Override
     public boolean uploadFile(String knowledgeBaseId,List<MultipartFile> fileList) {
         Long userId = UserUtils.getCurrentUserByToken().getIdUser();
 

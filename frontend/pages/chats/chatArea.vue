@@ -1548,43 +1548,6 @@ export default {
         this.$message.error('无法访问麦克风，请确保已授予麦克风权限');
       }
     },
-
-    /**
-     * 获取当前对话的摘要，用于自动命名
-     * @returns {string} 对话摘要
-     */
-    getConversationSummary() {
-      // 如果没有消息，返回空字符串
-      if (!this.messageListForShow || this.messageListForShow.length === 0) {
-        return '';
-      }
-
-      // 获取AI面试官的第一条消息作为摘要基础
-      const firstAiMessage = this.messageListForShow.find(msg => msg.role === 'assistant');
-      if (firstAiMessage && firstAiMessage.content && firstAiMessage.content.text) {
-        // 提取AI消息的前30个字符作为摘要，如果消息太长就截断并添加省略号
-        const text = firstAiMessage.content.text.replace(/[\n\r]/g, ' ').trim();
-        const maxLength = 30;
-        if (text.length > maxLength) {
-          return text.substring(0, maxLength) + '...';
-        }
-        return text;
-      }
-
-      // 如果找不到AI消息，尝试用用户的第一条消息
-      const firstUserMessage = this.messageListForShow.find(msg => msg.role === 'user');
-      if (firstUserMessage && firstUserMessage.content && firstUserMessage.content.text) {
-        const text = firstUserMessage.content.text.replace(/[\n\r]/g, ' ').trim();
-        const maxLength = 30;
-        if (text.length > maxLength) {
-          return text.substring(0, maxLength) + '...';
-        }
-        return text;
-      }
-
-      // 如果都没有，返回默认名称
-      return '面试对话';
-    },
   }
 }
 </script>

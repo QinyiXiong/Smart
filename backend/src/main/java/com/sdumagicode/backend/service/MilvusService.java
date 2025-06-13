@@ -16,6 +16,8 @@ public interface MilvusService {
 
     public boolean deleteMilvusDatabase(String knowledgeBaseId);
 
+    public boolean updateMilvusDatabase(MilvusDatabase milvusDatabase);
+
     public boolean uploadFile(String knowledgeBaseId,List<MultipartFile> fileList);
 
     public boolean deleteMilvusFilse(String knowledgeBaseId,String milvusFileId) throws IOException;
