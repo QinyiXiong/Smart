@@ -198,9 +198,9 @@ export default {
         solved: { title: '已解决', value: 0, rate: 0 },
         attempted: { title: '尝试过', value: 0, rate: 0 },
         byDifficulty: {
-          '简单': { total: 0, solved: 0, rate: 0 },
-          '中等': { total: 0, solved: 0, rate: 0 },
-          '困难': { total: 0, solved: 0, rate: 0 }
+          '简单': { solved: 0, total: 0, rate: 0 },
+          '中等': { solved: 0, total: 0, rate: 0 },
+          '困难': { solved: 0, total: 0, rate: 0 }
         },
         heatmapData: {},
         monthLabels: []
@@ -212,13 +212,33 @@ export default {
   computed: {
     // 根据标签筛选题目
     filteredProblems() {
-      if (this.selectedTags.length === 0) {
-        return this.problems;
+      let problems = this.problems;
+      if (this.selectedDifficulty) {
+        problems = problems.filter(problem => problem.difficulty === this.selectedDifficulty);
       }
-      
-      return this.problems.filter(problem => {
-        return this.selectedTags.every(tag => problem.tags.includes(tag));
+      if (this.selectedTags.length > 0) {
+        problems = problems.filter(problem =>
+          this.selectedTags.every(tag => problem.tags.includes(tag))
+        );
+      }
+      if (this.searchQuery) {
+        const query = this.searchQuery.toLowerCase();
+        problems = problems.filter(problem =>
+          problem.title.toLowerCase().includes(query) ||
+          problem.problemCode.toLowerCase().includes(query)
+        );
+      }
+      return problems;
+    },
+    sortedByDifficulty() {
+      const order = ['简单', '中等', '困难'];
+      const sorted = {};
+      order.forEach(key => {
+        if (this.statistics.byDifficulty[key]) {
+          sorted[key] = this.statistics.byDifficulty[key];
+        }
       });
+      return sorted;
     }
   },
   watch: {
@@ -362,7 +382,13 @@ export default {
         const res = await this.$axios.get('/api/problems/statistics');
         console.log('统计信息响应:', res);
         if (res && res.data) {
-          this.statistics = res.data;
+          // 确保 byDifficulty 按照预设顺序更新
+          const order = ['简单', '中等', '困难'];
+          const newByDifficulty = {};
+          order.forEach(key => {
+            newByDifficulty[key] = res.data.byDifficulty[key] || { solved: 0, total: 0, rate: 0 };
+          });
+          this.statistics = { ...res.data, byDifficulty: newByDifficulty };
           this.addProblemStatus(this.problems); // 确保在统计数据加载后更新问题状态
           
           // 更新后重新初始化图表

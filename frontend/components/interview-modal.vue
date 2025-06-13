@@ -1,9 +1,7 @@
 <template>
   <div class="interview-modal">
-    <div class="interview-header">
-      <h3>{{ interview ? interview.topic || '面试对话' : '加载中...' }}</h3>
+    <div v-if="isDevMode" class="debug-toggle">
       <el-button
-        v-if="isDevMode"
         size="mini"
         type="text"
         @click="showDebugInfo = !showDebugInfo">
@@ -53,7 +51,7 @@
 
           <!-- 分支编辑面板 -->
           <div v-if="message.showBranchTag" class="branch-edit-panel"
-            :class="{ 'user-branch-panel': message.role === 'user' }">
+            :class="{ 'user-branch-panel': message.role === 'user', 'ai-branch-panel': message.role === 'assistant' }">
             <div class="branch-tag-list">
               <div v-for="(sibling, idx) in siblingNodes.find(node => node.branchId === message.branchId)?.siblings || []"
                 :key="sibling.index" class="branch-tag-item"
@@ -368,32 +366,39 @@ export default {
 .interview-modal {
   display: flex;
   flex-direction: column;
-  height: 60vh;
+  height: calc(100vh - 61px); /* 减去头部高度 */
   width: 100%;
+  overflow: hidden;
+  max-width: 100%; /* 确保不超出父容器宽度 */
 }
 
 .interview-header {
-  padding: 10px 20px;
-  border-bottom: 1px solid #ebeef5;
-  background-color: #f5f7fa;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  display: none; /* 隐藏原有的标题，因为已经在父组件中显示标题 */
 }
 
-.interview-header h3 {
-  margin: 0;
-  color: #303133;
+.debug-toggle {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  z-index: 10;
 }
 
 .debug-info {
+  position: absolute;
+  top: 40px;
+  right: 20px;
   padding: 10px;
   background-color: #f8f8f8;
   border: 1px dashed #dcdfe6;
   font-family: monospace;
   font-size: 12px;
-  max-height: 200px;
+  max-height: 300px;
+  max-width: 400px;
+  width: 90%;
   overflow: auto;
+  z-index: 100;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
 }
 
 .chat-messages {
@@ -401,6 +406,9 @@ export default {
   overflow-y: auto;
   padding: 20px;
   background-color: #f5f7fa;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .loading-container {
@@ -423,17 +431,17 @@ export default {
   margin-bottom: 20px;
   max-width: 80%;
   position: relative;
-  padding-left: 40px;
-  padding-right: 40px;
+  word-break: break-word; /* 确保长文本会自动换行 */
 }
 
 .user-message {
-  align-self: flex-end;
   margin-left: auto;
+  padding-right: 10px;
 }
 
 .ai-message {
-  align-self: flex-start;
+  margin-right: auto;
+  padding-left: 10px;
 }
 
 .message-time {
@@ -442,8 +450,20 @@ export default {
   margin-bottom: 5px;
 }
 
+.user-message .message-time {
+  text-align: right;
+}
+
 .message-content-wrapper {
   display: flex;
+}
+
+.user-message .message-content-wrapper {
+  justify-content: flex-end;
+}
+
+.ai-message .message-content-wrapper {
+  justify-content: flex-start;
 }
 
 .message-content {
@@ -451,6 +471,9 @@ export default {
   border-radius: 8px;
   word-break: break-word;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-width: 60px;
+  max-width: 100%;
+  position: relative;
 }
 
 .user-message .message-content {
@@ -465,6 +488,35 @@ export default {
   border-top-left-radius: 0;
 }
 
+/* 添加气泡箭头 */
+.user-message .message-content:after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -8px;
+  width: 0;
+  height: 0;
+  border: 8px solid transparent;
+  border-left-color: #ecf5ff;
+  border-right: 0;
+  border-top: 0;
+  margin-right: 0;
+}
+
+.ai-message .message-content:after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border: 8px solid transparent;
+  border-right-color: #f4f4f5;
+  border-left: 0;
+  border-top: 0;
+  margin-left: 0;
+}
+
 .message-text {
   line-height: 1.5;
 }
@@ -473,8 +525,15 @@ export default {
 .branch-switch-container {
   width: 100%;
   display: flex;
-  justify-content: flex-end;
   margin-top: 5px;
+}
+
+.user-message .branch-switch-container {
+  justify-content: flex-end;
+}
+
+.ai-message .branch-switch-container {
+  justify-content: flex-start;
 }
 
 .branch-switch {
@@ -502,11 +561,14 @@ export default {
   min-width: 200px;
   max-width: 90%;
   transition: all 0.3s ease;
-  align-self: flex-start;
 }
 
 .user-branch-panel {
-  align-self: flex-end;
+  margin-left: auto;
+}
+
+.ai-branch-panel {
+  margin-right: auto;
 }
 
 /* 分支标签列表 - 水平布局 */
@@ -561,7 +623,21 @@ export default {
 
 /* 为markdown内容添加样式 */
 :deep(.markdown-body) {
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* 专门为AI消息增加样式 */
+.ai-message :deep(.markdown-body) {
+  font-size: 16px;
+}
+
+.ai-message :deep(.markdown-body p) {
+  margin: 10px 0;
+}
+
+.ai-message :deep(.markdown-body li) {
+  margin: 6px 0;
 }
 
 :deep(.markdown-body pre) {
@@ -569,6 +645,7 @@ export default {
   padding: 10px;
   border-radius: 5px;
   overflow-x: auto;
+  margin: 8px 0;
 }
 
 :deep(.markdown-body code) {
@@ -578,5 +655,31 @@ export default {
   font-size: 0.85em;
   background-color: rgba(27, 31, 35, 0.05);
   border-radius: 3px;
+}
+
+:deep(.markdown-body p) {
+  margin: 8px 0;
+}
+
+:deep(.markdown-body h1),
+:deep(.markdown-body h2),
+:deep(.markdown-body h3),
+:deep(.markdown-body h4),
+:deep(.markdown-body h5),
+:deep(.markdown-body h6) {
+  margin-top: 12px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+:deep(.markdown-body ul),
+:deep(.markdown-body ol) {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+:deep(.markdown-body li) {
+  margin: 4px 0;
 }
 </style>

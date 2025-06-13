@@ -204,7 +204,7 @@ export default {
       try {
         const res = await axios.get('/api/Interviewer/list');
         console.log(res.data)
-        this.aiList = res.data || [];
+        this.aiList = (res.data || []).filter(ai => ai.name !== '简历优化助手');
       } catch (error) {
         this.$message.error(error);
         console.error(error);
