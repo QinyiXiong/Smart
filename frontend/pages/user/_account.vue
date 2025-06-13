@@ -3,9 +3,9 @@
     <el-col :xs="24" :xl="24">
       <div class="card card-profile">
         <div v-if="user.bgImgUrl" class="card-header"
-             :style="{backgroundImage:'url('+user.bgImgUrl+')', backgroundSize:'cover', backgroundPosition:'50%'}"></div>
+             :style="{ backgroundImage: 'url(' + user.bgImgUrl + ')', backgroundSize: 'cover', backgroundPosition: '50%' }"></div>
         <div v-else class="card-header"
-             :style="{backgroundImage:'url(' + backgroundImage + ')', backgroundSize:'800px auto', backgroundPosition:'50%'}"></div>
+             :style="{ backgroundImage: 'url(' + backgroundImage + ')', backgroundSize: '800px auto', backgroundPosition: '50%' }"></div>
         <div class="card-body text-center">
           <img v-if="user.avatarUrl" class="card-profile-img-avatar" :src="user.avatarUrl">
           <img v-else class="card-profile-img" src="https://static.rymcu.com/article/1578475481946.png">
@@ -82,7 +82,7 @@
                    style="padding-left: calc(50vw - 11rem);">
             <el-menu-item index="0">文章</el-menu-item>
             <el-menu-item index="1">作品集</el-menu-item>
-            <el-menu-item index="2">关注用户</el-menu-item>
+            <!-- <el-menu-item index="2">关注用户</el-menu-item> -->
             <el-menu-item index="3">粉丝</el-menu-item>
           </el-menu>
         </el-col>
@@ -104,7 +104,7 @@
 </template>
 
 <script>
-import {mapState} from 'vuex';
+import { mapState } from 'vuex';
 import ArticleList from "~/components/archive/list";
 import PortfolioList from "~/components/common/portfolio/list";
 import UserList from "~/components/common/user/list";
@@ -114,21 +114,21 @@ import isoMetropolis from "~/static/banner/isometropolis.jpg"
 import naranjas from "~/static/banner/naranjas.png"
 import retroFurnish from "~/static/banner/retro-furnish.png"
 import science from "~/static/banner/science.png"
-import {github, sinaweibo, wechat, tencentqq} from "simple-icons";
+import { github, sinaweibo, wechat, tencentqq } from "simple-icons";
 
 export default {
   name: "User",
-  components: {ArticleList, PortfolioList, UserList},
-  validate({params, store}) {
+  components: { ArticleList, PortfolioList, UserList },
+  validate({ params, store }) {
     return params.account
   },
   fetch() {
-    let {store, params, query, error} = this.$nuxt.context;
+    let { store, params, query, error } = this.$nuxt.context;
     params.page = query.page || 1
     return Promise.all([
       store
         .dispatch('user/fetchDetail', params)
-        .catch(err => error({statusCode: 404})),
+        .catch(err => error({ statusCode: 404 })),
       store.dispatch('user/fetchUserExtend', params),
       store.dispatch('user/fetchArticleList', params),
       store.dispatch('user/fetchPortfolioList', params),
@@ -271,14 +271,14 @@ export default {
     let _ts = this;
     this.$store.commit('setActiveMenu', 'user');
     if (_ts.loggedIn) {
-      _ts.$axios.$get('/api/follow/is-follow', {
-        params: {
-          followingId: _ts.user.idUser,
-          followingType: 0
-        }
-      }).then(function (res) {
-        _ts.$set(_ts, 'isFollow', res);
-      })
+      // _ts.$axios.$get('/api/follow/is-follow', {
+      //   params: {
+      //     followingId: _ts.user.idUser,
+      //     followingType: 0
+      //   }
+      // }).then(function (res) {
+      //   _ts.$set(_ts, 'isFollow', res);
+      // })
     }
   }
 }
@@ -376,15 +376,18 @@ body {
   border-top-right-radius: calc(3px - 1px);
 }
 
-.mb-3, .my-3 {
+.mb-3,
+.my-3 {
   margin-bottom: 0.75rem !important;
 }
 
-h3, .h3 {
+h3,
+.h3 {
   font-size: 1.5rem;
 }
 
-.mb-4, .my-4 {
+.mb-4,
+.my-4 {
   margin-bottom: 1rem !important;
 }
 
