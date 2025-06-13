@@ -231,7 +231,6 @@ export default {
       isSidebarCollapsed: false,
       showSkeleton: false,
       branchId: null,
-      summarizedChatIds: new Set(), // 跟踪已经生成过摘要的对话ID
       isValuationCollapsed: false,
 
       typingAnimation: {
@@ -398,11 +397,17 @@ export default {
         if (!this.activeChatRecord) return;
 
         // 检查是否有足够的对话内容可以生成摘要，且该对话尚未生成过摘要
+        // 判断条件：根据当前激活对话记录的topic字段是否为null
+        const currentChat = this.chatRecords.find(chat => chat.chatId.toString() === this.activeChatRecord);
+        console.log("currentChat", currentChat)
+        console.log("this.activeChatRecord", this.activeChatRecord)
         if (
           this.$refs.chatArea &&
           this.$refs.chatArea.messageListForShow &&
-          !this.summarizedChatIds.has(this.activeChatRecord)
+          currentChat &&
+          !('topic' in currentChat) // 检查currentChat是否没有topic属性
         ) {
+          console.log(1)
           const messages = this.$refs.chatArea.messageListForShow;
 
           // 检查是否至少有3条消息(通常是用户问题和AI回复交替)
@@ -412,7 +417,7 @@ export default {
               role: msg.role,
               content: msg.content.text
             }));
-
+            console.log("dialogData", dialogData)
             try {
               // 调用DeepSeek API生成摘要
               const summaryResponse = await axios.post('/api/deepseek/summarize', {
@@ -432,8 +437,14 @@ export default {
                   }
                 });
                 console.log(this.activeChatRecord)
-                // 将当前对话ID添加到已摘要集合中
-                this.summarizedChatIds.add(this.activeChatRecord);
+
+                // 更新本地聊天记录中的topic
+                const updatedChatIndex = this.chatRecords.findIndex(
+                  chat => chat.chatId.toString() === this.activeChatRecord
+                );
+                if (updatedChatIndex !== -1) {
+                  this.chatRecords[updatedChatIndex].topic = summary;
+                }
 
                 // 重新加载聊天记录以显示更新的标题
                 await this.loadChatRecords();
@@ -446,9 +457,6 @@ export default {
             } catch (error) {
               console.warn('生成对话摘要失败:', error);
               // 失败时不影响主流程，只记录日志
-
-              // 即使生成摘要失败，也将该对话ID添加到已处理集合，避免重复尝试
-              this.summarizedChatIds.add(this.activeChatRecord);
             }
           }
         }
@@ -719,11 +727,7 @@ export default {
           this.radarChart = null;
         }
 
-        // 新增
-        // 确保新创建的对话不在已摘要列表中
-        if (this.summarizedChatIds.has(this.activeChatRecord)) {
-          this.summarizedChatIds.delete(this.activeChatRecord);
-        }
+        // 不再需要处理summarizedChatIds，因为新建的聊天记录topic为null
 
         await this.fetchValuationData(res.data.chatId);
       } catch (error) {
@@ -981,7 +985,7 @@ export default {
     },
     toggleValuation() {
       this.isValuationCollapsed = !this.isValuationCollapsed;
-      
+
       // 在折叠之前先隐藏内容
       if (this.isValuationCollapsed && this.radarChart) {
         // 添加一点淡出效果
@@ -990,7 +994,7 @@ export default {
           valuationContent.style.opacity = '0';
         }
       }
-      
+
       // 在状态变更后，调用nextTick确保DOM已更新，然后重新调整雷达图大小
       this.$nextTick(() => {
         if (this.radarChart && !this.isValuationCollapsed) {
