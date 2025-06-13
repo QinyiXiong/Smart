@@ -623,7 +623,7 @@ public void batchInsertMilvus(List<KnowledgeRecord> records, Long userId, String
 
         // 2. 构建StringBuilder来拼接结果
         StringBuilder ragContent = new StringBuilder();
-        ragContent.append("<RAG>\n");
+        ragContent.append("<RAG>用户的知识库：\n");
 
         // 3. 遍历搜索结果并拼接内容
         for (KnowledgeSearchVO result : searchResults) {

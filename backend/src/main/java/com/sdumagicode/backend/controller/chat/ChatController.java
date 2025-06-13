@@ -73,8 +73,6 @@ public class ChatController {
         return GlobalResultGenerator.genSuccessResult(allBranches);
     }
 
-
-
     @PostMapping("/sendMessageWithPoll")
     public GlobalResult<String> sendMessage(
             @RequestParam(value = "chatRequest") String chatRequestStr,
@@ -88,7 +86,7 @@ public class ChatController {
 
         List<MessageLocalDto> collect = messageList.stream().map((item) -> {
             MessageLocalDto messageLocalDto = new MessageLocalDto(item);
-            //把文件和所属message绑定
+            // 把文件和所属message绑定
             if (fileMessageId != null && !fileMessageId.isEmpty()) {
                 if (Objects.equals(messageLocalDto.getMessageId(), fileMessageId)) {
                     messageLocalDto.setUploadFiles(files);
@@ -101,7 +99,8 @@ public class ChatController {
         Interviewer interviewer = chatRequest.getInterviewer();
         // 参数验证
         if (messageLocals == null || messageLocals.isEmpty()
-                || (messageLocals.get(messageList.size() - 1).getContent().getText().isEmpty() && messageLocals.get(messageList.size() - 1).getContent().getFiles().isEmpty())) {
+                || (messageLocals.get(messageList.size() - 1).getContent().getText().isEmpty()
+                        && messageLocals.get(messageList.size() - 1).getContent().getFiles().isEmpty())) {
             throw new ServiceException("缺少发送信息");
         }
         if (interviewer == null) {
@@ -273,6 +272,7 @@ public class ChatController {
         boolean result = chatService.updateChatTopic(chatId, newTopic);
         return GlobalResultGenerator.genSuccessResult(result);
     }
+
     /**
      * 获取所有的action,前端执行对应的操作
      */
@@ -282,7 +282,7 @@ public class ChatController {
             throw new ServiceException("chatId不能为空");
         }
         int chatIdInt = Integer.parseInt(chatId);
-        
+
         Set<String> keys = redisService.keys("action" + chatIdInt + "*");
         // 获取所有action后删除对应的key
         List<String> actions = new ArrayList<>();
@@ -306,7 +306,6 @@ public class ChatController {
             }
         }
 
-       
         return GlobalResultGenerator.genSuccessResult(actions);
     }
 
