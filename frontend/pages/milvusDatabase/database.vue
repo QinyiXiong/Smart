@@ -46,7 +46,7 @@
       <div class="right-panel">
         <div v-if="activeLibrary" class="detail-container">
           <div class="detail-header">
-            <h2>{{ currentLibrary.databaseName>10 ?currentLibrary.databaseName.substring(0.,10)+'...':currentLibrary.databaseName || '未命名知识库' }}</h2>
+            <h2>{{ currentLibrary.databaseName > 10 ? currentLibrary.databaseName.substring(0., 10) + '...' : currentLibrary.databaseName || '未命名知识库' }}</h2>
             <el-button type="primary" icon="el-icon-upload" @click="showUploadDialog">
               上传文件
             </el-button>
@@ -133,7 +133,7 @@
 </template>
 
 <script>
-import axios from 'axios'
+import axios from "../../store/utils/interceptor"
 
 export default {
   data() {
@@ -162,7 +162,7 @@ export default {
     // 获取知识库列表
     async fetchLibraries() {
       try {
-        const res = await this.$axios.get('/api/MilvusDatabase')
+        const res = await axios.get('/api/MilvusDatabase')
         if (res.code === 0) {
           this.libraries = res.data
         } else {
@@ -250,7 +250,7 @@ export default {
               ...library,
               databaseName: value
             });
-            
+
             if (res.code === 0) {
               this.$message.success('重命名成功');
               this.fetchLibraries();
@@ -262,7 +262,7 @@ export default {
           console.error('重命名知识库异常:', error);
           this.$message.error('重命名失败: ' + error.message);
         }
-      }).catch(() => {});
+      }).catch(() => { });
     },
 
     // 删除知识库

@@ -45,6 +45,23 @@ public class MilvusDatabaseController {
     }
 
     /**
+     * 更新知识库信息
+     * @param knowledgeBaseId 知识库ID
+     * @param milvusDatabase 知识库更新信息
+     * @return 更新结果
+     */
+    @PutMapping("/{knowledgeBaseId}")
+    public GlobalResult<Boolean> updateDatabase(
+            @PathVariable String knowledgeBaseId,
+            @RequestBody MilvusDatabase milvusDatabase) {
+        milvusDatabase.setKnowledgeBaseId(knowledgeBaseId);
+        boolean result = milvusService.updateMilvusDatabase(milvusDatabase);
+        return result ?
+                GlobalResultGenerator.genSuccessResult("知识库更新成功") :
+                GlobalResultGenerator.genErrorResult("知识库更新失败");
+    }
+
+    /**
      * 获取指定知识库的文件列表
      * @param knowledgeBaseId 知识库ID
      * @return 文件列表

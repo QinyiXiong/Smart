@@ -212,21 +212,21 @@ export default {
     },
     async fetchDatabases() {
       try {
-        const res = await this.$axios.get('/api/MilvusDatabase');
+        const res = await axios.get('/api/MilvusDatabase');
         this.databases = res.data || [];
       } catch (error) {
-        this.$message.error('获取知识库列表失败');
+        this.$message.error(error);
         console.error(error);
       }
     },
     async fetchAiSettings() {
       try {
-        const res = await this.$axios.get('/api/Interviewer/getAiSettings');
+        const res = await axios.get('/api/Interviewer/getAiSettings');
         this.allSettings = res.data || [];
         console.log(this.allSettings)
 
       } catch (error) {
-        this.$message.error('获取AI设置项失败');
+        this.$message.error(error);
         console.error(error);
       }
     },
@@ -317,7 +317,7 @@ export default {
       }
 
       try {
-        await this.$axios.post('/api/Interviewer/saveOrUpdate', this.newAi);
+        await axios.post('/api/Interviewer/saveOrUpdate', this.newAi);
         this.$message.success('添加成功');
         this.addDialogVisible = false;
         await this.fetchAiList();
@@ -328,7 +328,7 @@ export default {
     },
     async saveAi() {
       try {
-        await this.$axios.post('/api/Interviewer/saveOrUpdate', this.currentAi);
+        await axios.post('/api/Interviewer/saveOrUpdate', this.currentAi);
         self.$message.success('保存成功');
         await this.fetchAiList();
       } catch (error) {
@@ -343,7 +343,7 @@ export default {
         type: 'warning'
       }).then(async () => {
         try {
-          await this.$axios.delete(`/api/Interviewer/delete/${id}`);
+          await axios.delete(`/api/Interviewer/delete/${id}`);
           this.$message.success('删除成功');
           await this.fetchAiList();
           if (this.activeAi === id) {
@@ -368,7 +368,7 @@ export default {
           const ai = this.aiList.find(item => item.interviewerId === id);
           if (ai) {
             ai.name = value;
-            await this.$axios.post('/api/Interviewer/saveOrUpdate', ai);
+            await axios.post('/api/Interviewer/saveOrUpdate', ai);
             this.$message.success('重命名成功');
             await this.fetchAiList();
           }
@@ -376,7 +376,7 @@ export default {
           this.$message.error('重命名失败');
           console.error(error);
         }
-      }).catch(() => {});
+      }).catch(() => { });
     }
   }
 }

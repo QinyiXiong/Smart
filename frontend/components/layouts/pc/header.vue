@@ -27,12 +27,12 @@
           <i class="el-icon-data-board" style="margin-right: 8px;"></i>
           知识库管理
         </el-menu-item>
-        <el-menu-item index="interview-record" class="modern-menu-item">
+        <!-- <el-menu-item index="interview-record" class="modern-menu-item">
           <i class="el-icon-document" style="margin-right: 8px;"></i>
           面试记录
-        </el-menu-item>
+        </el-menu-item> -->
       </el-submenu>
-      
+
       <!-- OJ主菜单 -->
       <el-submenu index="oj" class="modern-submenu">
         <template slot="title">
@@ -48,7 +48,7 @@
           添加题目
         </el-menu-item>
       </el-submenu>
-      
+
       <!-- 社区主菜单 -->
       <el-submenu index="community" class="modern-submenu">
         <template slot="title">
@@ -59,10 +59,10 @@
           <i class="el-icon-hot-water" style="margin-right: 8px;"></i>
           热门
         </el-menu-item>
-        <el-menu-item index="my-follow" class="modern-menu-item">
+        <!-- <el-menu-item index="my-follow" class="modern-menu-item">
           <i class="el-icon-star-on" style="margin-right: 8px;"></i>
           我的关注
-        </el-menu-item>
+        </el-menu-item> -->
         <el-menu-item index="portfolios" class="modern-menu-item">
           <i class="el-icon-collection" style="margin-right: 8px;"></i>
           作品集
@@ -84,9 +84,9 @@
             popper-class="modern-search-popover">
             <div class="modern-search-container">
               <div class="search-wrapper">
-                <el-input 
-                  @keyup.enter.native="querySearchAsync" 
-                  name="searchInput" 
+                <el-input
+                  @keyup.enter.native="querySearchAsync"
+                  name="searchInput"
                   placeholder="搜索文章, 作品集, 用户..."
                   v-model="queryString"
                   class="modern-search-input"
@@ -109,13 +109,13 @@
             <i class="el-icon-edit-outline" style="margin-right: 4px;"></i>
             创建专栏
           </el-link>
-          
+
           <el-link :underline="false" href="/article/post" rel="nofollow"
                    class="modern-nav-link">
             <i class="el-icon-document-add" style="margin-right: 4px;"></i>
             发帖
           </el-link>
-          
+
           <el-link :underline="false" rel="nofollow" class="modern-nav-link">
             <el-dropdown @command="handleCommand" trigger="click" class="modern-dropdown">
               <el-badge :value="notificationNumbers" class="item">
@@ -129,8 +129,8 @@
                   <span>通知消息</span>
                 </div>
                 <div class="notification-list">
-                  <el-dropdown-item 
-                    :key="notification.idNotification" 
+                  <el-dropdown-item
+                    :key="notification.idNotification"
                     command="notification"
                     v-for="notification in notifications"
                     class="modern-notification-item">
@@ -188,7 +188,7 @@
             </el-dropdown>
           </el-link>
         </el-col>
-        
+
         <el-col style="text-align: right;" v-else>
           <el-popover
             @show="handleShowPopover"
@@ -198,9 +198,9 @@
             width="420"
             popper-class="modern-search-popover">
             <div class="modern-search-container">
-              <el-input 
-                @keyup.enter.native="querySearchAsync" 
-                name="searchInput" 
+              <el-input
+                @keyup.enter.native="querySearchAsync"
+                name="searchInput"
                 placeholder="搜索文章, 作品集, 用户..."
                 v-model="queryString"
                 class="modern-search-input"
@@ -214,12 +214,12 @@
               <i class="el-icon-search"></i>
             </el-button>
           </el-popover>
-          
+
           <el-link :underline="false" @click="login" rel="nofollow" class="modern-auth-link">
             <i class="el-icon-user" style="margin-right: 4px;"></i>
             登录
           </el-link>
-          
+
           <el-link :underline="false" href="/register" rel="nofollow" class="modern-auth-link">
             <i class="el-icon-user-solid" style="margin-right: 4px;"></i>
             注册
@@ -468,7 +468,7 @@ export default {
 }
 
 /* 现代化菜单样式 - 增加字体大小和间距 */
-.modern-submenu >>> .el-submenu__title {
+.modern-submenu>>>.el-submenu__title {
   font-weight: 600;
   color: #333;
   font-size: 16px;
@@ -478,13 +478,13 @@ export default {
   line-height: 60px;
 }
 
-.modern-submenu >>> .el-submenu__title:hover {
+.modern-submenu>>>.el-submenu__title:hover {
   color: #409EFF;
   background-color: rgba(64, 158, 255, 0.05);
 }
 
 /* 下拉菜单容器增加间距 */
-.modern-submenu >>> .el-menu--popup {
+.modern-submenu>>>.el-menu--popup {
   padding: 12px 0;
   min-width: 200px;
   border-radius: 12px;
@@ -527,7 +527,7 @@ export default {
   flex: 1;
 }
 
-.modern-search-input >>> .el-input__inner {
+.modern-search-input>>>.el-input__inner {
   border-radius: 25px;
   border: 2px solid #e4e7ed;
   transition: all 0.3s ease;
@@ -536,7 +536,7 @@ export default {
   height: 40px;
 }
 
-.modern-search-input >>> .el-input__inner:focus {
+.modern-search-input>>>.el-input__inner:focus {
   border-color: #409EFF;
   box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.1);
 }
@@ -579,7 +579,7 @@ export default {
   padding: 5px 18px;
   border-radius: 20px;
   margin: 0 6px;
-  
+
   color: #606266;
   font-weight: 500;
   font-size: 15px;
@@ -636,7 +636,7 @@ export default {
 }
 
 .notification-header {
-  padding:16px 24px;
+  padding: 16px 24px;
   background: linear-gradient(135deg, #7cb7ffb9 0%, #99aaff 100%);
   color: white;
   font-weight: 600;
@@ -667,7 +667,7 @@ export default {
   align-items: center;
   font-size: 15px;
   color: #606266;
-  }
+}
 
 .view-all-item {
   padding: 8px 24px;
@@ -756,7 +756,6 @@ export default {
   background: rgba(245, 108, 108, 0.05);
   color: #f56c6c;
 }
-
 </style>
 
 <style>
@@ -800,16 +799,18 @@ export default {
 
 /* 响应式布局调整 */
 @media screen and (max-width: 768px) {
-  .modern-nav-link, .modern-auth-link {
+
+  .modern-nav-link,
+  .modern-auth-link {
     padding: 5px 10px;
     margin: 0 3px;
     font-size: 14px;
   }
-  
+
   .modern-icon-btn {
     margin-right: 5px;
   }
-  
+
   .el-col[style*="text-align: right"] {
     display: flex;
     justify-content: flex-end;
@@ -823,13 +824,14 @@ export default {
   .navbar-brand-img {
     margin-left: 10px;
   }
-  
-  .modern-nav-link, .modern-auth-link {
+
+  .modern-nav-link,
+  .modern-auth-link {
     padding: 5px 8px;
     margin: 0 2px;
     font-size: 13px;
   }
-  
+
   .el-col[style*="text-align: right"] {
     position: fixed;
     top: 0;
@@ -838,7 +840,7 @@ export default {
     background: white;
     z-index: 1000;
   }
-  
+
   .modern-icon-btn {
     transform: scale(0.9);
   }
