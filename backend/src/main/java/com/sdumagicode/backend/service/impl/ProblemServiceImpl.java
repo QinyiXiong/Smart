@@ -20,6 +20,7 @@ import tk.mybatis.mapper.entity.Example;
 
 import javax.annotation.Resource;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -27,6 +28,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * 题目服务实现类
@@ -463,9 +467,9 @@ public class ProblemServiceImpl extends AbstractService<Problem> implements Prob
     public Map<String, Object> getStatistics() {
         // 直接从数据库查询，不使用缓存
         logger.info("从数据库查询统计信息");
-        
+
         Map<String, Object> result = new HashMap<>();
-        
+
         // 获取当前登录用户ID
         Long userId = null;
         try {
@@ -474,73 +478,199 @@ public class ProblemServiceImpl extends AbstractService<Problem> implements Prob
         } catch (Exception e) {
             logger.warn("获取当前用户ID失败，将返回全局统计数据", e);
         }
-        
+
         // 直接查询可见题目总数
         Condition condition = new Condition(Problem.class);
         condition.createCriteria().andEqualTo("visible", 1);
         int totalProblems = problemMapper.selectCountByCondition(condition);
         logger.info("可见题目总数: {}", totalProblems);
-        
+
+        // 查询各难度级别的题目数量
+        Map<String, Integer> difficultyCountMap = new HashMap<>();
+        String[] difficulties = {"简单", "中等", "困难"};
+
+        for (String difficulty : difficulties) {
+            Condition diffCondition = new Condition(Problem.class);
+            diffCondition.createCriteria()
+                    .andEqualTo("visible", 1)
+                    .andEqualTo("difficulty", difficulty);
+            int count = problemMapper.selectCountByCondition(diffCondition);
+            difficultyCountMap.put(difficulty, count);
+            logger.info("{}难度题目数量: {}", difficulty, count);
+        }
+
         // 获取用户提交记录
         int acceptedProblems = 0;
         int totalAttempted = 0;
-        
+        Map<String, Integer> acceptedByDifficulty = new HashMap<>();
+
+        // 初始化各难度已解决题目数量为0
+        for (String difficulty : difficulties) {
+            acceptedByDifficulty.put(difficulty, 0);
+        }
+
+        Set<Long> attemptedProblemIds = null;
+        Set<Long> acceptedProblemIds = null;
         if (userId != null) {
             // 创建查询条件（不再使用distinct）
-Example example = new Example(CodeSubmission.class);
-example.selectProperties("problemId", "status");
-Example.Criteria criteria = example.createCriteria();
-criteria.andEqualTo("userId", userId);
+            Example example = new Example(CodeSubmission.class);
+            example.selectProperties("problemId", "status");
+            Example.Criteria criteria = example.createCriteria();
+            criteria.andEqualTo("userId", userId);
 
-List<CodeSubmission> submissions = codeSubmissionMapper.selectByExample(example);
-logger.info("用户提交记录数: {}", submissions.size());
+            List<CodeSubmission> submissions = codeSubmissionMapper.selectByExample(example);
+            logger.info("用户提交记录数: {}", submissions.size());
 
-// 统计已尝试和已通过的题目数量
-Set<Long> attemptedProblemIds = new HashSet<>();
-Set<Long> acceptedProblemIds = new HashSet<>();
+            // 统计已尝试和已通过的题目数量
+            attemptedProblemIds = new HashSet<>();
+            acceptedProblemIds = new HashSet<>();
 
-// 使用常量定义状态值，避免硬编码
-final String ACCEPTED_STATUS = "accepted";
+            // 使用常量定义状态值，避免硬编码
+            final String ACCEPTED_STATUS = "accepted";
 
-for (CodeSubmission submission : submissions) {
-    Long problemId = submission.getProblemId();
-        
-    // 所有提交过的题目ID（自动去重）
-    attemptedProblemIds.add(problemId);
-    
-    // 仅添加ACCEPTED状态的题目ID（自动去重）
-    if (ACCEPTED_STATUS.equalsIgnoreCase(submission.getStatus())) {
-        acceptedProblemIds.add(problemId);
-    }
-}
-            
+            for (CodeSubmission submission : submissions) {
+                Long problemId = submission.getProblemId();
+
+                // 所有提交过的题目ID（自动去重）
+                attemptedProblemIds.add(problemId);
+
+                // 仅添加ACCEPTED状态的题目ID（自动去重）
+                if (ACCEPTED_STATUS.equalsIgnoreCase(submission.getStatus())) {
+                    acceptedProblemIds.add(problemId);
+                }
+            }
+
             acceptedProblems = acceptedProblemIds.size();
             totalAttempted = attemptedProblemIds.size();
             logger.info("用户已解决题目数: {}, 尝试过的题目数: {}", acceptedProblems, totalAttempted);
+
+            // 按难度统计已解决的题目
+            if (!acceptedProblemIds.isEmpty()) {
+                // 查询已解决题目的难度信息
+                Example problemExample = new Example(Problem.class);
+                problemExample.selectProperties("id", "difficulty");
+                Example.Criteria problemCriteria = problemExample.createCriteria();
+                problemCriteria.andIn("id", acceptedProblemIds);
+
+                List<Problem> accepted_Problems = problemMapper.selectByExample(problemExample);
+
+                // 统计各难度已解决题目数量
+                for (Problem problem : accepted_Problems) {
+                    String difficulty = problem.getDifficulty();
+                    if (difficulty != null) {
+                        acceptedByDifficulty.put(difficulty, acceptedByDifficulty.getOrDefault(difficulty, 0) + 1);
+                    }
+                }
+
+                for (String difficulty : difficulties) {
+                    logger.info("已解决{}难度题目数量: {}", difficulty, acceptedByDifficulty.get(difficulty));
+                }
+            }
+
+            // 添加热力图数据 - 获取过去12个月的每日提交数据
+            if (submissions.size() > 0) {
+                // 获取12个月前的日期
+                Calendar cal = Calendar.getInstance();
+                cal.add(Calendar.MONTH, -12);
+                cal.set(Calendar.HOUR_OF_DAY, 0);
+                cal.set(Calendar.MINUTE, 0);
+                cal.set(Calendar.SECOND, 0);
+                cal.set(Calendar.MILLISECOND, 0);
+                final long twelveMonthsAgo = cal.getTimeInMillis();
+
+                // 创建查询条件，获取过去12个月的提交记录
+                Example heatmapExample = new Example(CodeSubmission.class);
+                heatmapExample.selectProperties("submittedAt", "status");
+                Example.Criteria heatmapCriteria = heatmapExample.createCriteria();
+                heatmapCriteria.andEqualTo("userId", userId);
+
+                // 转换为LocalDateTime
+                LocalDateTime twelveMonthsAgoDateTime = LocalDateTime.ofInstant(
+                        java.time.Instant.ofEpochMilli(twelveMonthsAgo),
+                        java.time.ZoneId.systemDefault()
+                );
+                heatmapCriteria.andGreaterThanOrEqualTo("submittedAt", twelveMonthsAgoDateTime);
+
+                // 按提交时间降序排序
+                heatmapExample.orderBy("submittedAt").desc();
+
+                List<CodeSubmission> heatmapSubmissions = codeSubmissionMapper.selectByExample(heatmapExample);
+
+                // 统计每天的提交次数
+                Map<String, Integer> submissionsByDay = new HashMap<>();
+
+                DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+                for (CodeSubmission submission : heatmapSubmissions) {
+                    if (submission.getSubmittedAt() != null) {
+                        String day = submission.getSubmittedAt().format(dateFormatter);
+                        submissionsByDay.put(day, submissionsByDay.getOrDefault(day, 0) + 1);
+                    }
+                }
+
+                result.put("heatmapData", submissionsByDay);
+
+                // 获取月份标签
+                List<String> monthLabels = new ArrayList<>();
+                DateTimeFormatter monthFormatter = DateTimeFormatter.ofPattern("yyyy-MM");
+
+                LocalDateTime monthDateTime = twelveMonthsAgoDateTime;
+
+                for (int i = 0; i < 12; i++) {
+                    monthLabels.add(monthDateTime.format(monthFormatter));
+                    monthDateTime = monthDateTime.plusMonths(1);
+                }
+
+                result.put("monthLabels", monthLabels);
+            } else {
+                result.put("heatmapData", new HashMap<String, Integer>());
+                result.put("monthLabels", new ArrayList<String>());
+            }
         }
-        
+
         // 构造前端需要的数据结构
         Map<String, Object> totalStat = new HashMap<>();
         totalStat.put("title", "总题数");
         totalStat.put("value", totalProblems);
         totalStat.put("rate", 100); // 总题数的比率为100%
-        
+
         Map<String, Object> solvedStat = new HashMap<>();
         solvedStat.put("title", "已解决");
         solvedStat.put("value", acceptedProblems);
         solvedStat.put("rate", totalProblems > 0 ? Math.round((double) acceptedProblems / totalProblems * 100) : 0);
-        
+
         Map<String, Object> attemptedStat = new HashMap<>();
         attemptedStat.put("title", "尝试过");
         attemptedStat.put("value", totalAttempted);
         attemptedStat.put("rate", totalProblems > 0 ? Math.round((double) totalAttempted / totalProblems * 100) : 0);
-        
+
         result.put("total", totalStat);
         result.put("solved", solvedStat);
         result.put("attempted", attemptedStat);
-        
+
+        // 添加已解决和尝试过的题目ID列表
+        result.put("solvedProblems", new ArrayList<>(acceptedProblemIds));
+        result.put("attemptedProblems", new ArrayList<>(attemptedProblemIds));
+        logger.info("用户已解决题目数: {}, 尝试过的题目数: {}", acceptedProblemIds, attemptedProblemIds);
+        // 添加各难度级别的统计信息
+        Map<String, Object> difficultyStats = new HashMap<>();
+
+        for (String difficulty : difficulties) {
+            Map<String, Object> difficultyStat = new HashMap<>();
+            int totalCount = difficultyCountMap.get(difficulty);
+            int solvedCount = acceptedByDifficulty.get(difficulty);
+
+            difficultyStat.put("total", totalCount);
+            difficultyStat.put("solved", solvedCount);
+            difficultyStat.put("rate", totalCount > 0 ? Math.round((double) solvedCount / totalCount * 100) : 0);
+
+            difficultyStats.put(difficulty, difficultyStat);
+        }
+
+        result.put("byDifficulty", difficultyStats);
+
         // 不再将结果存入缓存，每次都从数据库获取最新数据
-        
+
         return result;
     }
     

@@ -24,10 +24,10 @@
                     </el-col>
                     <el-col :span="16">
                       <h3>{{ interviewer.name || '暂无面试官名称' }}</h3>
-                      <p>{{ interviewer.title || '暂无面试官信息' }}</p>
+                      <p>{{ interviewer.customPrompt || '暂无面试官信息' }}</p>
                     </el-col>
                     <el-col :span="4" style="text-align: right;">
-                      <el-button type="primary" size="small" @click="getInterviewer(interviewer.id)">获取面试官</el-button>
+                      <el-button type="primary" size="small" @click="getInterviewer(interviewer.interviewerId)">获取面试官</el-button>
                     </el-col>
                   </el-row>
                 </el-card>
@@ -38,12 +38,12 @@
                   <el-row>
                     <el-col :span="24">
                       <h4>面试记录 #{{ index + 1 }}</h4>
-                      <p class="interview-desc">{{ interview.description || '暂无面试记录描述' }}</p>
-                      <p class="interviewer-name">面试官：{{ interview.interviewerName || '暂无面试官' }}</p>
+                      <p class="interview-desc">{{ interview.topic || '暂无面试记录描述' }}</p>
+                      <p class="interviewer-name">面试官：{{ interview.interviewer.name || '暂无面试官' }}</p>
                     </el-col>
                     <el-col :span="24" style="text-align: right; margin-top: 10px;">
-                      <el-button size="small" @click="viewInterviewDetail(interview.id)">查看详情</el-button>
-                      <el-button type="primary" size="small" @click="getInterview(interview.id)">获取面试记录</el-button>
+                      <el-button size="small" @click="viewInterviewDetail(interview.chatId)">查看详情</el-button>
+                      <el-button type="primary" size="small" @click="getInterview(interview.chatId)">获取面试记录</el-button>
                     </el-col>
                   </el-row>
                 </el-card>
@@ -192,6 +192,24 @@
         </edit-tags>
       </el-dialog>
     </el-col>
+    <el-col>
+      <el-dialog
+        :visible.sync="interviewModalVisible"
+        width="80%"
+        :fullscreen="false"
+        custom-class="interview-dialog"
+        :show-close="true"
+        :modal="true"
+        :append-to-body="true">
+        <div class="dialog-header" slot="title">
+          <span>面试记录详情</span>
+        </div>
+        <interview-modal :interviewId="selectedInterviewId"></interview-modal>
+        <span slot="footer" class="dialog-footer">
+          <el-button @click="interviewModalVisible = false" type="primary">关闭</el-button>
+        </span>
+      </el-dialog>
+    </el-col>
   </el-row>
 </template>
 
@@ -201,6 +219,7 @@ import { mapState } from 'vuex';
 import ShareBox from '~/components/widget/share';
 import PortfoliosWidget from '~/components/widget/portfolios';
 import EditTags from '~/components/widget/tags';
+import InterviewModal from '~/components/interview-modal';
 import 'vditor/dist/css/content-theme/light.css';
 import { buymeacoffee } from "simple-icons"
 import apiConfig from '~/config/api.config';
@@ -210,7 +229,8 @@ export default {
   components: {
     ShareBox,
     PortfoliosWidget,
-    EditTags
+    EditTags,
+    InterviewModal
   },
   validate({ params, store }) {
     return params.article_id && !isNaN(Number(params.article_id))
@@ -290,7 +310,9 @@ export default {
       isShare: false,
       dialogVisible: false,
       isPerfect: false,
-      shareUrl: ''
+      shareUrl: '',
+      selectedInterviewId: null,
+      interviewModalVisible: false
     }
   },
   methods: {
@@ -421,10 +443,14 @@ export default {
     // 获取分享的面试官信息
     async getInterviewer(interviewerId) {
       try {
-        await this.$axios.$post(`/api/article/${this.article.idArticle}/interviewer/${interviewerId}/get`)
+        console.log(interviewerId)
+        await this.$axios.$post(`/api/share/interviewShareToUser`, { interviewerId: interviewerId })
         this.$message.success('获取面试官成功')
         // 刷新文章数据
         await this.getArticle()
+        this.$router.push({
+          path: `/interviewer/interviewer`
+        })
       } catch (err) {
         this.$message.error(err.response?.data?.message || '获取面试官失败')
       }
@@ -433,10 +459,14 @@ export default {
     // 获取面试记录
     async getInterview(interviewId) {
       try {
-        await this.$axios.$post(`/api/article/${this.article.idArticle}/interview/${interviewId}/get`)
+        console.log(interviewId)
+        await this.$axios.$post(`/api/share/chatShareToUser`, { chatId: interviewId })
         this.$message.success('获取面试记录成功')
         // 刷新文章数据
         await this.getArticle()
+        this.$router.push({
+          path: `/chats/interviewContainer`
+        })
       } catch (err) {
         this.$message.error(err.response?.data?.message || '获取面试记录失败')
       }
@@ -444,9 +474,13 @@ export default {
 
     // 查看面试详情
     viewInterviewDetail(interviewId) {
-      this.$router.push({
-        path: `/interview/${interviewId}/detail`
-      })
+
+      this.selectedInterviewId = interviewId;
+      this.interviewModalVisible = true;
+    },
+
+    closeInterviewModal() {
+      this.interviewModalVisible = false;
     },
 
     // 刷新文章数据
@@ -540,5 +574,40 @@ export default {
     display: table;
     clear: both;
   }
+}
+
+.interview-dialog {
+  display: flex;
+  flex-direction: column;
+  height: 80vh !important;
+}
+
+.interview-dialog .el-dialog__header {
+  padding: 15px 20px;
+  background-color: #409EFF;
+  margin: 0;
+}
+
+.interview-dialog .el-dialog__body {
+  flex: 1;
+  padding: 0;
+  overflow: hidden;
+  height: calc(100% - 100px) !important;
+}
+
+.interview-dialog .el-dialog__footer {
+  border-top: 1px solid #ebeef5;
+  padding: 15px 20px;
+  text-align: right;
+}
+
+.dialog-header {
+  color: white;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.dialog-header span {
+  margin-left: 5px;
 }
 </style>

@@ -88,6 +88,9 @@ resource:
   answer-api-url: https://test.rymcu.com/subject/question
 openai:
   token: # Open Ai Key
+deepseek:
+  api:
+    key: ${DEEPSEEK_API} # DeepSeek API Key，从环境变量中获取
 
 mybatis:
   mapper-locations: classpath*:com/sdumagicode/backend/**/mapper/*.xml, classpath*:mapper/*.xml
@@ -95,4 +98,3 @@ mybatis:
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-

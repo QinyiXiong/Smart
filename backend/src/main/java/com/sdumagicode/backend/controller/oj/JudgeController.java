@@ -1,5 +1,22 @@
 package com.sdumagicode.backend.controller.oj;
 
+
+
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
+import com.sdumagicode.backend.core.result.GlobalResult;
+import com.sdumagicode.backend.core.result.GlobalResultGenerator;
+import com.sdumagicode.backend.dto.*;
+import com.sdumagicode.backend.entity.CodeSubmission;
+import com.sdumagicode.backend.service.JudgeService;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.shiro.authz.annotation.RequiresPermissions;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.sdumagicode.backend.core.result.GlobalResult;
@@ -62,6 +79,7 @@ public class JudgeController {
             // 创建代码提交对象，只设置ID
             CodeSubmission submission = new CodeSubmission();
             submission.setId(result.getSubmissionId());
+            submission.setSubmittedAt(LocalDateTime.now()); // 显式设置提交时间为当前时间
                 
             // 调用服务获取AI评价
             judgeService.getAiCodeReview(submission);
