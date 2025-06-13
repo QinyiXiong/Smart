@@ -133,7 +133,7 @@
 </template>
 
 <script>
-import axios from 'axios'
+import axios from "../../store/utils/interceptor"
 
 export default {
   data() {
@@ -162,7 +162,7 @@ export default {
     // 获取知识库列表
     async fetchLibraries() {
       try {
-        const res = await this.$axios.get('/api/MilvusDatabase')
+        const res = await axios.get('/api/MilvusDatabase')
         if (res.code === 0) {
           this.libraries = res.data
         } else {

@@ -670,7 +670,6 @@ export default {
         const res = await axios.get('/api/Interviewer/list')
         this.aiList = res.data || []
       } catch (error) {
-        this.$message.error('获取面试官列表失败')
         console.error(error)
       }
     },
