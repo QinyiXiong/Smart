@@ -92,7 +92,7 @@ public class ChatServiceImpl implements ChatService {
 
             List<ValuationRank> collect = valuations.stream().map((item) -> {
                 ValuationRank newRank = new ValuationRank();
-                newRank.setRank(0);
+                newRank.setRank(60);
                 newRank.setValuation(item);
                 return newRank;
             }).collect(Collectors.toList());
