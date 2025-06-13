@@ -30,9 +30,9 @@
                           <p>{{ interviewer.customPrompt || '暂无面试官信息' }}</p>
                         </el-col>
                         <el-col :span="4" style="text-align: right;">
-                          <el-button 
-                            type="primary" 
-                            size="small" 
+                          <el-button
+                            type="primary"
+                            size="small"
                             @click="getInterviewer(interviewer.interviewerId)"
                             class="modern-btn interviewer-btn">
                             <i class="el-icon-upload2"></i>
@@ -52,18 +52,18 @@
                           <p class="interviewer-name">面试官：{{ interview.interviewer.name || '暂无面试官' }}</p>
                         </el-col>
                         <el-col :span="24" style="text-align: right; margin-top: 10px;">
-                          <el-button 
-                            size="small" 
+                          <el-button
+                            size="small"
                             :type="selectedInterviewId === interview.chatId ? 'primary' : 'default'"
                             @click="viewInterviewDetail(interview.chatId)"
                             class="modern-btn view-btn"
-                            :class="{'selected-btn': selectedInterviewId === interview.chatId}">
+                            :class="{ 'selected-btn': selectedInterviewId === interview.chatId }">
                             <i class="el-icon-view"></i>
                             {{ selectedInterviewId === interview.chatId ? '已选中' : '查看详情' }}
                           </el-button>
-                          <el-button 
-                            type="success" 
-                            size="small" 
+                          <el-button
+                            type="success"
+                            size="small"
                             @click="getInterview(interview.chatId)"
                             class="modern-btn get-btn">
                             <i class="el-icon-download"></i>
@@ -212,7 +212,7 @@
     </div>
 
     <!-- 可拖拽的分割线 -->
-    <div 
+    <div
       v-if="selectedInterviewId"
       class="resize-bar"
       @mousedown="startResize"
@@ -223,15 +223,15 @@
     </div>
 
     <!-- 右侧面试详情面板 -->
-    <div 
-      v-if="selectedInterviewId" 
-      class="right-panel" 
+    <div
+      v-if="selectedInterviewId"
+      class="right-panel"
       :style="{ width: rightPanelWidth + '%' }">
       <div class="interview-detail-header">
         <span class="interview-detail-title">面试记录详情</span>
-        <el-button 
-          type="text" 
-          icon="el-icon-close" 
+        <el-button
+          type="text"
+          icon="el-icon-close"
           @click="closeInterviewDetail"
           class="close-btn">
         </el-button>
@@ -358,7 +358,7 @@ export default {
       startLeftWidth: 0
     }
   },
-  
+
   methods: {
     // 缓动函数 - 使用更自然的弹性动画
     easeInOutCubic(t) {
@@ -367,15 +367,15 @@ export default {
         ? 4 * t * t * t
         : 1 - Math.pow(-2 * t + 2, 3) / 2;
     },
-    
+
     // 弹性缓动函数，用于弹性效果
     easeOutElastic(t) {
       const c4 = (2 * Math.PI) / 3;
       return t === 0
         ? 0
         : t === 1
-        ? 1
-        : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+          ? 1
+          : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
     },
     onRouter(name, data) {
       this.$router.push(
@@ -503,6 +503,17 @@ export default {
     },
     // 获取分享的面试官信息
     async getInterviewer(interviewerId) {
+      if (!this.$store.state.auth.loggedIn) {
+        this.$router.push({
+          path: '/login',
+          query: {
+            historyUrl: window.location.href
+          }
+        });
+        this.$message.warning('请先登录后再获取面试官');
+        return;
+      }
+
       try {
         console.log(interviewerId)
         await this.$axios.$post(`/api/share/interviewShareToUser`, { interviewerId: interviewerId })
@@ -519,6 +530,17 @@ export default {
 
     // 获取面试记录
     async getInterview(interviewId) {
+      if (!this.$store.state.auth.loggedIn) {
+        this.$router.push({
+          path: '/login',
+          query: {
+            historyUrl: window.location.href
+          }
+        });
+        this.$message.warning('请先登录后再获取面试记录');
+        return;
+      }
+
       try {
         console.log(interviewId)
         await this.$axios.$post(`/api/share/chatShareToUser`, { chatId: interviewId })
@@ -554,23 +576,23 @@ export default {
         // 获取当前左侧面板宽度，用于动画过渡
         const currentLeftWidth = this.leftPanelWidth;
         const targetLeftWidth = window.innerWidth <= 768 ? 100 : 50;
-        
+
         // 先设置ID，让CSS类生效
         this.selectedInterviewId = interviewId;
-        
+
         // 执行平滑的宽度过渡动画
         const startTime = Date.now();
         const duration = 300; // 动画持续300毫秒
-        
+
         const animateWidth = () => {
           const elapsed = Date.now() - startTime;
           const progress = Math.min(elapsed / duration, 1);
           // 使用更平滑的动画曲线
           const easeProgress = this.easeOutElastic(progress);
-          
+
           // 根据进度计算当前宽度
           this.leftPanelWidth = currentLeftWidth + (targetLeftWidth - currentLeftWidth) * easeProgress;
-          
+
           if (progress < 1) {
             requestAnimationFrame(animateWidth);
           } else {
@@ -578,10 +600,10 @@ export default {
             this.adjustContentOverflow();
           }
         };
-        
+
         // 启动动画
         requestAnimationFrame(animateWidth);
-        
+
         // 在移动设备上自动滚动到详情页
         if (window.innerWidth <= 768) {
           this.$nextTick(() => {
@@ -599,39 +621,39 @@ export default {
       // 获取当前左侧面板宽度，用于动画过渡
       const currentLeftWidth = this.leftPanelWidth;
       const targetLeftWidth = 60; // 恢复默认宽度
-      
+
       // 为面板添加关闭动画的类
       const rightPanel = document.querySelector('.right-panel');
       if (rightPanel) {
         rightPanel.classList.add('closing');
       }
-      
+
       // 执行平滑的宽度过渡动画
       const startTime = Date.now();
       const duration = 300; // 动画持续300毫秒
-      
+
       const animateWidth = () => {
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
         // 使用更平滑的动画曲线
         const easeProgress = this.easeOutElastic(progress);
-        
+
         // 根据进度计算当前宽度
         this.leftPanelWidth = currentLeftWidth + (targetLeftWidth - currentLeftWidth) * easeProgress;
-        
+
         if (progress < 1) {
           requestAnimationFrame(animateWidth);
         } else {
           // 动画完成后，清除面板ID
           this.selectedInterviewId = null;
-          
+
           // 移除关闭动画类
           if (rightPanel) {
             rightPanel.classList.remove('closing');
           }
         }
       };
-      
+
       // 启动动画
       requestAnimationFrame(animateWidth);
     },
@@ -641,11 +663,11 @@ export default {
       this.isResizing = true;
       this.startX = e.clientX;
       this.startLeftWidth = this.leftPanelWidth;
-      
+
       // 添加全局鼠标事件监听
       document.addEventListener('mousemove', this.handleResize);
       document.addEventListener('mouseup', this.stopResize);
-      
+
       // 防止文本选择
       e.preventDefault();
     },
@@ -653,19 +675,19 @@ export default {
     // 处理拖拽调整
     handleResize(e) {
       if (!this.isResizing) return;
-      
+
       const deltaX = e.clientX - this.startX;
       const containerWidth = window.innerWidth;
       const deltaPercent = (deltaX / containerWidth) * 100;
-      
+
       let newLeftWidth = this.startLeftWidth + deltaPercent;
-      
+
       // 限制宽度范围在 20% 到 80% 之间
       newLeftWidth = Math.max(20, Math.min(80, newLeftWidth));
-      
+
       // 设置左侧面板宽度
       this.leftPanelWidth = newLeftWidth;
-      
+
       // 添加一个CSS类来表示正在调整大小
       document.body.classList.add('resizing-layout');
     },
@@ -675,10 +697,10 @@ export default {
       this.isResizing = false;
       document.removeEventListener('mousemove', this.handleResize);
       document.removeEventListener('mouseup', this.stopResize);
-      
+
       // 移除调整大小的CSS类
       document.body.classList.remove('resizing-layout');
-      
+
       // 拖拽结束后检查是否需要调整以防止内容溢出
       this.$nextTick(() => {
         this.adjustContentOverflow();
@@ -693,7 +715,7 @@ export default {
     isFollower(idUser) {
       return this.$store.getters["follow/isFollower"](idUser)
     },
-    
+
     // 处理窗口大小变化
     handleWindowResize() {
       // 如果是小屏幕且详情页已打开，调整布局
@@ -704,17 +726,17 @@ export default {
         // 在大屏幕上恢复左右分栏
         this.leftPanelWidth = 50;
       }
-      
+
       // 调整内容溢出
       this.$nextTick(() => {
         this.adjustContentOverflow();
       });
     },
-    
+
     // 调整内容溢出问题
     adjustContentOverflow() {
       if (!this.selectedInterviewId) return;
-      
+
       // 检查左侧面板内容是否溢出
       const leftPanel = document.querySelector('.left-panel');
       if (leftPanel) {
@@ -733,43 +755,43 @@ export default {
     window.removeEventListener('resize', this.handleWindowResize);
   },
   mounted() {
-  let _ts = this;
-  _ts.$store.commit('setActiveMenu', 'articleDetail');
-  
-  // 监听窗口大小变化
-  window.addEventListener('resize', this.handleWindowResize);
-  
-  // 初始化布局
-  this.handleWindowResize();
-  
-  Vue.nextTick(() => {
-    const previewElement = document.getElementById("articleContent");
-    Vue.VditorPreview.codeRender(previewElement, 'zh_CN');
-    Vue.VditorPreview.highlightRender({
-      "enable": true,
-      "lineNumber": true,
-      "style": "github"
-    }, previewElement, apiConfig.VDITOR);
-    Vue.VditorPreview.mathRender(previewElement, {
-      math: { "engine": "KaTeX", "inlineDigit": false, "macros": {} }, cdn: apiConfig.VDITOR
-    });
-    Vue.VditorPreview.mermaidRender(previewElement, apiConfig.VDITOR);
-    Vue.VditorPreview.graphvizRender(previewElement, apiConfig.VDITOR);
-    Vue.VditorPreview.chartRender(previewElement, apiConfig.VDITOR);
-    Vue.VditorPreview.mindmapRender(previewElement, apiConfig.VDITOR);
-    Vue.VditorPreview.abcRender(previewElement, apiConfig.VDITOR);
-    Vue.VditorPreview.mediaRender(previewElement);
-    Vue.VditorPreview.lazyLoadImageRender(previewElement);
-    
-    previewElement.addEventListener("click", (event) => {
-      if (event.target.tagName === "IMG") {
-        Vue.VditorPreview.previewImage(event.target);
-      }
-    });
-    _ts.$set(_ts, 'isPerfect', _ts.article.articlePerfect === '1')
-  })
-  console.log(_ts.article);
-}
+    let _ts = this;
+    _ts.$store.commit('setActiveMenu', 'articleDetail');
+
+    // 监听窗口大小变化
+    window.addEventListener('resize', this.handleWindowResize);
+
+    // 初始化布局
+    this.handleWindowResize();
+
+    Vue.nextTick(() => {
+      const previewElement = document.getElementById("articleContent");
+      Vue.VditorPreview.codeRender(previewElement, 'zh_CN');
+      Vue.VditorPreview.highlightRender({
+        "enable": true,
+        "lineNumber": true,
+        "style": "github"
+      }, previewElement, apiConfig.VDITOR);
+      Vue.VditorPreview.mathRender(previewElement, {
+        math: { "engine": "KaTeX", "inlineDigit": false, "macros": {} }, cdn: apiConfig.VDITOR
+      });
+      Vue.VditorPreview.mermaidRender(previewElement, apiConfig.VDITOR);
+      Vue.VditorPreview.graphvizRender(previewElement, apiConfig.VDITOR);
+      Vue.VditorPreview.chartRender(previewElement, apiConfig.VDITOR);
+      Vue.VditorPreview.mindmapRender(previewElement, apiConfig.VDITOR);
+      Vue.VditorPreview.abcRender(previewElement, apiConfig.VDITOR);
+      Vue.VditorPreview.mediaRender(previewElement);
+      Vue.VditorPreview.lazyLoadImageRender(previewElement);
+
+      previewElement.addEventListener("click", (event) => {
+        if (event.target.tagName === "IMG") {
+          Vue.VditorPreview.previewImage(event.target);
+        }
+      });
+      _ts.$set(_ts, 'isPerfect', _ts.article.articlePerfect === '1')
+    })
+    console.log(_ts.article);
+  }
 }
 </script>
 
@@ -779,23 +801,29 @@ export default {
   position: relative;
   width: 100%;
   min-height: 100vh;
-  overflow: hidden; /* 改回hidden以控制布局 */
-  justify-content: center; /* 默认居中 */
+  overflow: hidden;
+  /* 改回hidden以控制布局 */
+  justify-content: center;
+  /* 默认居中 */
 }
 
 .article-container.with-detail {
-  justify-content: flex-start; /* 有详情时靠左对齐 */
+  justify-content: flex-start;
+  /* 有详情时靠左对齐 */
 }
 
 .left-panel {
   flex-shrink: 0;
   overflow-y: auto;
   padding: 0 10px;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); /* 匹配右面板的过渡效果 */
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  /* 匹配右面板的过渡效果 */
   margin: 0 auto;
   width: 60%;
-  will-change: transform, width; /* 提示浏览器优化动画 */
-  backface-visibility: hidden; /* 减少闪烁 */
+  will-change: transform, width;
+  /* 提示浏览器优化动画 */
+  backface-visibility: hidden;
+  /* 减少闪烁 */
 }
 
 .right-panel {
@@ -807,22 +835,31 @@ export default {
   border-left: 1px solid #e8e8e8;
   background: white;
   overflow-y: hidden;
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); /* 使用更平滑的贝塞尔曲线 */
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  /* 使用更平滑的贝塞尔曲线 */
   box-shadow: -2px 0 10px rgba(0, 0, 0, 0.05);
-  z-index: 10; /* 确保右侧面板在左侧面板之上 */
-  overflow-x: hidden; /* 防止内容超出宽度 */
-  transform: translateX(0); /* 默认位置 */
-  will-change: transform, opacity, width; /* 提示浏览器优化动画 */
-  backface-visibility: hidden; /* 减少闪烁 */
+  z-index: 10;
+  /* 确保右侧面板在左侧面板之上 */
+  overflow-x: hidden;
+  /* 防止内容超出宽度 */
+  transform: translateX(0);
+  /* 默认位置 */
+  will-change: transform, opacity, width;
+  /* 提示浏览器优化动画 */
+  backface-visibility: hidden;
+  /* 减少闪烁 */
   -webkit-font-smoothing: subpixel-antialiased;
 }
 
 /* 添加进入和离开动画 */
 .article-container:not(.with-detail) .right-panel {
-  transform: translateX(110%); /* 隐藏时向右移动更远一点 */
+  transform: translateX(110%);
+  /* 隐藏时向右移动更远一点 */
   opacity: 0;
-  pointer-events: none; /* 隐藏时不接受鼠标事件 */
-  will-change: transform, opacity; /* 提示浏览器优化动画 */
+  pointer-events: none;
+  /* 隐藏时不接受鼠标事件 */
+  will-change: transform, opacity;
+  /* 提示浏览器优化动画 */
 }
 
 /* 关闭动画 */
@@ -841,9 +878,10 @@ export default {
   z-index: 1000;
   user-select: none;
   transform: translateX(-3px);
-  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
-              background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
-              width 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); /* 更加平滑的过渡效果 */
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    width 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* 更加平滑的过渡效果 */
   background-color: transparent;
   /* 必须确保调整栏准确地显示在左侧面板的右边缘 */
   pointer-events: auto;
@@ -933,7 +971,7 @@ export default {
     flex-direction: column;
     height: auto;
   }
-  
+
   .left-panel {
     width: 100% !important;
     max-width: 100% !important;
@@ -941,9 +979,10 @@ export default {
     margin: 0 !important;
     float: none !important;
   }
-  
+
   .right-panel {
-    position: static; /* 在移动设备上使用静态定位 */
+    position: static;
+    /* 在移动设备上使用静态定位 */
     width: 100% !important;
     height: auto;
     min-height: 500px;
@@ -951,15 +990,15 @@ export default {
     border-top: 1px solid #e8e8e8;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
   }
-  
+
   .resize-bar {
     display: none;
   }
-  
+
   .article-container.with-detail {
     justify-content: flex-start;
   }
-  
+
   .interview-detail-header {
     position: sticky;
     top: 0;
@@ -986,17 +1025,22 @@ export default {
   float: left;
   height: 100vh;
   overflow-y: auto;
-  word-break: break-word; /* 确保文字换行而不是溢出 */
-  overflow-x: hidden; /* 防止水平溢出 */
-  max-width: 100%; /* 确保在移动设备上适应宽度 */
+  word-break: break-word;
+  /* 确保文字换行而不是溢出 */
+  overflow-x: hidden;
+  /* 防止水平溢出 */
+  max-width: 100%;
+  /* 确保在移动设备上适应宽度 */
 }
 
 /* 过渡动画 */
-.left-panel, .right-panel {
-  transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1), 
-              margin 0.4s cubic-bezier(0.25, 1, 0.5, 1), 
-              float 0.4s cubic-bezier(0.25, 1, 0.5, 1), 
-              transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* 使用弹性贝塞尔曲线 */
+.left-panel,
+.right-panel {
+  transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+    margin 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+    float 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+    transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* 使用弹性贝塞尔曲线 */
 }
 
 /* 拖拽时的特殊样式 */
