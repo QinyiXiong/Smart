@@ -176,7 +176,7 @@ public class InterviewerPromptGenerator {
         //测试加减分的prompt,勿删
         return "\n当前的chatId为："+ currentChatId
                 + valuationInfo.toString() +
-                "当前userId为:" + UserUtils.getCurrentUserByToken().getIdUser()+
+                "当前userId为:" + interviewer.getUserId()+
                 "每次加减分都是调用mcp工具完成的,不是只是说一下";
     }
     public String generateResumeHelperPrompt(){

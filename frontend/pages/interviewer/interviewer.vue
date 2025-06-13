@@ -329,7 +329,7 @@ export default {
     async saveAi() {
       try {
         await axios.post('/api/Interviewer/saveOrUpdate', this.currentAi);
-        self.$message.success('保存成功');
+        this.$message.success('保存成功');
         await this.fetchAiList();
       } catch (error) {
         this.$message.error('保存失败');
