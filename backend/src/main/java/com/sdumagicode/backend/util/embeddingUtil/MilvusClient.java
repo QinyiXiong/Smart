@@ -618,6 +618,11 @@ public void batchInsertMilvus(List<KnowledgeRecord> records, Long userId, String
             return "";
         }
 
+        // 限制关键词长度，防止在搜索阶段就超过token限制
+        if (keyword.length() > 200) {
+            keyword = keyword.substring(0, 200);
+        }
+
         // 1. 执行搜索获取结果列表
         List<KnowledgeSearchVO> searchResults = search(keyword, topK, userId, knowledgeBaseId);
 
@@ -626,9 +631,24 @@ public void batchInsertMilvus(List<KnowledgeRecord> records, Long userId, String
         ragContent.append("<RAG>用户的知识库：\n");
 
         // 3. 遍历搜索结果并拼接内容
+        final int maxContentLength = 200; // 每个搜索结果的最大文本长度
+        final int maxTotalLength = 1500;  // RAG内容总体最大长度
+        
         for (KnowledgeSearchVO result : searchResults) {
+            // 检查总长度是否接近限制
+            if (ragContent.length() >= maxTotalLength) {
+                break; // 如果已达到最大长度，停止添加更多内容
+            }
+            
             ragContent.append("【相关度得分: ").append(result.getRelevanceScore()).append("】\n");
-            ragContent.append(result.getChunkText()).append("\n\n");
+            
+            // 截断过长的文本
+            String chunkText = result.getChunkText();
+            if (chunkText != null && chunkText.length() > maxContentLength) {
+                chunkText = chunkText.substring(0, maxContentLength) + "...";
+            }
+            
+            ragContent.append(chunkText).append("\n\n");
         }
 
         // 4. 添加结束标签

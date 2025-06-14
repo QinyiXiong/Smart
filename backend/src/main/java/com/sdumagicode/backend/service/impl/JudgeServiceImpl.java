@@ -26,6 +26,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -252,6 +253,7 @@ public class JudgeServiceImpl implements JudgeService {
             submission.setLanguage(codeSubmitDTO.getLanguage());
             submission.setStatus("JUDGING");
             submission.setTotalTestCases(testCases.size());
+            submission.setSubmittedAt(LocalDateTime.now());
             codeSubmissionMapper.insert(submission);
 
             // 异步执行评测
@@ -874,13 +876,19 @@ public class JudgeServiceImpl implements JudgeService {
         }
     
         try {
-            // 先进行特殊字符处理和引号修复
-            String processedJson = processControlChars(testCasesJson);
-            log.warn("修复后的JSON: " + processedJson); // 添加日志以便调试
-            return objectMapper.readValue(processedJson, new TypeReference<List<TestCaseDTO>>() {});
+            // 先尝试直接解析原始JSON
+            return objectMapper.readValue(testCasesJson, new TypeReference<List<TestCaseDTO>>() {});
         } catch (JsonProcessingException e) {
-            log.error("解析测试用例失败", e);
-            return Collections.emptyList();
+            log.warn("直接解析JSON失败，尝试修复后再解析: " + e.getMessage());
+            try {
+                // 解析失败后进行特殊字符处理和引号修复
+                String processedJson = processControlChars(testCasesJson);
+                log.warn("修复后的JSON: " + processedJson); // 添加日志以便调试
+                return objectMapper.readValue(processedJson, new TypeReference<List<TestCaseDTO>>() {});
+            } catch (JsonProcessingException ex) {
+                log.error("修复后仍然解析测试用例失败", ex);
+                return Collections.emptyList();
+            }
         }
     }
     

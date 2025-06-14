@@ -398,6 +398,11 @@ export default {
           });
         }
       } catch (error) {
+        // 忽略认证相关的header错误，这通常是由@nuxtjs/auth-next模块的refresh策略引起的
+        if (error.message && error.message.includes('Cannot set headers after they are sent')) {
+          console.warn('认证模块header警告（已忽略）:', error.message);
+          return;
+        }
         console.error('获取统计信息失败:', error);
         this.$message.error('获取统计信息失败');
       }
@@ -488,6 +493,7 @@ export default {
       
       // 计算过去一年的总提交数
       const totalSubmissions = Object.values(heatmapData).reduce((sum, count) => sum + count, 0);
+      console.log('过去一年总提交数:', totalSubmissions);
       
       // 生成日历数据
       const calendarData = [];
