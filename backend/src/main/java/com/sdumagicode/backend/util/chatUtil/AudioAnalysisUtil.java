@@ -18,7 +18,7 @@ import java.util.Map;
 @Component
 public class AudioAnalysisUtil {
 
-    @Value("${openai.api.key}")
+    @Value("${openai.api.audio.key}")
     private String apiKey;
 
     /**
@@ -52,7 +52,7 @@ public class AudioAnalysisUtil {
                 .build();
 
         MultiModalConversationParam param = MultiModalConversationParam.builder()
-                .model("qwen-audio-turbo-latest")
+                .model("qwen-audio-turbo")
                 .apiKey(apiKey)  // 注入API Key
                 .messages(Arrays.asList(systemMessage, userMessage))
                 .build();
