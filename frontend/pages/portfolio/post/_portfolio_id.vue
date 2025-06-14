@@ -20,7 +20,7 @@
               <br>
               <el-form-item label="作品集介绍">
                 <content-editor mode="sv" :cacheId="'portfolio-' + (portfolio.idPortfolio || '')"
-                                :initValue="portfolio.portfolioDescription||''" v-if="isLoading"
+                                :initValue="portfolio.portfolioDescription || ''" v-if="isLoading"
                                 ref="contentEditor"></content-editor>
               </el-form-item>
               <el-form-item class="text-right">
@@ -45,7 +45,7 @@
                   />
                 </div>
                 <div class="cropperBox">
-                  <div :style="{height:cropImg.h+'px',width:cropImg.w+'px'}"
+                  <div :style="{ height: cropImg.h + 'px', width: cropImg.w + 'px' }"
                        style="overflow:hidden;margin: 0 auto">
                     <img :src="cropImg.url" :style="cropImg.img">
                   </div>
@@ -91,21 +91,21 @@
 </template>
 
 <script>
-import {mapState} from 'vuex';
+import { mapState } from 'vuex';
 import ContentEditor from "@/components/ContentEditor.vue";
 
 export default {
   name: "PortfolioPost",
-  validate({params, store}) {
+  validate({ params, store }) {
     if (typeof params.portfolio_id === 'undefined') {
       return true;
     }
     return params.portfolio_id && !isNaN(Number(params.portfolio_id))
   },
-  asyncData({store, params, error}) {
+  asyncData({ store, params, error }) {
     return Promise.all([
       store.dispatch('portfolio/fetchPostDetail', params)
-        .catch(err => error({statusCode: 404}))
+        .catch(err => error({ statusCode: 404 }))
     ])
   },
   components: {
@@ -115,7 +115,7 @@ export default {
     ...mapState({
       portfolioDetail: state => state.portfolio.detail.data,
       uploadHeaders: state => {
-        return {'X-Upload-Token': state.uploadHeaders}
+        return { 'X-Upload-Token': state.uploadHeaders }
       },
       isAuthor() {
         let account = this.$store.state.auth.user?.nickname;
@@ -229,7 +229,7 @@ export default {
           });
           _ts.$set(_ts, 'notificationFlag', false);
           _ts.$router.push({
-            path: '/portfolio/' + res.idPortfolio
+            path: '/portfolios?page=1'
           })
         }
         _ts.$set(_ts, 'loading', false)
@@ -350,7 +350,6 @@ export default {
 </script>
 
 <style lang="less">
-
 .button_box {
   display: flex;
 }
@@ -396,7 +395,7 @@ export default {
   overflow: hidden;
   border: 1px solid red;
 
-  > img {
+  >img {
     display: block;
     margin: 0 auto;
   }

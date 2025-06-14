@@ -118,7 +118,7 @@
                          :total="users.total">
           </el-pagination>
         </el-col>
-        <el-col :span="24">
+        <!-- <el-col :span="24">
           <el-col :span="24" style="text-align: left;">
             <h3>新增账户列表</h3>
           </el-col>
@@ -137,7 +137,7 @@
               </template>
             </el-table-column>
           </el-table>
-        </el-col>
+        </el-col> -->
         <el-col>
           <el-pagination :hide-on-single-page="true" @size-change="handleBankAccountSizeChange"
                          @current-change="handleBankAccountCurrentChange" :current-page="bankAccounts.pageNum"
@@ -195,7 +195,7 @@
 
 <script>
 import Vue from 'vue';
-import {mapState} from 'vuex';
+import { mapState } from 'vuex';
 import echarts from 'echarts';
 import EditTags from '~/components/widget/tags';
 
@@ -206,11 +206,11 @@ export default {
   components: {
     EditTags
   },
-  asyncData({store, params, error}) {
+  asyncData({ store, params, error }) {
     return Promise.all([
       store
         .dispatch('dashboard/fetchDashboard', params)
-        .catch(err => error({statusCode: 404})),
+        .catch(err => error({ statusCode: 404 })),
       store.dispatch("dashboard/fetchLastThirtyDays", params),
       store.dispatch("dashboard/fetchHistory", params),
       store.dispatch("dashboard/fetchNewUsers", params),
