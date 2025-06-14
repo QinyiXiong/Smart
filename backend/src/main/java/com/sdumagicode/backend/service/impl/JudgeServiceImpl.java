@@ -896,10 +896,9 @@ public class JudgeServiceImpl implements JudgeService {
         if (json == null) return null;
         
         StringBuilder sb = new StringBuilder(json.length() + 100);
-        int state = 0; // 0: 正常状态, 1: 在input值中
-        boolean inValue = false; // 是否在input值字符串中
+        int state = 0; // 0: 正常状态, 1: 在input值中, 2: 在output值中
+        boolean inValue = false; // 是否在值字符串中
         int valueStart = -1; // 值字符串开始位置
-        int sum=0;
         
         for (int i = 0; i < json.length(); i++) {
             char c = json.charAt(i);
@@ -909,31 +908,58 @@ public class JudgeServiceImpl implements JudgeService {
                     if (c == '"' && i + 6 < json.length() && json.startsWith("input", i + 1)) {
                         // 检测到"input"键
                         sb.append("\"input\"");
-                        sum=0;
                         i += 6; // 跳过"input"
                         continue;
+                    } else if (c == '"' && i + 7 < json.length() && json.startsWith("output", i + 1)) {
+                        // 检测到"output"键
+                        sb.append("\"output\"");
+                        i += 7; // 跳过"output"
+                        continue;
                     } else if (c == ':' && i > 6) {
-                        // 检查前一个token是否是"input"
-                        String prevToken = sb.substring(Math.max(0, sb.length() - 8), sb.length());
+                        // 检查前一个token是否是"input"或"output"
+                        String prevToken = sb.substring(Math.max(0, sb.length() - 9), sb.length());
                         if (prevToken.endsWith("\"input\"")) {
                             state = 1; // 进入input值处理状态
+                        } else if (prevToken.endsWith("\"output\"")) {
+                            state = 2; // 进入output值处理状态
                         }
                     }
                     sb.append(c);
                     break;
                     
                 case 1: // 在input值中
+                case 2: // 在output值中
                     if (c == '"' && !inValue) {
                         // 值字符串开始
                         inValue = true;
                         valueStart = sb.length();
                         sb.append('"'); // 保留边界双引号
-                    } else if (c == '"' && inValue && sum<2) {
-                        // 值字符串内部的双引号，改为单引号
-                        ++sum;
-                        sb.append('\'');
-                    }else if (c == ',' || c == '}') {
-                        // 值结束
+                    } else if (c == '"' && inValue) {
+                        // 检查是否是值字符串结束的双引号
+                        // 通过检查下一个非空白字符来判断
+                        boolean isEndQuote = false;
+                        for (int j = i + 1; j < json.length(); j++) {
+                            char nextChar = json.charAt(j);
+                            if (nextChar == ' ' || nextChar == '\t' || nextChar == '\n' || nextChar == '\r') {
+                                continue; // 跳过空白字符
+                            }
+                            if (nextChar == ',' || nextChar == '}') {
+                                isEndQuote = true;
+                            }
+                            break;
+                        }
+                        
+                        if (isEndQuote) {
+                            // 值字符串结束
+                            sb.append('"');
+                            state = 0;
+                            inValue = false;
+                        } else {
+                            // 值字符串内部的双引号，改为单引号
+                            sb.append('\'');
+                        }
+                    } else if (c == ',' || c == '}') {
+                        // 值结束（没有遇到结束双引号的情况）
                         state = 0;
                         inValue = false;
                         sb.append(c);
