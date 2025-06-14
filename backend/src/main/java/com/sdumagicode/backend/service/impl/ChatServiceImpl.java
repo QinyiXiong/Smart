@@ -264,15 +264,18 @@ public class ChatServiceImpl implements ChatService {
             // 1. RAG搜索
             if(interviewer.getKnowledgeBaseId() != null){
                 MessageLocal lastMessage = messageList.get(messageList.size() - 1);
+                
+                // 限制用于搜索的文本长度，防止发送过长文本给embedding服务
+                String searchText = lastMessage.getContent().getText();
+                if (searchText != null && searchText.length() > 300) {
+                    searchText = searchText.substring(0, 300); // 只使用前300个字符进行搜索
+                }
 
-                 ragContent = milvusClient.buildRAGContent(
+                ragContent = milvusClient.buildRAGContent(
                         userId,
                         interviewer.getKnowledgeBaseId(),
-                        lastMessage.getContent().getText(),
+                        searchText,
                         5);
-
-
-
             }
 
             // 2. 生成Prompt
