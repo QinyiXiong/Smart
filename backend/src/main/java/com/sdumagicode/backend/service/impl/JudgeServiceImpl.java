@@ -899,6 +899,7 @@ public class JudgeServiceImpl implements JudgeService {
         int state = 0; // 0: 正常状态, 1: 在input值中, 2: 在output值中
         boolean inValue = false; // 是否在值字符串中
         int valueStart = -1; // 值字符串开始位置
+        int bracketCount = 0; // 跟踪方括号层级
         
         for (int i = 0; i < json.length(); i++) {
             char c = json.charAt(i);
@@ -933,6 +934,7 @@ public class JudgeServiceImpl implements JudgeService {
                         // 值字符串开始
                         inValue = true;
                         valueStart = sb.length();
+                        bracketCount = 0; // 重置方括号计数
                         sb.append('"'); // 保留边界双引号
                     } else if (c == '"' && inValue) {
                         // 检查是否是值字符串结束的双引号
@@ -943,7 +945,7 @@ public class JudgeServiceImpl implements JudgeService {
                             if (nextChar == ' ' || nextChar == '\t' || nextChar == '\n' || nextChar == '\r') {
                                 continue; // 跳过空白字符
                             }
-                            if (nextChar == ',' || nextChar == '}') {
+                            if ((nextChar == ',' || nextChar == '}') && bracketCount == 0) {
                                 isEndQuote = true;
                             }
                             break;
@@ -954,14 +956,20 @@ public class JudgeServiceImpl implements JudgeService {
                             sb.append('"');
                             state = 0;
                             inValue = false;
+                            bracketCount = 0;
                         } else {
                             // 值字符串内部的双引号，改为单引号
                             sb.append('\'');
                         }
-                    } else if (c == ',' || c == '}') {
+                    } else if (c == '[' && inValue) {
+                        bracketCount++;
+                        sb.append(c);
+                    } else if (c == ']' && inValue) {
+                        bracketCount--;
+                        sb.append(c);
+                    } else if ((c == ',' || c == '}') && !inValue) {
                         // 值结束（没有遇到结束双引号的情况）
                         state = 0;
-                        inValue = false;
                         sb.append(c);
                     } else if (c == '\\') {
                         // 处理转义字符
