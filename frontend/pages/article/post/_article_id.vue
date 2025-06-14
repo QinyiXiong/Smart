@@ -360,7 +360,7 @@ export default {
       }
       const query = this.interviewSearchQuery.toLowerCase();
       return this.interviewsList.filter(item =>
-        item.topic.toLowerCase().includes(query)
+        item.topic && item.topic.toLowerCase().includes(query)
       );
     }
   },
