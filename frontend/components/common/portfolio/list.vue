@@ -15,9 +15,9 @@
                 </div>
               </el-image>
             </el-col>
-            <el-col :span="12" style="padding-top: 30px;text-align: right;">
+            <!-- <el-col :span="12" style="padding-top: 30px;text-align: right;">
               <el-button @click="onRouter('portfolio', portfolio.idPortfolio)" round>阅读</el-button>
-            </el-col>
+            </el-col> -->
             <el-col style="padding-top: 20px;font-size: 16px;line-height: 22px;font-weight: 500;margin-bottom: 4px;">
               <span class="portTitle" v-html="portfolio.portfolioTitle"></span>
             </el-col>

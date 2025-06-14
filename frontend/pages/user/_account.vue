@@ -83,7 +83,7 @@
             <el-menu-item index="0">文章</el-menu-item>
             <el-menu-item index="1">作品集</el-menu-item>
             <!-- <el-menu-item index="2">关注用户</el-menu-item> -->
-            <el-menu-item index="3">粉丝</el-menu-item>
+            <!-- <el-menu-item index="3">粉丝</el-menu-item> -->
           </el-menu>
         </el-col>
       </el-row>
