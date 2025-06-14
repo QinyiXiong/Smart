@@ -250,23 +250,39 @@ public class InterviewerPromptGenerator {
     }
 
     public static String generateCoderPrompt(CodeSubmission codesubmissioner) {
+        // 计算失败的测试用例数
+        Integer totalTestCases = codesubmissioner.getTotalTestCases();
+        Integer passedTestCases = codesubmissioner.getPassedTestCases();
+        Integer failedTestCases = (totalTestCases != null && passedTestCases != null) ? 
+            totalTestCases - passedTestCases : null;
+        
         return PROMPT_TEMPLATE_OJ
                 + "\n代码：\n" + codesubmissioner.getCode()
                 + "\n代码评价：\n编程语言：" + codesubmissioner.getLanguage()
                 + "\n运行时间：" + codesubmissioner.getExecutionTime() + "\n"
                 + "\n内存占用：" + codesubmissioner.getMemoryUsage() + "\n"
                 + "\n错误信息：" + codesubmissioner.getErrorMessage() + "\n"
-                + "\n测试点通过数：" + codesubmissioner.getPassedTestCases();
+                + "\n测试用例总数：" + totalTestCases + "\n"
+                + "\n测试点通过数：" + passedTestCases + "\n"
+                + "\n测试点失败数：" + failedTestCases;
 
     }
 
     public static String generateCodeMessageContent(CodeSubmission codesubmissioner){
+        // 计算失败的测试用例数
+        Integer totalTestCases = codesubmissioner.getTotalTestCases();
+        Integer passedTestCases = codesubmissioner.getPassedTestCases();
+        Integer failedTestCases = (totalTestCases != null && passedTestCases != null) ? 
+            totalTestCases - passedTestCases : null;
+            
         return "\n代码：\n"+codesubmissioner.getCode()
                 +"\n代码评价：\n编程语言："+codesubmissioner.getLanguage()
                 +"\n运行时间："+codesubmissioner.getExecutionTime()+"\n"
                 +"\n内存占用："+codesubmissioner.getMemoryUsage()+"\n"
                 +"\n错误信息："+codesubmissioner.getErrorMessage()+"\n"
-                +"\n测试点通过数："+codesubmissioner.getPassedTestCases();
+                +"\n测试用例总数："+totalTestCases+"\n"
+                +"\n测试点通过数："+passedTestCases+"\n"
+                +"\n测试点失败数："+failedTestCases;
 
     }
 }
