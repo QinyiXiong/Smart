@@ -26,6 +26,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -252,6 +253,7 @@ public class JudgeServiceImpl implements JudgeService {
             submission.setLanguage(codeSubmitDTO.getLanguage());
             submission.setStatus("JUDGING");
             submission.setTotalTestCases(testCases.size());
+            submission.setSubmittedAt(LocalDateTime.now());
             codeSubmissionMapper.insert(submission);
 
             // 异步执行评测
