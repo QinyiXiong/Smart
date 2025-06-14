@@ -204,9 +204,10 @@
             </div>
           </el-card>
         </el-col>
-        <el-col>
+        <!-- 恢复评论框组件 -->
+        <el-col class="comment-box-wrapper">
           <comment-box :fetching="isFetching" :title="article.articleTitle"
-                       :authorId="article.articleAuthorId" @gotoLogin="gotoLogin"></comment-box>
+                      :authorId="article.articleAuthorId" @gotoLogin="gotoLogin"></comment-box>
         </el-col>
       </el-row>
     </div>
@@ -258,6 +259,7 @@ import PortfoliosWidget from '~/components/widget/portfolios';
 import EditTags from '~/components/widget/tags';
 import InterviewModal from '~/components/interview-modal';
 import 'vditor/dist/css/content-theme/light.css';
+import 'vditor/dist/index.css';
 import { buymeacoffee } from "simple-icons"
 import apiConfig from '~/config/api.config';
 
@@ -432,7 +434,7 @@ export default {
           if (res) {
             _ts.$message.success("关注成功");
           } else {
-            _ts.$message.error("取消关注");
+            _ts.$message.success("关注成功");
           }
           _ts.$set(_ts, 'isFollow', res);
           _ts.$store.dispatch('follow/fetchUserFollowingList');
@@ -1182,5 +1184,75 @@ body.resizing-layout * {
 
 .interviewer-btn:hover {
   background: linear-gradient(135deg, #66b1ff, #409eff);
+}
+
+/* 确保评论框正常显示 */
+.comment-box-wrapper {
+  width: 100%;
+  margin-top: 20px;
+  clear: both;
+  overflow: hidden;
+}
+
+/* 在有侧边详情面板时确保评论框还是在左面板内 */
+.article-container.with-detail .left-panel .comment-box-wrapper {
+  width: 100%;
+}
+
+/* 修复可能的vditor markdown编辑器样式问题 */
+.vditor {
+  position: relative !important;
+  width: 100% !important;
+  z-index: 1 !important;
+}
+
+/* 确保评论抽屉显示在侧边面板上方 */
+.el-drawer__wrapper {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  overflow: auto !important;
+  z-index: 3000 !important;
+}
+
+.el-drawer__container {
+  position: relative;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3000 !important;
+}
+
+/* 确保抽屉遮罩层可以正确显示 */
+.v-modal {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+  background: #000;
+  z-index: 2999 !important;
+}
+
+/* 确保Vditor编辑器在抽屉中正确显示 */
+.el-drawer__body {
+  padding: 20px !important;
+  height: calc(100% - 60px) !important;
+  overflow: auto !important;
+}
+
+.el-drawer__body .vditor {
+  height: calc(100% - 60px) !important;
+  min-height: 300px !important;
+  z-index: 3001 !important;
+}
+
+/* 确保vditor下拉菜单在抽屉上方显示 */
+.vditor-panel {
+  z-index: 3100 !important;
 }
 </style>
