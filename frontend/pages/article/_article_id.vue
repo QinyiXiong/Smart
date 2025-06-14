@@ -429,9 +429,15 @@ export default {
           followingId: idUser,
           followingType: 0
         }).then(function (res) {
+          if (res) {
+            _ts.$message.success("关注成功");
+          } else {
+            _ts.$message.error("取消关注");
+          }
           _ts.$set(_ts, 'isFollow', res);
           _ts.$store.dispatch('follow/fetchUserFollowingList');
         })
+
       } else {
         _ts.gotoLogin();
       }
