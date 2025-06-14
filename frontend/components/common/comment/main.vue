@@ -12,6 +12,10 @@
           <el-drawer
             :direction="direction"
             :visible.sync="drawer"
+            append-to-body
+            :modal-append-to-body="true"
+            :modal="true"
+            :wrapperClosable="true"
             size="50%">
             <el-col slot="title">
               <el-col>
@@ -151,7 +155,7 @@
 
 <script>
 import Vue from 'vue';
-import {mapState} from 'vuex';
+import { mapState } from 'vuex';
 import apiConfig from '~/config/api.config';
 
 export default {
@@ -171,9 +175,9 @@ export default {
     }
   },
   fetch() {
-    let {store, params, query} = this.$nuxt.context
+    let { store, params, query } = this.$nuxt.context
     return Promise.all([
-      store.dispatch('comment/fetchList', {post_id: params.article_id, page: query.page})
+      store.dispatch('comment/fetchList', { post_id: params.article_id, page: query.page })
     ])
   },
   computed: {
@@ -318,16 +322,27 @@ export default {
       let _ts = this;
       if (!_ts.initEditor) {
         _ts.$set(_ts, 'initEditor', true);
-        setTimeout(function () {
-          _ts.contentEditor = _ts._initEditor({
-            id: 'contentEditor',
-            mode: 'both',
-            height: 200,
-            placeholder: '', //this.$t('inputContent', this.$store.state.locale)
-            resize: false,
-            value: ''
-          });
-        }, 500);
+
+        // 使用nextTick确保DOM已更新
+        _ts.$nextTick(() => {
+          setTimeout(function () {
+            // 确保contentEditor元素存在
+            if (document.getElementById('contentEditor')) {
+              _ts.contentEditor = _ts._initEditor({
+                id: 'contentEditor',
+                mode: 'both',
+                height: 200,
+                placeholder: '', //this.$t('inputContent', this.$store.state.locale)
+                resize: false,
+                value: ''
+              });
+            } else {
+              console.error('contentEditor元素不存在');
+              // 如果元素不存在，重置状态以便下次尝试
+              _ts.$set(_ts, 'initEditor', false);
+            }
+          }, 500);
+        });
       }
     },
     gotoComment(commentId) {
@@ -406,6 +421,7 @@ export default {
   async mounted() {
     let _ts = this;
     _ts.$set(_ts, 'postId', _ts.$route.params.article_id);
+    console.log('评论组件初始化，文章ID:', _ts.postId);
     _ts.$store.commit('setActiveMenu', 'post-article');
     if (_ts.loggedIn) {
       const responseData = await _ts.$axios.$get('/api/upload/token');
@@ -422,7 +438,7 @@ export default {
       // 评论渲染
       const previewElements = document.getElementsByClassName("comment-content");
       if (previewElements && previewElements.length > 0) {
-        for (let i = 0; i<previewElements.length; i++) {
+        for (let i = 0; i < previewElements.length; i++) {
           const previewElement = previewElements[i];
           Vue.VditorPreview.codeRender(previewElement, 'zh_CN');
           Vue.VditorPreview.highlightRender({
@@ -431,7 +447,7 @@ export default {
             "style": "github"
           }, previewElement, apiConfig.VDITOR);
           Vue.VditorPreview.mathRender(previewElement, {
-            math: {"engine": "KaTeX", "inlineDigit": false, "macros": {}}, cdn: apiConfig.VDITOR
+            math: { "engine": "KaTeX", "inlineDigit": false, "macros": {} }, cdn: apiConfig.VDITOR
           });
           Vue.VditorPreview.mermaidRender(previewElement, apiConfig.VDITOR);
           Vue.VditorPreview.graphvizRender(previewElement, apiConfig.VDITOR);
@@ -481,6 +497,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

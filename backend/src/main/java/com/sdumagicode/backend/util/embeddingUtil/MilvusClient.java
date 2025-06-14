@@ -70,7 +70,7 @@ public class MilvusClient {
     }
 
     /**
-     * 优化后的文档分割方法 - 适合RAG数据库的分段存储
+     * 文档分割方法 - 适合RAG数据库的分段存储
      * @param content 原始文本内容
      * @return 分割后的文本块列表
      */

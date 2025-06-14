@@ -366,14 +366,17 @@ export default {
 .interview-modal {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 61px); /* 减去头部高度 */
+  height: calc(100vh - 61px);
+  /* 减去头部高度 */
   width: 100%;
   overflow: hidden;
-  max-width: 100%; /* 确保不超出父容器宽度 */
+  max-width: 100%;
+  /* 确保不超出父容器宽度 */
 }
 
 .interview-header {
-  display: none; /* 隐藏原有的标题，因为已经在父组件中显示标题 */
+  display: none;
+  /* 隐藏原有的标题，因为已经在父组件中显示标题 */
 }
 
 .debug-toggle {
@@ -431,7 +434,8 @@ export default {
   margin-bottom: 20px;
   max-width: 80%;
   position: relative;
-  word-break: break-word; /* 确保长文本会自动换行 */
+  word-break: break-word;
+  /* 确保长文本会自动换行 */
 }
 
 .user-message {

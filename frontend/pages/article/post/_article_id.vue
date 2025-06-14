@@ -218,14 +218,14 @@
       <el-col v-if="!isEdit" style="margin-top: 2rem;">
         <div class="action-section">
           <div class="action-buttons">
-            <el-button
+            <!-- <el-button
               :loading="doLoading"
               @click="saveArticle"
               size="large"
               class="action-btn draft-btn">
               <i class="el-icon-document-copy"></i>
               保存草稿
-            </el-button>
+            </el-button> -->
             <el-button
               type="primary"
               :loading="doLoading"

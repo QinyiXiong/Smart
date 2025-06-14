@@ -167,10 +167,10 @@
                     <i class="el-icon-user" style="margin-right: 8px;"></i>
                     个人中心
                   </el-dropdown-item>
-                  <el-dropdown-item command="drafts" class="modern-dropdown-item">
+                  <!-- <el-dropdown-item command="drafts" class="modern-dropdown-item">
                     <i class="el-icon-document" style="margin-right: 8px;"></i>
                     我的草稿
-                  </el-dropdown-item>
+                  </el-dropdown-item> -->
                   <el-dropdown-item command="user-info" class="modern-dropdown-item">
                     <i class="el-icon-setting" style="margin-right: 8px;"></i>
                     设置

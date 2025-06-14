@@ -7,7 +7,7 @@
           class="el-menu-vertical-demo"
           @select="handleSelectMenu">
           <template v-for="menu in menus">
-            <el-menu-item v-if="!(menu.isEdit)||false" :key="menu.name" :index="menu.name">
+            <el-menu-item v-if="!(menu.isEdit) || false" :key="menu.name" :index="menu.name">
               <i :class="menu.icon"></i>
               <span slot="title">{{ menu.title }}</span>
             </el-menu-item>
@@ -31,7 +31,7 @@
           </el-row>
           <el-row>
             <nuxt-child keep-alive
-                        :keep-alive-props="{include: editableTabs}"/>
+                        :keep-alive-props="{ include: editableTabs }"/>
           </el-row>
 
         </el-card>
@@ -51,7 +51,7 @@
 
 <script>
 import _ from 'lodash'
-import {mapState} from 'vuex';
+import { mapState } from 'vuex';
 
 export default {
   name: "Admin",
@@ -108,42 +108,6 @@ export default {
           icon: 'el-icon-price-tag',
           closable: true
         },
-        {
-          title: '银行管理',
-          name: 'admin-banks',
-          path: '/admin/banks',
-          icon: 'el-icon-office-building',
-          closable: true
-        },
-        {
-          title: '银行卡管理',
-          name: 'admin-bank-accounts',
-          path: '/admin/bank-accounts',
-          icon: 'el-icon-bank-card',
-          closable: true
-        },
-        {
-          title: '货币规则',
-          name: 'admin-currency-rules',
-          path: '/admin/currency-rules',
-          icon: 'el-icon-document',
-          closable: true
-        },
-        {
-          title: '产品管理',
-          name: 'admin-products',
-          path: '/admin/products',
-          icon: 'el-icon-box',
-          closable: true
-        },
-        {
-          title: '产品编辑',
-          name: 'admin-product-post-product_id',
-          path: '/admin/product/post/:id?',
-          icon: 'el-icon-postcard',
-          closable: true,
-          isEdit: true
-        }
       ]
     }
   },
@@ -221,6 +185,4 @@ export default {
 }
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

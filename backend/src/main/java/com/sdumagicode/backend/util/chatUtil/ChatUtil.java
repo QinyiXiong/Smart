@@ -58,8 +58,7 @@ public class ChatUtil {
             throws ApiException, NoApiKeyException, InputRequiredException {
         // 转换消息格式
         List<Message> messages = convertMessages(messageList,prompt);
-//        System.out.println("apikey: " + apiKey);
-//        System.out.println("app_id: " + APP_ID_INTERVIEWER);
+
 
         if (appType == AppType.INTERVIEWER){
             appId = APP_ID_INTERVIEWER;
