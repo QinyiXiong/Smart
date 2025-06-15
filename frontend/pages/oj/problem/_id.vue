@@ -384,7 +384,8 @@ export default {
         fontLigatures: true
       },
       monacoLoading: true,
-      monacoInstance: null
+      monacoInstance: null,
+      hasLoadedTemplate: false
     }
   },
   computed: {
@@ -405,9 +406,18 @@ export default {
     }
   },
   async created() {
-    await this.fetchProblemDetail()
-    // 加载代码模板
-    await this.$store.dispatch('code-template/fetchAllTemplates')
+    // 并行加载问题详情和代码模板，提高加载速度
+    const [problemResult, templateResult] = await Promise.allSettled([
+      this.fetchProblemDetail(),
+      this.$store.dispatch('code-template/fetchAllTemplates')
+    ])
+    
+    if (problemResult.status === 'rejected') {
+      console.error('加载问题详情失败:', problemResult.reason)
+    }
+    if (templateResult.status === 'rejected') {
+      console.error('加载代码模板失败:', templateResult.reason)
+    }
   },
   mounted() {
     // 获取URL参数
@@ -416,6 +426,7 @@ export default {
     if (query.branchId) this.branchId = query.branchId
     if (query.interviewerId) this.interviewerId = query.interviewerId
     
+    // 预加载Monaco编辑器
     this.loadMonaco()
   },
   beforeDestroy() {
@@ -490,20 +501,89 @@ export default {
       }
     },
     /**
+     * 确保代码模板已加载
+     */
+    async ensureTemplatesLoaded() {
+      try {
+        // 检查模板是否已加载
+        const templates = this.$store.state['code-template']?.templates
+        if (!templates || Object.keys(templates).length === 0) {
+          console.log('代码模板未加载，正在重新加载...')
+          await this.$store.dispatch('code-template/fetchAllTemplates')
+        }
+      } catch (error) {
+        console.error('确保模板加载失败:', error)
+      }
+    },
+    
+    /**
      * 加载指定语言的代码模板
      */
     async loadTemplateForLanguage(language) {
       try {
+        // 确保模板已加载
+        await this.ensureTemplatesLoaded()
+        
         // 从store获取模板
         const template = this.$store.getters['code-template/getTemplate'](language)
         if (template) {
           this.code = template
           if (this.monacoInstance) {
             this.monacoInstance.setValue(template)
+            // 设置光标位置到合适的编码区域
+            this.setCursorToCodeArea()
+          }
+          console.log(`已加载${language}代码模板`)
+        } else {
+          console.warn(`未找到${language}的代码模板`)
+          // 如果没有找到模板，尝试重新加载模板
+          await this.$store.dispatch('code-template/fetchAllTemplates')
+          const retryTemplate = this.$store.getters['code-template/getTemplate'](language)
+          if (retryTemplate) {
+            this.code = retryTemplate
+            if (this.monacoInstance) {
+              this.monacoInstance.setValue(retryTemplate)
+              this.setCursorToCodeArea()
+            }
+            console.log(`重试后成功加载${language}代码模板`)
           }
         }
       } catch (error) {
         console.error('加载代码模板失败:', error)
+        this.$message.warning(`加载${language}代码模板失败`)
+      }
+    },
+    
+    /**
+     * 设置光标到代码编写区域
+     */
+    setCursorToCodeArea() {
+      if (!this.monacoInstance) return
+      
+      try {
+        const model = this.monacoInstance.getModel()
+        const content = model.getValue()
+        
+        // 查找注释"在这里编写你的代码"的位置
+        const codeAreaComment = '// 在这里编写你的代码'
+        const lines = content.split('\n')
+        let targetLine = -1
+        
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].includes(codeAreaComment) || lines[i].includes('在这里编写你的代码')) {
+            targetLine = i + 1 // 移动到注释的下一行
+            break
+          }
+        }
+        
+        if (targetLine > 0 && targetLine < lines.length) {
+          // 设置光标位置
+          const position = { lineNumber: targetLine + 1, column: lines[targetLine].length + 1 }
+          this.monacoInstance.setPosition(position)
+          this.monacoInstance.revealLine(targetLine + 1)
+        }
+      } catch (error) {
+        console.error('设置光标位置失败:', error)
       }
     },
     
@@ -550,31 +630,63 @@ export default {
       return this.getResultText(status)
     },
     loadMonaco() {
+      // 检查是否已经加载过Monaco
+      if (window.monaco && window.monaco.editor) {
+        this.monacoLoading = false
+        this.initEditor()
+        return
+      }
+
       const loadScript = (src) => {
         return new Promise((resolve, reject) => {
+          // 检查是否已经存在相同的script标签
+          const existingScript = document.querySelector(`script[src="${src}"]`)
+          if (existingScript) {
+            if (existingScript.dataset.loaded === 'true') {
+              resolve()
+            } else {
+              existingScript.addEventListener('load', resolve)
+              existingScript.addEventListener('error', reject)
+            }
+            return
+          }
+
           const script = document.createElement('script')
           script.src = src
-          script.onload = resolve
+          script.onload = () => {
+            script.dataset.loaded = 'true'
+            resolve()
+          }
           script.onerror = reject
           document.head.appendChild(script)
         })
       }
 
       const initMonaco = () => {
-        // 配置 require
-        window.require.config({
-          paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.0/min/vs' }
-        })
+        try {
+          // 配置 require
+          window.require.config({
+            paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.0/min/vs' }
+          })
 
-        // 加载编辑器
-        window.require(['vs/editor/editor.main'], () => {
+          // 加载编辑器
+          window.require(['vs/editor/editor.main'], () => {
+            this.monacoLoading = false
+            this.initEditor()
+          }, (error) => {
+            console.error('Monaco Editor模块加载失败:', error)
+            this.$message.error('代码编辑器模块加载失败')
+            this.monacoLoading = false
+          })
+        } catch (error) {
+          console.error('Monaco Editor配置失败:', error)
+          this.$message.error('代码编辑器配置失败')
           this.monacoLoading = false
-          this.initEditor()
-        })
+        }
       }
 
       // 如果已经加载了 loader.js
-      if (window.require) {
+      if (window.require && typeof window.require.config === 'function') {
         initMonaco()
       } else {
         loadScript('https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.0/min/vs/loader.js')
@@ -582,16 +694,25 @@ export default {
             initMonaco()
           })
           .catch((error) => {
-            console.error('Failed to load Monaco Editor:', error)
+            console.error('Failed to load Monaco Editor loader:', error)
             this.$message.error('代码编辑器加载失败，请刷新页面重试')
+            this.monacoLoading = false
           })
       }
     },
-    initEditor() {
+    async initEditor() {
       try {
         const container = this.$refs.monacoContainer
         if (!container) {
           throw new Error('Editor container not found')
+        }
+
+        // 等待代码模板加载完成
+        await this.ensureTemplatesLoaded()
+        
+        // 如果还没有代码，先加载默认模板
+        if (!this.code) {
+          await this.loadTemplateForLanguage(this.language || 'java')
         }
 
         // 创建编辑器实例
@@ -608,7 +729,12 @@ export default {
             enabled: true
           },
           automaticLayout: true,
-          wordWrap: 'on'
+          wordWrap: 'on',
+          // 优化性能的配置
+          renderLineHighlight: 'line',
+          renderWhitespace: 'none',
+          smoothScrolling: true,
+          cursorBlinking: 'smooth'
         })
 
         // 监听内容变化
@@ -617,8 +743,8 @@ export default {
         })
 
         // 监听语言变化
-        this.$watch('language', async (newLang) => {
-          if (this.monacoInstance) {
+        this.$watch('language', async (newLang, oldLang) => {
+          if (this.monacoInstance && newLang !== oldLang) {
             const model = this.monacoInstance.getModel()
             if (model) {
               window.monaco.editor.setModelLanguage(model, newLang)
@@ -639,32 +765,133 @@ export default {
           }
         })
 
-        // 触发一次重新布局
-        setTimeout(() => {
+        // 延迟布局以确保容器尺寸正确
+        this.$nextTick(() => {
           if (this.monacoInstance) {
             this.monacoInstance.layout()
+            // 聚焦到编辑器
+            this.monacoInstance.focus()
           }
-        }, 100)
+        })
         
-        // 如果还没有加载过模板，则加载当前语言的模板
-        if (!this.hasLoadedTemplate) {
-          this.loadTemplateForLanguage(this.language)
-          this.hasLoadedTemplate = true
-        }
+        this.hasLoadedTemplate = true
+        console.log('Monaco编辑器初始化完成')
       } catch (error) {
         console.error('Failed to initialize Monaco Editor:', error)
         this.$message.error('代码编辑器初始化失败')
-        this.monacoLoading = true
+        this.monacoLoading = false
       }
     },
     formatCode() {
-      if (this.monacoInstance) {
-        const action = this.monacoInstance.getAction('editor.action.formatDocument')
-        if (action) {
-          action.run()
+  if (!this.monacoInstance) {
+    this.$message.warning('代码编辑器未初始化')
+    return
+  }
+
+  try {
+    const currentCode = this.monacoInstance.getValue()
+    if (!currentCode.trim()) {
+      this.$message.info('代码为空，无需格式化')
+      return
+    }
+
+    // 显示格式化进度
+    const loading = this.$loading({
+      target: '.monaco-editor-container',
+      text: '正在格式化代码...',
+      spinner: 'el-icon-loading'
+    })
+
+    // 尝试Monaco内置格式化
+    const action = this.monacoInstance.getAction('editor.action.formatDocument')
+    if (action) {
+      Promise.resolve(action.run()).then(() => {
+        // 检查格式化是否成功，如果代码没有变化则使用备用方案
+        const newCode = this.monacoInstance.getValue()
+        if (newCode === currentCode) {
+          this.fallbackFormat(currentCode)
+        } else {
+          this.$message.success('代码格式化完成')
         }
-      }
-    },
+        loading.close()
+      }).catch((error) => {
+        console.error('Monaco格式化失败:', error)
+        this.fallbackFormat(currentCode)
+        loading.close()
+      })
+    } else {
+      this.fallbackFormat(currentCode)
+      loading.close()
+    }
+  } catch (error) {
+    console.error('代码格式化出错:', error)
+    this.$message.error('代码格式化失败，请检查代码语法')
+  }
+},
+
+// 备用Java格式化方法
+fallbackFormat(code) {
+  try {
+    let formattedCode = this.formatJavaCode(code || this.monacoInstance.getValue())
+    
+    if (formattedCode !== code) {
+      this.monacoInstance.setValue(formattedCode)
+      this.$message.success('代码格式化完成')
+    } else {
+      this.$message.info('代码已经是格式化状态')
+    }
+  } catch (error) {
+    console.error('备用格式化失败:', error)
+    this.$message.error('代码格式化失败')
+  }
+},
+
+// 改进的Java代码格式化
+formatJavaCode(code) {
+  let lines = code.split('\n')
+  let formattedLines = []
+  let indentLevel = 0
+  let inComment = false
+  
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim()
+    
+    // 跳过空行
+    if (!line) {
+      formattedLines.push('')
+      continue
+    }
+    
+    // 处理多行注释
+    if (line.includes('/*')) inComment = true
+    if (inComment) {
+      formattedLines.push('    '.repeat(indentLevel) + line)
+      if (line.includes('*/')) inComment = false
+      continue
+    }
+    
+    // 处理右大括号 - 先减少缩进
+    if (line.startsWith('}')) {
+      indentLevel = Math.max(0, indentLevel - 1)
+    }
+    
+    // 添加格式化的行
+    formattedLines.push('    '.repeat(indentLevel) + line)
+    
+    // 处理左大括号 - 后增加缩进
+    if (line.endsWith('{')) {
+      indentLevel++
+    }
+  }
+  
+  return formattedLines.join('\n')
+    // 清理多余的空行
+    .replace(/\n\s*\n\s*\n/g, '\n\n')
+    // 确保import语句后有空行
+    .replace(/(import\s+[^;]+;)\n([^\n])/g, '$1\n\n$2')
+    // 确保类声明前有空行
+    .replace(/\n(public\s+class)/g, '\n\n$1')
+},
     async fetchProblemDetail() {
       try {
         const id = this.$route.params.id
