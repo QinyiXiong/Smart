@@ -297,14 +297,7 @@ public class ChatController {
             }
         }
 
-        if (keys != null) {
-            for (String key : keys) {
-                String value = redisService.get(key);
-                if (value != null) {
-                    actions.add(value);
-                }
-            }
-        }
+   
 
         return GlobalResultGenerator.genSuccessResult(actions);
     }
