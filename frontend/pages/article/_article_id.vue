@@ -578,6 +578,16 @@ export default {
 
     // 查看面试详情
     viewInterviewDetail(interviewId) {
+      if (!this.$store.state.auth.loggedIn) {
+        this.$router.push({
+          path: '/login',
+          query: {
+            historyUrl: window.location.href
+          }
+        });
+        this.$message.warning('请先登录后再查看面试详情');
+        return;
+      }
       if (this.selectedInterviewId === interviewId) {
         this.closeInterviewDetail();
       } else {

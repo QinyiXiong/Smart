@@ -132,35 +132,7 @@ export default {
         console.log('API响应:', response.data);
         this.apiResponse = response.data;
 
-        if (response.data?.data) {
-          this.allBranches = response.data.data;
-
-          // 找到根分支（parentBranchIndex为-1，index为0的通常是根分支）
-          this.rootBranch = this.allBranches.find(b => b.index === 0);
-
-          if (this.rootBranch) {
-            this.interview = {
-              topic: this.rootBranch.topic || '面试对话',
-              chatId: this.interviewId
-            };
-
-            // 查找第一个有消息的分支作为默认显示分支
-            const firstBranchWithMessages = this.allBranches.find(
-              b => b.messageLocals && b.messageLocals.length > 0
-            );
-
-            // 构建分支路径并显示消息
-            if (firstBranchWithMessages) {
-              await this.buildPathForTargetBranch(firstBranchWithMessages);
-            } else {
-              await this.buildPathForTargetBranch(this.rootBranch);
-            }
-          } else {
-            this.$message.warning('未找到面试记录内容');
-            console.log('根分支数据不存在');
-            this.apiError = '根分支不存在';
-          }
-        } else if (response.data) { // 处理可能没有data字段的情况
+        if (response.data) {
           this.allBranches = response.data;
 
           // 找到根分支（parentBranchIndex为-1，index为0的通常是根分支）
@@ -176,7 +148,7 @@ export default {
             const firstBranchWithMessages = this.allBranches.find(
               b => b.messageLocals && b.messageLocals.length > 0
             );
-
+            console.log("firstBranchWithMessages", firstBranchWithMessages)
             // 构建分支路径并显示消息
             if (firstBranchWithMessages) {
               await this.buildPathForTargetBranch(firstBranchWithMessages);
@@ -207,6 +179,23 @@ export default {
     // 构建到目标分支的路径
     async buildPathForTargetBranch(targetBranch) {
       if (!targetBranch) return;
+      console.log("targetBranch", targetBranch)
+
+      // 确保targetBranch是叶子节点 切换分支时找兄弟节点的特殊情况
+      if (targetBranch) {
+        // 如果有子分支，寻找最末端的叶子节点
+        while (targetBranch.children && targetBranch.children.length > 0) {
+          // 找出子分支中最新的一个（通常index值最大）
+          const maxChildIndex = Math.max(...targetBranch.children.map(c => c.branchIndex || 0));
+          const nextBranch = this.allBranches.find(b => b.index === maxChildIndex);
+
+          if (nextBranch) {
+            targetBranch = nextBranch;
+          } else {
+            break; // 找不到下一个分支，结束循环
+          }
+        }
+      }
 
       // 1. 向上查找父分支链
       const parentChain = [];
@@ -238,7 +227,7 @@ export default {
             // 将消息添加到展示列表中
             this.messageListForShow.push(...branchMessages);
 
-            // 添加兄弟节点信息
+            // 添加兄弟节点信息 branchId
             if (parentBranch && parentBranch.children) {
               this.siblingNodes.push({
                 index: branch.index,
@@ -321,15 +310,6 @@ export default {
       if (targetBranch) {
         await this.buildPathForTargetBranch(targetBranch);
       }
-    },
-
-    // 生成UUID
-    generateUuid() {
-      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-        const r = Math.random() * 16 | 0,
-          v = c === 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-      });
     },
 
     renderMarkdown(text, role) {
