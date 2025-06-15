@@ -25,7 +25,7 @@ public class InterviewerPromptGenerator {
             "\n" +
             "你是一个计算机相关岗位的面试官张三\n" +
             "# 重要！！！: 当前的聊天记录管理不会保存mcp工具调用内容，除自我介绍外每次对话都需要调用update_valuation工具，仅根据当前对话内容和上面规则的定义来判断，update_valuation需要在一开始就调用，不要放在中间调用" +
-             "- 询问阶段总共20个问题，围绕一个方面的多个问题（不要超过三个）算多个问题，你要内置一个计数器，每次我回答完毕后都要给计数器加1，确定是否该进入算法题（最后一道题）或进入结束阶段，若没有到最后一道问题且还不该结束，再根据我的回答考虑如何询问下一个问题。不用告诉我是第几个，当完成最后一个问题（也就是算法题）后进入结束阶段。\n" +
+            "- 询问阶段总共20个问题，围绕一个方面的多个问题（不要超过三个）算多个问题，你要内置一个计数器，每次我回答完毕后都要给计数器加1，确定是否该进入算法题（最后一道题）或进入结束阶段，若没有到最后一道问题且还不该结束，再根据我的回答考虑如何询问下一个问题。不用告诉我是第几个，当完成最后一个问题（也就是算法题）后进入结束阶段。\n" +
             "- 你的问题集中在计算机常见领域，通常包括：计算机网络，数据库，操作系统，C++，java，Go语言等编程语言，机器学习等相关领域。具体侧重应该根据应聘公司和岗位需求来决定。\n" +
             "- 你的问题会有五个考察标准：项目经验(项目中的技术栈和技术要点)，基础知识，系统设计，算法能力，沟通能力。你的问题要覆盖前三个方向。在用户完成最后一道算法题后，会有另一个ai来完成代码的评测，然后会对答题代码给出一个评分；而第五个方面（沟通能力）你要根据我的回答流利程度来判断（比如我回答的是否自信清晰，或者是回答的语言组织不畅等）。\n" +
             "- 总共20个问题，5个项目经验方面的问题，10个基础知识方面的问题，4个系统设计方面的问题，1个算法题。每次问问题时都要记住当前是哪个方向的问题，便于我回答后给那个方面加分。\n" +
@@ -106,7 +106,7 @@ public class InterviewerPromptGenerator {
             "加载对应题目的测试用例集（默认包含10组隐藏用例）\n" +
             "2、执行验证阶段：\n" +
             "▶正确性检测（权重60分）\n" +
-            "基础用例测试：运行5组公开样例（反馈通过率如3/5）\n" +
+            "基础用例测试：运行n组公开样例（反馈通过率如3/n）\n" +
             "边界条件测试：检测整数溢出/空输入等场景\n" +
             "压力测试：输入规模达到题目要求上限（如n=1e5）\n" +
             "▶效率评估（权重30分）\n" +
@@ -165,21 +165,21 @@ public class InterviewerPromptGenerator {
         return valuationPrompt;
     }
 
-    public String generatePrompt(Interviewer interviewer){ 
-        Long currentChatId = UserUtils.getCurrentChatId(); 
-        ValuationRecord byChatId = valuationRecordRepository.findByChatId(currentChatId); 
-        
+    public String generatePrompt(Interviewer interviewer){
+        Long currentChatId = UserUtils.getCurrentChatId();
+        ValuationRecord byChatId = valuationRecordRepository.findByChatId(currentChatId);
+
         // 添加评分信息
         StringBuilder valuationInfo = new StringBuilder("\n当前的评分信息：");
         if (byChatId != null && byChatId.getValuationRanks() != null) {
             for (ValuationRank rank : byChatId.getValuationRanks()) {
                 valuationInfo.append(rank.getValuation().getValuationName())
-                           .append(":")
-                           .append(rank.getRank())
-                           .append(" ");
+                        .append(":")
+                        .append(rank.getRank())
+                        .append(" ");
             }
         }
-        
+
         return PROMPT_TEMPLATE
                 + generateValuationStandardsPrompt()
                 + "\n用户提示词部分：" + interviewer.getCustomPrompt()
@@ -249,55 +249,40 @@ public class InterviewerPromptGenerator {
     }
 
     public static String generateCoderPrompt(CodeSubmission codesubmissioner) {
+        // 计算失败的测试用例数
+        Integer totalTestCases = codesubmissioner.getTotalTestCases();
+        Integer passedTestCases = codesubmissioner.getPassedTestCases();
+        Integer failedTestCases = (totalTestCases != null && passedTestCases != null) ? 
+            totalTestCases - passedTestCases : null;
+        
         return PROMPT_TEMPLATE_OJ
                 + "\n代码：\n" + codesubmissioner.getCode()
                 + "\n代码评价：\n编程语言：" + codesubmissioner.getLanguage()
                 + "\n运行时间：" + codesubmissioner.getExecutionTime() + "\n"
                 + "\n内存占用：" + codesubmissioner.getMemoryUsage() + "\n"
                 + "\n错误信息：" + codesubmissioner.getErrorMessage() + "\n"
-                + "\n测试点通过数：" + codesubmissioner.getPassedTestCases();
+                + "\n测试用例总数：" + totalTestCases + "\n"
+                + "\n测试点通过数：" + passedTestCases + "\n"
+                + "\n测试点失败数：" + failedTestCases;
 
     }
 
     public static String generateCodeMessageContent(CodeSubmission codesubmissioner){
+        // 计算失败的测试用例数
+        Integer totalTestCases = codesubmissioner.getTotalTestCases();
+        Integer passedTestCases = codesubmissioner.getPassedTestCases();
+        Integer failedTestCases = (totalTestCases != null && passedTestCases != null) ? 
+            totalTestCases - passedTestCases : null;
+            
         return "\n代码：\n"+codesubmissioner.getCode()
                 +"\n代码评价：\n编程语言："+codesubmissioner.getLanguage()
                 +"\n运行时间："+codesubmissioner.getExecutionTime()+"\n"
                 +"\n内存占用："+codesubmissioner.getMemoryUsage()+"\n"
                 +"\n错误信息："+codesubmissioner.getErrorMessage()+"\n"
-                +"\n测试点通过数："+codesubmissioner.getPassedTestCases();
+                +"\n测试用例总数："+totalTestCases+"\n"
+                +"\n测试点通过数："+passedTestCases+"\n"
+                +"\n测试点失败数："+failedTestCases;
 
     }
 }
-//                            _ooOoo_
-//                           o8888888o
-//                           88" . "88
-//                           (| -_- |)
-//                            O\ = /O
-//                        ____/`---'\____
-//                      .   ' \\| |// `.
-//                       / \\||| : |||// \
-//                     / _||||| -:- |||||- \
-//                       | | \\\ - /// | |
-//                     | \_| ''\---/'' | |
-//                      \ .-\__ `-` ___/-. /
-//                   ___`. .' /--.--\ `. . __
-//                ."" '< `.___\_<|>_/___.' >'"".
-//               | | : `- \`.;`\ _ /`;.`/ - ` : | |
-//                 \ \ `-. \_ __\ /__ _/ .-` / /
-//         ======`-.____`-.___\_____/___.-`____.-'======
-//                            `=---='
-
-// .............................................
-// 佛祖镇楼 BUG辟易
-// 佛曰:
-// 写字楼里写字间，写字间里程序员；
-// 程序人员写程序，又拿程序换酒钱。
-// 酒醒只在网上坐，酒醉还来网下眠；
-// 酒醉酒醒日复日，网上网下年复年。
-// 但愿老死电脑间，不愿鞠躬老板前；
-// 奔驰宝马贵者趣，公交自行程序员。
-// 别人笑我忒疯癫，我笑自己命太贱；
-// 不见满街漂亮妹，哪个归得程序员？
-
 
