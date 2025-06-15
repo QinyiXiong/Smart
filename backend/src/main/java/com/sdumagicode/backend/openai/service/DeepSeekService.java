@@ -6,8 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 
 import okhttp3.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -22,13 +20,14 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class DeepSeekService {
 
-    private static final Logger logger = LoggerFactory.getLogger(DeepSeekService.class);
     private static final String API_URL = "https://api.deepseek.com/v1/chat/completions";
 
     @Value("${deepseek.api.key}")
     private String apiKey;
 
+    // 创建HTTP客服端
     private final OkHttpClient client;
+    // 创建对象映射器
     private final ObjectMapper objectMapper;
 
     public DeepSeekService() {
@@ -47,18 +46,20 @@ public class DeepSeekService {
     /**
      * 发送聊天请求到DeepSeek API
      * 
-     * @param messages 消息列表
+     * @param messages 消息列表 role & content
      * @param model 模型名称，默认为 "deepseek-chat"
-     * @param temperature 温度参数，控制随机性
+     * @param temperature 温度参数，默认为0.7，控制随机性，值越低越确定，值越高越随机
      * @return API响应的JSON字符串
      * @throws IOException 如果API请求失败
      */
     public String chatCompletion(List<Map<String, String>> messages, String model, double temperature) throws IOException {
+        // 创建HashMap存储API所需参数
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("messages", messages);
         requestBody.put("model", model);
         requestBody.put("temperature", temperature);
 
+        // 使用Jackson的ObjectMapper将Map转换为JSON字符串
         String jsonBody = objectMapper.writeValueAsString(requestBody);
         
         RequestBody body = RequestBody.create(
@@ -102,37 +103,6 @@ public class DeepSeekService {
         message.put("role", role);
         message.put("content", content);
         return message;
-    }
-    
-    /**
-     * 流式聊天请求（SSE）
-     * 
-     * @param messages 消息列表
-     * @param model 模型名称
-     * @param temperature 温度参数
-     * @param callback 回调函数，用于处理每个SSE事件
-     * @throws IOException 如果API请求失败
-     */
-    public void streamingChatCompletion(List<Map<String, String>> messages, String model, double temperature, Callback callback) throws IOException {
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("messages", messages);
-        requestBody.put("model", model);
-        requestBody.put("temperature", temperature);
-        requestBody.put("stream", true);
-
-        String jsonBody = objectMapper.writeValueAsString(requestBody);
-        
-        RequestBody body = RequestBody.create(
-            MediaType.parse("application/json"), jsonBody);
-            
-        Request request = new Request.Builder()
-            .url(API_URL)
-            .addHeader("Authorization", "Bearer " + apiKey)
-            .addHeader("Content-Type", "application/json")
-            .post(body)
-            .build();
-            
-        client.newCall(request).enqueue(callback);
     }
     
     /**

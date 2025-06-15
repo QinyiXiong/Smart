@@ -163,7 +163,6 @@ public class UploadController {
         TokenUser tokenUser = getTokenUser(request);
         File file = genFile(type);
         String typePath = FilePath.getPath(type);
-        String localPath = Utils.getProperty("resource.file-path") + "/" + typePath + "/";
         Map<String, String> successMap = new HashMap<>(16);
         Set<String> errFiles = new HashSet<>();
 

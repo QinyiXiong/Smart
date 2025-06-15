@@ -43,22 +43,13 @@ instance.interceptors.response.use(
     return response.data
   },
   (error) => {
-    // 处理HTTP错误状态码
+    // 处理HTTP错误状态码 401
+    // 身份验证凭证过期
     if (error.response) {
       switch (error.response.status) {
         case 401:
           window.location.href = '/login'
           break
-      }
-
-      // 忽略MissingServletRequestParameterException错误
-      if (
-        error.response.data &&
-        error.response.data.message &&
-        error.response.data.message.includes('MissingServletRequestParameterException') &&
-        error.response.data.message.includes('followingId')
-      ) {
-        return Promise.resolve({})
       }
     }
 

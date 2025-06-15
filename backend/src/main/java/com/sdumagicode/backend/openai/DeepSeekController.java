@@ -50,6 +50,7 @@ public class DeepSeekController {
     @PostMapping("/chat")
     public GlobalResult<String> chatCompletion(@RequestBody Map<String, Object> requestBody) {
         try {
+            // 抑制编译器对未经检查的类型转换所发出的警告。
             @SuppressWarnings("unchecked")
             List<Map<String, String>> messages = (List<Map<String, String>>) requestBody.get("messages");
             String model = requestBody.containsKey("model") ? (String) requestBody.get("model") : "deepseek-chat";

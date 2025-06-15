@@ -59,6 +59,7 @@ public class ShareController {
         return GlobalResultGenerator.genSuccessStringDataResult(interviewer);
     }
     
+    // 通过用户ID获取用户创建和获取的面试官
     @GetMapping("/getUserInterviewers")
     public GlobalResult getUserInterviewers() {
         Long idUser = UserUtils.getCurrentUserByToken().getIdUser();
@@ -68,6 +69,7 @@ public class ShareController {
         return GlobalResultGenerator.genSuccessResult(interviewers);
     }
 
+    // 通过用户ID获取用户创建和获取的面试记录
     @GetMapping("/getUserChatRecords")
     public GlobalResult getUserChatRecords() {
         Long idUser = UserUtils.getCurrentUserByToken().getIdUser();
